@@ -1178,8 +1178,8 @@ async function _bootPanel() {
   initPriceWidget();            // start BTC price polling
   initRealtime();               // subscribe to live changes
 
-  AdminUI.activateTab('overview');
-  await loadSection('overview');
+  AdminUI.activateTab('deposits');
+  await loadSection('deposits');
 }
 
 /* ══════════════════════════════════════════════════════════════════════
