@@ -1,7 +1,7 @@
 // ─── CryptoVault Admin Panel ───
 
 const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_ANON_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
