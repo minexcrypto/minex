@@ -1,3 +1,4 @@
+```javascript
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — dashboard.js
    Dashboard-specific logic: charts, mining stats, transactions
@@ -45,94 +46,177 @@ function initEarningsChart() {
   function getX(i) { return (i / (data.length - 1)) * (w - 40) + 20; }
   function getY(v) { return h - 20 - ((v - min) / range) * (h - 50); }
 
-  // Gradient fill
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
   gradient.addColorStop(0, 'rgba(245,158,11,0.3)');
   gradient.addColorStop(1, 'rgba(245,158,11,0.0)');
 
-  // Grid lines
   ctx.strokeStyle = 'rgba(30,45,69,0.6)';
   ctx.lineWidth = 1;
+
   for (let i = 0; i < 4; i++) {
     const y = 20 + (i * (h - 50) / 3);
     ctx.beginPath();
-    ctx.moveTo(20, y); ctx.lineTo(w - 20, y);
+    ctx.moveTo(20, y);
+    ctx.lineTo(w - 20, y);
     ctx.stroke();
   }
 
-  // Area
   ctx.beginPath();
   ctx.moveTo(getX(0), h - 20);
-  data.forEach((v, i) => ctx.lineTo(getX(i), getY(v)));
+
+  data.forEach((v, i) => {
+    ctx.lineTo(getX(i), getY(v));
+  });
+
   ctx.lineTo(getX(data.length - 1), h - 20);
   ctx.closePath();
+
   ctx.fillStyle = gradient;
   ctx.fill();
 
-  // Line
   ctx.beginPath();
+
   ctx.strokeStyle = '#f59e0b';
   ctx.lineWidth = 2.5;
   ctx.lineJoin = 'round';
-  data.forEach((v, i) => i === 0 ? ctx.moveTo(getX(i), getY(v)) : ctx.lineTo(getX(i), getY(v)));
+
+  data.forEach((v, i) => {
+    if(i === 0){
+      ctx.moveTo(getX(i), getY(v));
+    }else{
+      ctx.lineTo(getX(i), getY(v));
+    }
+  });
+
   ctx.stroke();
 
-  // Dots
   data.forEach((v, i) => {
+
     ctx.beginPath();
-    ctx.arc(getX(i), getY(v), 3.5, 0, Math.PI * 2);
+
+    ctx.arc(
+      getX(i),
+      getY(v),
+      3.5,
+      0,
+      Math.PI * 2
+    );
+
     ctx.fillStyle = '#f59e0b';
+
     ctx.fill();
+
     ctx.strokeStyle = '#1a2236';
+
     ctx.lineWidth = 2;
+
     ctx.stroke();
+
   });
+
 }
 
 /* ─── HASHRATE CHART ────────────────────────────────────── */
 function initHashrateChart() {
-  const canvas = document.getElementById('hashrateChart');
+
+  const canvas =
+  document.getElementById('hashrateChart');
+
   if (!canvas) return;
+
   const ctx = canvas.getContext('2d');
+
   const w = canvas.width = canvas.offsetWidth;
+
   const h = canvas.height = 100;
 
   const data = MiningData.hashrates;
+
   const max = Math.max(...data);
+
   const min = Math.min(...data);
+
   const range = max - min || 1;
 
-  function getX(i) { return (i / (data.length - 1)) * (w - 20) + 10; }
-  function getY(v) { return h - 10 - ((v - min) / range) * (h - 24); }
+  function getX(i) {
+    return (i / (data.length - 1)) * (w - 20) + 10;
+  }
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, 'rgba(16,185,129,0.25)');
-  gradient.addColorStop(1, 'rgba(16,185,129,0.0)');
+  function getY(v) {
+    return h - 10 - ((v - min) / range) * (h - 24);
+  }
+
+  const gradient =
+  ctx.createLinearGradient(0,0,0,h);
+
+  gradient.addColorStop(0,'rgba(16,185,129,0.25)');
+  gradient.addColorStop(1,'rgba(16,185,129,0.0)');
 
   ctx.beginPath();
+
   ctx.moveTo(getX(0), h);
-  data.forEach((v, i) => ctx.lineTo(getX(i), getY(v)));
+
+  data.forEach((v, i) => {
+    ctx.lineTo(getX(i), getY(v));
+  });
+
   ctx.lineTo(getX(data.length - 1), h);
+
   ctx.closePath();
+
   ctx.fillStyle = gradient;
+
   ctx.fill();
 
   ctx.beginPath();
+
   ctx.strokeStyle = '#10b981';
+
   ctx.lineWidth = 2;
+
   ctx.lineJoin = 'round';
-  data.forEach((v, i) => i === 0 ? ctx.moveTo(getX(i), getY(v)) : ctx.lineTo(getX(i), getY(v)));
+
+  data.forEach((v, i) => {
+
+    if(i === 0){
+
+      ctx.moveTo(getX(i), getY(v));
+
+    }else{
+
+      ctx.lineTo(getX(i), getY(v));
+
+    }
+
+  });
+
   ctx.stroke();
+
 }
 
-/* ─── PORTFOLIO DONUT ───────────────────────────────────── */
+/* ─── DONUT ────────────────────────────────────── */
 function initDonut() {
-  const canvas = document.getElementById('donutChart');
+
+  const canvas =
+  document.getElementById('donutChart');
+
   if (!canvas) return;
+
   const ctx = canvas.getContext('2d');
+
   const size = 120;
-  canvas.width = size; canvas.height = size;
-  const cx = size / 2, cy = size / 2, r = 44, rw = 16;
+
+  canvas.width = size;
+
+  canvas.height = size;
+
+  const cx = size / 2;
+
+  const cy = size / 2;
+
+  const r = 44;
+
+  const rw = 16;
 
   const segments = [
     { pct: 0.58, color: '#f7931a' },
@@ -142,194 +226,194 @@ function initDonut() {
   ];
 
   let start = -Math.PI / 2;
+
   segments.forEach(seg => {
-    const angle = seg.pct * 2 * Math.PI;
+
+    const angle =
+    seg.pct * 2 * Math.PI;
+
     ctx.beginPath();
+
     ctx.arc(cx, cy, r, start, start + angle);
-    ctx.arc(cx, cy, r - rw, start + angle, start, true);
+
+    ctx.arc(
+      cx,
+      cy,
+      r - rw,
+      start + angle,
+      start,
+      true
+    );
+
     ctx.closePath();
+
     ctx.fillStyle = seg.color;
+
     ctx.fill();
+
     start += angle + 0.03;
+
   });
 
-  // center text
   ctx.fillStyle = '#f1f5f9';
-  ctx.font = 'bold 13px Syne, sans-serif';
+
+  ctx.font = 'bold 13px Arial';
+
   ctx.textAlign = 'center';
+
   ctx.textBaseline = 'middle';
+
   ctx.fillText('BTC', cx, cy - 6);
-  ctx.font = '10px Outfit, sans-serif';
+
+  ctx.font = '10px Arial';
+
   ctx.fillStyle = '#94a3b8';
+
   ctx.fillText('58%', cx, cy + 8);
+
 }
 
-/* ─── TRANSACTIONS TABLE ────────────────────────────────── */
+/* ─── TRANSACTIONS ────────────────────────────────────── */
 function renderTransactions(filter = 'all') {
-  const tbody = document.getElementById('txTableBody');
+
+  const tbody =
+  document.getElementById('txTableBody');
+
   if (!tbody) return;
 
-  const txMap = { mining: '⛏️', in: '📥', out: '📤' };
-  const typeLabel = { mining: 'Mining', in: 'Deposit', out: 'Withdrawal' };
+  const filtered =
+  filter === 'all'
+  ? MiningData.transactions
+  : MiningData.transactions.filter(
+      t => t.type === filter
+    );
 
-  const filtered = filter === 'all'
-    ? MiningData.transactions
-    : MiningData.transactions.filter(t => t.type === filter);
+  tbody.innerHTML =
+  filtered.map(tx => `
 
-  tbody.innerHTML = filtered.map(tx => `
-    <tr>
-      <td>
-        <div class="flex items-center gap-8">
-          <div class="tx-icon ${tx.type}">${txMap[tx.type]}</div>
-          <div>
-            <div class="td-primary">${tx.desc}</div>
-            <div class="text-xs text-muted mono">${tx.id}</div>
-          </div>
-        </div>
-      </td>
-      <td><span class="badge badge-muted">${tx.coin}</span></td>
-      <td class="td-primary mono" style="color:${tx.amount[0]==='+' ? 'var(--green)' : 'var(--red)'}">${tx.amount}</td>
-      <td class="text-muted">${tx.usd}</td>
-      <td><span class="badge ${tx.status === 'success' ? 'badge-success' : 'badge-warning'}">${tx.status}</span></td>
-      <td class="text-muted text-sm">${tx.date}</td>
-    </tr>
-  `).join('');
+<tr>
+
+<td>${tx.desc}</td>
+
+<td>${tx.coin}</td>
+
+<td style="color:
+${tx.amount[0] === '+' ? '#10b981' : '#ef4444'}">
+
+${tx.amount}
+
+</td>
+
+<td>${tx.usd}</td>
+
+<td>${tx.status}</td>
+
+<td>${tx.date}</td>
+
+</tr>
+
+`).join('');
+
 }
 
-/* ─── MINING CONTRACTS ──────────────────────────────────── */
+/* ─── CONTRACTS ────────────────────────────────────── */
 function renderContracts() {
-  const container = document.getElementById('contractsContainer');
+
+  const container =
+  document.getElementById('contractsContainer');
+
   if (!container) return;
 
-  container.innerHTML = MiningData.contracts.map(c => `
-    <div class="rig-card">
-      <div class="rig-status ${c.status === 'active' ? '' : 'idle'}"></div>
-      <div class="rig-info">
-        <div class="rig-name">${c.name}</div>
-        <div class="rig-specs">${c.hashrate} TH/s · ${c.power}W · ${c.daysLeft} days left</div>
-        <div class="progress-wrap mt-8">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width:${c.progress}%"></div>
-          </div>
-        </div>
-      </div>
-      <div class="rig-metrics">
-        <div class="rig-hash">${c.hashrate} TH/s</div>
-        <div class="rig-earnings">${c.dailyProfit}/day</div>
-      </div>
-    </div>
-  `).join('');
+  container.innerHTML =
+  MiningData.contracts.map(c => `
+
+<div class="rig-card">
+
+<h3>${c.name}</h3>
+
+<p>${c.hashrate} TH/s</p>
+
+<p>${c.dailyProfit}/day</p>
+
+<p>${c.daysLeft} Days Left</p>
+
+</div>
+
+`).join('');
+
 }
 
-/* ─── LIVE HASHRATE TICKER ──────────────────────────────── */
+/* ─── LIVE HASHRATE ────────────────────────────────────── */
 function startLiveTicker() {
-  const el = document.getElementById('liveHashrate');
+
+  const el =
+  document.getElementById('liveHashrate');
+
   if (!el) return;
 
   let base = 115.3;
+
   setInterval(() => {
-    base += (Math.random() - 0.48) * 1.2;
-    base = Math.max(100, Math.min(130, base));
-    el.textContent = base.toFixed(1) + ' TH/s';
-  }, 2500);
+
+    base +=
+    (Math.random() - 0.48) * 1.2;
+
+    base =
+    Math.max(100,
+    Math.min(130, base));
+
+    el.textContent =
+    base.toFixed(1) + ' TH/s';
+
+  },2500);
+
 }
 
-/* ─── BALANCE COUNTER ───────────────────────────────────── */
-function initCounters() {
-  const user = window.Auth?.getSession?.();
-  if (!user) return;
-
-  const el = document.getElementById('walletBalanceCounter');
-  if (el) animateCounter(el, user.balance, 6, '₿ ');
-
-  const usdEl = document.getElementById('walletBalanceUSD');
-  if (usdEl) {
-    const price = window.BTCPrice?.current || 67842;
-    animateCounter(usdEl, user.balance * price, 2, '$');
-  }
-}
-
-/* ─── WITHDRAWAL MODAL ──────────────────────────────────── */
-function initWithdrawal() {
-  const form = document.getElementById('withdrawForm');
-  if (!form) return;
-
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const amt = parseFloat(form.querySelector('[name="amount"]')?.value || 0);
-    const user = Auth.getSession();
-    if (!user) return;
-    if (amt <= 0 || amt > user.balance) {
-      Toast.show('Insufficient balance.', 'error'); return;
-    }
-    Auth.updateSession({ balance: user.balance - amt });
-    Toast.show('Withdrawal request submitted!', 'success');
-    closeModal('withdrawModal');
-    form.reset();
-    setTimeout(() => location.reload(), 800);
-  });
-}
-
-/* ─── DEPOSIT MODAL ─────────────────────────────────────── */
-function initDeposit() {
-  const form = document.getElementById('depositForm');
-  if (!form) return;
-
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    Toast.show('Deposit address copied. Send BTC to complete deposit.', 'success');
-    closeModal('depositModal');
-  });
-}
-
-/* ─── TX FILTER TABS ────────────────────────────────────── */
-function initTxTabs() {
-  document.querySelectorAll('[data-tx-filter]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('[data-tx-filter]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      renderTransactions(btn.dataset.txFilter);
-    });
-  });
-}
-
-/* ─── DAILY PROFIT ANIMATION ────────────────────────────── */
+/* ─── DAILY PROFIT ────────────────────────────────────── */
 function animateDailyProfit() {
-  const el = document.getElementById('dailyProfitEl');
+
+  const el =
+  document.getElementById('dailyProfitEl');
+
   if (!el) return;
+
   let val = 0.000032;
+
   setInterval(() => {
-    val += 0.0000001 * Math.random();
-    el.textContent = '₿ ' + val.toFixed(8);
-  }, 3000);
+
+    val +=
+    0.0000001 * Math.random();
+
+    el.textContent =
+    '₿ ' + val.toFixed(8);
+
+  },3000);
+
 }
 
-/* ─── INIT ──────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
-  Auth?.requireAuth?.();
+/* ─── INIT ────────────────────────────────────── */
+document.addEventListener(
+'DOMContentLoaded',
+() => {
 
-  // Slight delay for layout to settle before canvas draws
   setTimeout(() => {
+
     initEarningsChart();
+
     initHashrateChart();
+
     initDonut();
-  }, 100);
+
+  },100);
 
   renderTransactions();
+
   renderContracts();
-  initTxTabs();
+
   startLiveTicker();
-  initWithdrawal();
-  initDeposit();
+
   animateDailyProfit();
 
-  setTimeout(initCounters, 500);
-
-  // Update BTC-based USD values after price loads
-  BTCPrice?.onChange?.((price) => {
-    const user = Auth?.getSession?.();
-    if (!user) return;
-    const usdEl = document.getElementById('walletBalanceUSD');
-    if (usdEl) usdEl.textContent = '$' + (user.balance * price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  });
-});
+}
+);
+```
