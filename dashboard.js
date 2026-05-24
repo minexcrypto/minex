@@ -844,18 +844,19 @@ function initDepositForm() {
       .from('deposits')
       .insert({
         user_id:        user.id,
-        email:          user.email,
+        user_email:     user.email,
         coin:           coin,
         amount:         numericAmount,
         tx_hash:        txHash,
         screenshot_url: screenshotUrl,
-        status:         'pending'
+        status:         'pending',
+        created_at:     new Date().toISOString()
       })
       .select()
       .single();
 
     if (insertError) {
-      console.error('Database insert error:', insertError);
+      console.error('Deposit insert failed:', insertError);
 
       /* ── CLEANUP: delete orphaned screenshot from Storage ── */
       const { error: removeError } = await _supabase
@@ -872,6 +873,8 @@ function initDepositForm() {
     }
 
     /* ── 6. Success ───────────────────────────────────────── */
+    console.log('Deposit inserted successfully');
+    console.log('Deposit data:', insertData);
     Toast.show('✅ Deposit request submitted! ' + numericAmount + ' ' + coinLabel + ' — Pending review', 'success', 5000);
 
     /* ── 6b. INSTANTLY add to transaction table ───────────── */
