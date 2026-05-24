@@ -520,16 +520,6 @@ function wireModals() {
     });
   });
 
-  /* Deposit form */
-  const depositForm = $('depositForm');
-  if (depositForm) {
-    depositForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      $('depositModal').style.display = 'none';
-      Toast.show('✅ Transfer noted! Funds will appear after 1 confirmation.', 'success', 4000);
-    });
-  }
-
   /* Withdraw form */
   const withdrawForm = $('withdrawForm');
   if (withdrawForm) {
@@ -650,9 +640,13 @@ function initDepositForm() {
     }
   }
 
-  /* Form submit */
-  form.addEventListener('submit', function(e) {
+  /* ══════════════════════════════════════════════════════════════
+     SUPABASE INTEGRATED DEPOSIT SUBMIT
+  ══════════════════════════════════════════════════════════════ */
+  form.addEventListener('submit', async function(e) {
     e.preventDefault();
+
+    /* ── 1. Validate form ─────────────────────────────────── */
     var coin = coinSelect ? coinSelect.value : '';
     var amount = amountInput ? amountInput.value : '';
     var txHashEl = document.getElementById('depositTxHash');
@@ -679,9 +673,83 @@ function initDepositForm() {
       return;
     }
 
-    var coinLabel = coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
-    Toast.show('Deposit request submitted! ' + amount + ' ' + coinLabel + ' — Pending review', 'success', 5000);
+    /* ── 2. Auth guard ────────────────────────────────────── */
+    const user = Auth.getUser();
+    if (!user) {
+      Toast.show('Authentication required. Please log in again.', 'error', 4000);
+      return;
+    }
 
+    /* ── 3. Upload screenshot to Supabase Storage ─────────── */
+    const file = fileInput.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
+
+    Toast.show('⏳ Uploading screenshot…', 'info', 2000);
+
+    const { data: uploadData, error: uploadError } = await _supabase
+      .storage
+      .from('deposit-screenshots')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      Toast.show('❌ Upload failed: ' + uploadError.message, 'error', 5000);
+      return;
+    }
+
+    /* ── 4. Get public URL ───────────────────────────────── */
+    const { data: urlData } = _supabase
+      .storage
+      .from('deposit-screenshots')
+      .getPublicUrl(filePath);
+
+    const screenshotUrl = urlData?.publicUrl || '';
+
+    /* ── 5. Insert deposit record ────────────────────────── */
+    const coinLabel = coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
+    const numericAmount = parseFloat(amount);
+
+    const { data: insertData, error: insertError } = await _supabase
+      .from('deposits')
+      .insert({
+        user_id:        user.id,
+        email:          user.email,
+        coin:           coin,
+        amount:         numericAmount,
+        tx_hash:        txHash,
+        screenshot_url: screenshotUrl,
+        status:         'pending'
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Database insert error:', insertError);
+
+      /* ── CLEANUP: delete orphaned screenshot from Storage ── */
+      const { error: removeError } = await _supabase
+        .storage
+        .from('deposit-screenshots')
+        .remove([filePath]);
+
+      if (removeError) {
+        console.error('Failed to cleanup orphaned screenshot:', removeError);
+      }
+
+      Toast.show('❌ Failed to save deposit: ' + insertError.message, 'error', 5000);
+      return;
+    }
+
+    /* ── 6. Success ───────────────────────────────────────── */
+    Toast.show('✅ Deposit request submitted! ' + numericAmount + ' ' + coinLabel + ' — Pending review', 'success', 5000);
+
+    /* ── 7. Reset form ────────────────────────────────────── */
     form.reset();
     if (removePreview) {
       fileInput.value = '';
@@ -692,6 +760,7 @@ function initDepositForm() {
     }
     if (amountSuffix) amountSuffix.textContent = '—';
     if (amountHint) amountHint.textContent = 'Enter the exact amount you sent';
+
     var modal = document.getElementById('depositModal');
     if (modal) modal.style.display = 'none';
   });
