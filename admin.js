@@ -14,7 +14,7 @@
    REQUIRED in HTML before this script:
      <script>
        window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
-       window.CRYPTOVAULT_SUPABASE_KEY = "https://fwgqydxkdbuzrehqifjw.supabase.co";
+       window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1k";
      </script>
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
      <script src="admin.js"></script>
