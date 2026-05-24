@@ -4,12 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dashboard — CryptoVault</title>
+
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="dashboard-extra.css">
+
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₿</text></svg>">
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 </head>
+
 <body>
+
 <div class="app-shell">
 
 <!-- SIDEBAR OVERLAY -->
@@ -17,430 +22,393 @@
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
-  <a href="index.html" class="sidebar-logo">
-    <div class="logo-icon">₿</div>
-    <div class="logo-text">Crypto<span>Vault</span></div>
-  </a>
-  <nav class="sidebar-nav">
-    <div class="nav-section-label">Main</div>
-    <a href="#" class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard');return false;">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Dashboard
-    </a>
-    <a href="#" class="nav-item" id="nav-wallet" onclick="switchTab('wallet');return false;">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" fill="currentColor"/><path d="M22 11V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v3"/></svg>
-      Wallet
-    </a>
-    <a href="#" class="nav-item" id="nav-deposit" onclick="switchTab('deposit');return false;">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
-      Deposit
-      <span class="nav-badge" id="pendingDepositBadge" style="display:none;">!</span>
-    </a>
-    <a href="#" class="nav-item" id="nav-plans" onclick="switchTab('plans');return false;">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      Mining Plans
-    </a>
-    <a href="#" class="nav-item" id="nav-mining" onclick="switchTab('mining');return false;">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      Active Plans
-    </a>
-    <a href="#" class="nav-item" id="nav-transactions" onclick="switchTab('transactions');return false;">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 3v18"/></svg>
-      Transactions
-    </a>
-    <div class="nav-section-label" style="margin-top:12px;">Account</div>
-    <a href="#" class="nav-item" id="nav-settings" onclick="switchTab('settings');return false;">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Settings
-    </a>
-  </nav>
-  <div class="sidebar-footer">
-    <div class="sidebar-user">
-      <div class="user-avatar user-avatar-display">U</div>
-      <div class="user-info">
-        <div class="user-name user-name-display">User</div>
-        <div class="user-level user-email-display" style="font-size:11px;opacity:0.7;word-break:break-all;">Loading…</div>
-      </div>
-    </div>
-  </div>
+
+<a href="index.html" class="sidebar-logo">
+<div class="logo-icon">₿</div>
+<div class="logo-text">Crypto<span>Vault</span></div>
+</a>
+
+<nav class="sidebar-nav">
+
+<div class="nav-section-label">Main</div>
+
+<a href="#" class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard');return false;">
+Dashboard
+</a>
+
+<a href="#" class="nav-item" id="nav-wallet" onclick="switchTab('wallet');return false;">
+Wallet
+</a>
+
+<a href="#" class="nav-item" id="nav-deposit" onclick="switchTab('deposit');return false;">
+Deposit
+</a>
+
+<a href="#" class="nav-item" id="nav-plans" onclick="switchTab('plans');return false;">
+Mining Plans
+</a>
+
+<a href="#" class="nav-item" id="nav-mining" onclick="switchTab('mining');return false;">
+Active Plans
+</a>
+
+<a href="#" class="nav-item" id="nav-transactions" onclick="switchTab('transactions');return false;">
+Transactions
+</a>
+
+<div class="nav-section-label" style="margin-top:12px;">Account</div>
+
+<a href="#" class="nav-item" id="nav-settings" onclick="switchTab('settings');return false;">
+Settings
+</a>
+
+</nav>
+
+<div class="sidebar-footer">
+<div class="sidebar-user">
+<div class="user-avatar user-avatar-display">U</div>
+
+<div class="user-info">
+<div class="user-name user-name-display">User</div>
+
+<div class="user-level user-email-display"
+style="font-size:11px;opacity:0.7;word-break:break-all;">
+Loading…
+</div>
+
+</div>
+</div>
+</div>
+
 </aside>
 
 <!-- NAVBAR -->
 <header class="navbar">
-  <div class="navbar-left">
-    <button class="menu-toggle" id="menuToggle">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
-    <span class="page-title" id="pageTitle">Dashboard</span>
-  </div>
-  <div class="navbar-right">
-    <div class="btc-ticker">
-      <div class="ticker-dot"></div>
-      <span class="ticker-symbol">BTC</span>
-      <span class="ticker-price" id="tickerPrice">$67,842.00</span>
-      <span class="ticker-change ticker-up" id="tickerChange">▲ 0.00%</span>
-    </div>
-    <div class="dropdown">
-      <div class="icon-btn" data-dropdown-toggle="userMenu" style="width:auto;padding:0 10px;gap:8px;cursor:pointer;">
-        <div class="user-avatar user-avatar-display" style="width:28px;height:28px;font-size:12px;">U</div>
-        <span style="font-size:13px;font-weight:600;" class="user-name-display">User</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="dropdown-menu" id="userMenu">
-        <div style="padding:10px 16px 6px;font-size:11px;color:#6b7280;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;word-break:break-all;" class="user-email-display">…</div>
-        <a class="dropdown-item" href="#" onclick="switchTab('settings');return false;">⚙️ Settings</a>
-        <a class="dropdown-item" href="#" onclick="switchTab('wallet');return false;">💼 Wallet</a>
-        <a class="dropdown-item" href="admin.html">🛡️ Admin Panel</a>
-        <div class="dropdown-sep"></div>
-        <a class="dropdown-item danger" href="#" data-logout>🚪 Logout</a>
-      </div>
-    </div>
-  </div>
+
+<div class="navbar-left">
+
+<button class="menu-toggle" id="menuToggle">
+☰
+</button>
+
+<span class="page-title" id="pageTitle">
+Dashboard
+</span>
+
+</div>
+
+<div class="navbar-right">
+
+<div class="btc-ticker">
+<div class="ticker-dot"></div>
+<span class="ticker-symbol">BTC</span>
+<span class="ticker-price" id="tickerPrice">$67,842.00</span>
+<span class="ticker-change ticker-up" id="tickerChange">
+▲ 0.00%
+</span>
+</div>
+
+<div class="dropdown">
+
+<div class="icon-btn"
+data-dropdown-toggle="userMenu"
+style="width:auto;padding:0 10px;gap:8px;cursor:pointer;">
+
+<div class="user-avatar user-avatar-display"
+style="width:28px;height:28px;font-size:12px;">
+U
+</div>
+
+<span style="font-size:13px;font-weight:600;"
+class="user-name-display">
+User
+</span>
+
+</div>
+
+<div class="dropdown-menu" id="userMenu">
+
+<div style="padding:10px 16px 6px;
+font-size:11px;
+color:#6b7280;
+border-bottom:1px solid rgba(255,255,255,0.06);
+margin-bottom:4px;
+word-break:break-all;"
+class="user-email-display">
+
+…
+
+</div>
+
+<a class="dropdown-item"
+href="#"
+onclick="switchTab('settings');return false;">
+⚙️ Settings
+</a>
+
+<a class="dropdown-item"
+href="#"
+onclick="switchTab('wallet');return false;">
+💼 Wallet
+</a>
+
+<a class="dropdown-item"
+href="admin.html">
+🛡️ Admin Panel
+</a>
+
+<div class="dropdown-sep"></div>
+
+<a class="dropdown-item danger"
+href="#"
+data-logout>
+🚪 Logout
+</a>
+
+</div>
+</div>
+</div>
 </header>
 
 <!-- MAIN CONTENT -->
 <main class="main-content">
 
-  <!-- ════ TAB: DASHBOARD ════ -->
-  <div id="tab-dashboard" class="tab-content">
-    <div class="stats-grid mb-28">
-      <div class="stat-card gold">
-        <div class="stat-icon">💰</div>
-        <div class="stat-value mono" id="statBalance">$0.00</div>
-        <div class="stat-label">Wallet Balance (USD)</div>
-        <div class="stat-change up" id="statBalanceNote">Available to invest</div>
-      </div>
-      <div class="stat-card green">
-        <div class="stat-icon">📈</div>
-        <div class="stat-value mono" id="statDailyEarnings">$0.00</div>
-        <div class="stat-label">Daily Earnings</div>
-        <div class="stat-change up" id="statActivePlansNote">0 active plans</div>
-      </div>
-      <div class="stat-card blue">
-        <div class="stat-icon">💎</div>
-        <div class="stat-value mono" id="statTotalEarned">$0.00</div>
-        <div class="stat-label">Total Earned</div>
-        <div class="stat-change up">▲ All time</div>
-      </div>
-      <div class="stat-card orange">
-        <div class="stat-icon">⛏️</div>
-        <div class="stat-value mono" id="statActivePlans">0</div>
-        <div class="stat-label">Active Plans</div>
-        <div class="stat-change up">▲ Running now</div>
-      </div>
-    </div>
+<!-- DASHBOARD -->
+<div id="tab-dashboard" class="tab-content">
 
-    <div class="grid-2 mb-28">
-      <!-- Active Plans Preview -->
-      <div class="card">
-        <div class="card-header">
-          <div><div class="card-title">Active Plans</div><div class="card-subtitle">Your mining contracts</div></div>
-          <button class="btn btn-primary btn-sm" onclick="switchTab('plans')">+ New Plan</button>
-        </div>
-        <div id="dashActivePlans">
-          <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No active plans yet. <a href="#" onclick="switchTab('plans');return false;" style="color:var(--gold);">Browse plans →</a></div>
-        </div>
-      </div>
+<div class="stats-grid mb-28">
 
-      <!-- Recent Deposits -->
-      <div class="card">
-        <div class="card-header">
-          <div><div class="card-title">Recent Deposits</div><div class="card-subtitle">Deposit history</div></div>
-          <button class="btn btn-green btn-sm" onclick="switchTab('deposit')">+ Deposit</button>
-        </div>
-        <div id="dashRecentDeposits">
-          <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No deposits yet.</div>
-        </div>
-      </div>
-    </div>
+<div class="stat-card gold">
+<div class="stat-icon">💰</div>
+<div class="stat-value mono" id="statBalance">$0.00</div>
+<div class="stat-label">Wallet Balance (USD)</div>
+</div>
 
-    <div class="card">
-      <div class="card-header"><div class="card-title">Quick Actions</div></div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;">
-        <button class="btn btn-green" onclick="switchTab('deposit')">📥 Deposit Funds</button>
-        <button class="btn btn-primary" onclick="switchTab('plans')">⛏️ Activate Plan</button>
-        <button class="btn btn-ghost" onclick="switchTab('mining')">📊 View Earnings</button>
-        <button class="btn btn-outline" onclick="switchTab('transactions')">📋 Transactions</button>
-      </div>
-    </div>
-  </div>
+<div class="stat-card green">
+<div class="stat-icon">📈</div>
+<div class="stat-value mono" id="statDailyEarnings">$0.00</div>
+<div class="stat-label">Daily Earnings</div>
+</div>
 
-  <!-- ════ TAB: WALLET ════ -->
-  <div id="tab-wallet" class="tab-content" style="display:none;">
-    <div class="wallet-header mb-24">
-      <div class="wallet-balance-label">Total Wallet Balance</div>
-      <div class="wallet-balance-value" id="walletBigBalance">$0.00</div>
-      <div class="wallet-balance-usd" id="walletBtcEquiv">≈ 0.00000000 BTC</div>
-      <div style="display:flex;gap:12px;margin-bottom:0;">
-        <button class="btn btn-green" onclick="switchTab('deposit')">📥 Deposit</button>
-        <button class="btn btn-primary" onclick="switchTab('plans')">⛏️ Invest in Plan</button>
-      </div>
-    </div>
+<div class="stat-card blue">
+<div class="stat-icon">💎</div>
+<div class="stat-value mono" id="statTotalEarned">$0.00</div>
+<div class="stat-label">Total Earned</div>
+</div>
 
-    <div class="grid-2 mb-24">
-      <div class="card">
-        <div class="card-title mb-16">Balance Breakdown</div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Available Balance</h4><p>Ready to invest or withdraw</p></div>
-          <div class="mono text-gold" id="walletAvailable" style="font-size:18px;font-weight:600;">$0.00</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Total Deposited</h4><p>All-time deposits</p></div>
-          <div class="mono text-green" id="walletTotalDeposited" style="font-size:16px;font-weight:600;">$0.00</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
-          <div class="settings-info"><h4>Total Earnings</h4><p>From all active plans</p></div>
-          <div class="mono" id="walletTotalEarnings" style="color:var(--blue);font-size:16px;font-weight:600;">$0.00</div>
-        </div>
-      </div>
+<div class="stat-card orange">
+<div class="stat-icon">⛏️</div>
+<div class="stat-value mono" id="statActivePlans">0</div>
+<div class="stat-label">Active Plans</div>
+</div>
 
-      <div class="card">
-        <div class="card-title mb-16">Invest Summary</div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Total Invested</h4><p>Across all plans</p></div>
-          <div class="mono" id="walletTotalInvested" style="color:var(--orange);font-size:16px;font-weight:600;">$0.00</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Daily Earnings</h4><p>From active plans</p></div>
-          <div class="mono text-green" id="walletDailyEarnings" style="font-size:16px;font-weight:600;color:var(--green);">$0.00</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
-          <div class="settings-info"><h4>Monthly Projection</h4><p>Based on current plans</p></div>
-          <div class="mono text-gold" id="walletMonthlyProj" style="font-size:16px;font-weight:600;">$0.00</div>
-        </div>
-      </div>
-    </div>
-  </div>
+</div>
 
-  <!-- ════ TAB: DEPOSIT ════ -->
-  <div id="tab-deposit" class="tab-content" style="display:none;">
-    <div class="grid-2-1 mb-24">
+</div>
 
-      <!-- Deposit Form -->
-      <div class="card">
-        <div class="card-header">
-          <div><div class="card-title">Make a Deposit</div><div class="card-subtitle">Funds credited after admin approval</div></div>
-        </div>
+<!-- WALLET -->
+<div id="tab-wallet"
+class="tab-content"
+style="display:none;">
 
-        <!-- Coin Selector -->
-        <div style="margin-bottom:24px;">
-          <label style="margin-bottom:10px;display:block;">Select Currency</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <button class="coin-select-btn active" id="btnBTC" onclick="selectCoin('BTC')">
-              <div class="coin-icon coin-btc" style="width:30px;height:30px;font-size:13px;margin:0 auto 6px;">₿</div>
-              <div style="font-weight:700;font-size:14px;">Bitcoin</div>
-              <div style="font-size:11px;color:var(--text-muted);">BTC</div>
-            </button>
-            <button class="coin-select-btn" id="btnUSDT" onclick="selectCoin('USDT')">
-              <div class="coin-icon coin-usdt" style="width:30px;height:30px;font-size:13px;margin:0 auto 6px;">₮</div>
-              <div style="font-weight:700;font-size:14px;">Tether</div>
-              <div style="font-size:11px;color:var(--text-muted);">USDT BEP20</div>
-            </button>
-          </div>
-        </div>
+<div class="wallet-header mb-24">
 
-        <!-- Address Display -->
-        <div class="deposit-address-box mb-20">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Send <span id="coinLabel">BTC</span> to this address:</div>
-          <div class="wallet-address-row" style="max-width:100%;">
-            <div class="wallet-address" id="depositAddressDisplay" style="font-size:11px;">bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe</div>
-            <button class="copy-btn" onclick="copyDepositAddress()">📋</button>
-          </div>
-          <div style="margin-top:10px;font-size:11px;color:var(--gold);background:var(--gold-muted);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:8px 12px;">
-            ⚠️ Only send <span id="coinLabelWarn">BTC</span> to this address. Wrong network = lost funds.
-          </div>
-        </div>
+<div class="wallet-balance-label">
+Total Wallet Balance
+</div>
 
-        <!-- Amount -->
-        <div class="form-group">
-          <label>Amount (USD equivalent)</label>
-          <div class="input-group">
-            <span class="input-icon">$</span>
-            <input type="number" id="depositAmount" placeholder="500.00" min="1" step="0.01">
-            <span class="input-suffix" id="depositCoinSuffix">USD</span>
-          </div>
-        </div>
+<div class="wallet-balance-value"
+id="walletBigBalance">
+$0.00
+</div>
 
-        <!-- TXID -->
-        <div class="form-group">
-          <label>Transaction ID (TXID)</label>
-          <input type="text" id="depositTxid" placeholder="Paste your transaction hash here">
-        </div>
+<div class="wallet-balance-usd"
+id="walletBtcEquiv">
+≈ 0.00000000 BTC
+</div>
 
-        <!-- Screenshot Upload -->
-        <div class="form-group">
-          <label>Payment Screenshot</label>
-          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('screenshotInput').click()">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <div style="font-size:13px;color:var(--text-muted);" id="uploadLabel">Click to upload screenshot</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">PNG, JPG up to 5MB</div>
-          </div>
-          <input type="file" id="screenshotInput" accept="image/*" style="display:none;" onchange="handleFileSelect(this)">
-        </div>
+<div style="display:flex;gap:12px;margin-bottom:0;">
 
-        <button class="btn btn-green btn-full" id="submitDepositBtn" onclick="submitDeposit()">
-          📥 Submit Deposit Request
-        </button>
-      </div>
+<button class="btn btn-green"
+onclick="switchTab('deposit')">
+📥 Deposit
+</button>
 
-      <!-- Deposit History -->
-      <div class="card">
-        <div class="card-title mb-16">My Deposits</div>
-        <div id="myDepositsList">
-          <div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">No deposits yet.</div>
-        </div>
-      </div>
-    </div>
-  </div>
+<button class="btn btn-primary"
+onclick="switchTab('plans')">
+⛏️ Invest in Plan
+</button>
 
-  <!-- ════ TAB: PLANS ════ -->
-  <div id="tab-plans" class="tab-content" style="display:none;">
-    <div style="margin-bottom:28px;">
-      <h2 style="font-size:24px;font-family:'Syne',sans-serif;margin-bottom:6px;">Mining <span style="color:var(--gold)">Plans</span></h2>
-      <p style="font-size:13px;color:var(--text-muted);">Invest your deposited balance to start earning daily returns.</p>
-      <div style="margin-top:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;display:inline-flex;align-items:center;gap:10px;">
-        💰 Available Balance: <strong class="text-gold" id="plansAvailBalance">$0.00</strong>
-      </div>
-    </div>
+</div>
+</div>
+</div>
 
-    <div class="plans-grid" id="plansGrid" style="grid-template-columns:repeat(3,1fr);">
-      <!-- rendered by JS -->
-    </div>
+<!-- DEPOSIT -->
+<div id="tab-deposit"
+class="tab-content"
+style="display:none;">
 
-    <!-- Activate Plan Modal Inline -->
-    <div id="activatePlanPanel" style="display:none;margin-top:28px;">
-      <div class="card" style="border-color:rgba(245,158,11,0.3);max-width:500px;">
-        <div class="card-header">
-          <div><div class="card-title" id="activatePlanTitle">Activate Plan</div><div class="card-subtitle" id="activatePlanSub">Enter investment amount</div></div>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('activatePlanPanel').style.display='none'">✕</button>
-        </div>
-        <div class="form-group">
-          <label>Investment Amount (USD)</label>
-          <div class="input-group">
-            <span class="input-icon">$</span>
-            <input type="number" id="activateAmount" placeholder="0.00" step="0.01">
-          </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="activateAmountHint"></div>
-        </div>
-        <div id="activatePreview" style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:16px;display:none;">
-          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;">
-            <span style="color:var(--text-muted);">Daily Earnings</span>
-            <span class="mono text-green" id="previewDaily">$0.00</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;">
-            <span style="color:var(--text-muted);">Monthly Return</span>
-            <span class="mono text-gold" id="previewMonthly">$0.00</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:13px;">
-            <span style="color:var(--text-muted);">Contract Duration</span>
-            <span class="mono" id="previewDuration">30 days</span>
-          </div>
-        </div>
-        <button class="btn btn-primary btn-full" id="confirmActivateBtn" onclick="confirmActivatePlan()">
-          ✅ Confirm & Activate
-        </button>
-      </div>
-    </div>
-  </div>
+<div class="grid-2-1 mb-24">
 
-  <!-- ════ TAB: MINING (Active Plans) ════ -->
-  <div id="tab-mining" class="tab-content" style="display:none;">
-    <div class="card mb-24">
-      <div class="card-header">
-        <div><div class="card-title">Active Mining Plans</div><div class="card-subtitle" id="miningSubtitle">Loading…</div></div>
-        <button class="btn btn-primary btn-sm" onclick="switchTab('plans')">+ Add Plan</button>
-      </div>
-      <div id="activePlansList"></div>
-    </div>
+<div class="card">
 
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title mb-16">Earnings Summary</div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Today's Earnings</h4></div>
-          <div class="mono text-green" id="miningTodayEarnings" style="font-size:18px;font-weight:600;color:var(--green);">$0.00</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Total Earned</h4></div>
-          <div class="mono text-gold" id="miningTotalEarned" style="font-size:16px;font-weight:600;">$0.00</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Monthly Projection</h4></div>
-          <div class="mono" id="miningMonthlyProj" style="color:var(--blue);font-size:16px;font-weight:600;">$0.00</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
-          <div class="settings-info"><h4>Total Invested</h4></div>
-          <div class="mono" id="miningTotalInvested" style="color:var(--orange);font-size:16px;font-weight:600;">$0.00</div>
-        </div>
-      </div>
+<div class="card-header">
 
-      <div class="card">
-        <div class="card-title mb-16">Plan Performance</div>
-        <div id="planPerformanceList">
-          <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No active plans.</div>
-        </div>
-      </div>
-    </div>
-  </div>
+<div>
+<div class="card-title">
+Make a Deposit
+</div>
 
-  <!-- ════ TAB: TRANSACTIONS ════ -->
-  <div id="tab-transactions" class="tab-content" style="display:none;">
-    <div class="card">
-      <div class="card-header">
-        <div><div class="card-title">Transaction History</div><div class="card-subtitle">Deposits &amp; plan history</div></div>
-        <div class="tabs">
-          <button class="tab-btn active" data-tx-filter="all">All</button>
-          <button class="tab-btn" data-tx-filter="deposit">Deposits</button>
-          <button class="tab-btn" data-tx-filter="plan">Plans</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Type</th><th>Description</th><th>Amount</th><th>Status</th><th>Date</th></tr>
-          </thead>
-          <tbody id="txTableBody">
-            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+<div class="card-subtitle">
+Funds credited after admin approval
+</div>
+</div>
 
-  <!-- ════ TAB: SETTINGS ════ -->
-  <div id="tab-settings" class="tab-content" style="display:none;">
-    <div class="grid-2">
-      <div class="card mb-20">
-        <div class="card-header"><div class="card-title">Profile Settings</div></div>
-        <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="settingName" placeholder="Your name">
-        </div>
-        <div class="form-group">
-          <label>Email Address</label>
-          <input type="email" id="settingEmail" placeholder="you@example.com" readonly style="opacity:0.7;cursor:not-allowed;">
-        </div>
-        <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
-      </div>
+</div>
 
-      <div class="card" style="border-color:rgba(239,68,68,0.2);">
-        <div class="card-header"><div class="card-title" style="color:var(--red)">Account</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Logout</h4><p>Sign out of this device</p></div>
-          <button class="btn btn-red btn-sm" data-logout>Logout</button>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Admin Panel</h4><p>Manage deposits &amp; users</p></div>
-          <a href="admin.html" class="btn btn-outline btn-sm">Open →</a>
-        </div>
-      </div>
-    </div>
-  </div>
+<div style="margin-bottom:24px;">
+
+<label style="margin-bottom:10px;display:block;">
+Select Currency
+</label>
+
+<div style="display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px;">
+
+<button class="coin-select-btn active"
+id="btnBTC"
+onclick="selectCoin('BTC')">
+
+<div class="coin-icon coin-btc"
+style="width:30px;height:30px;font-size:13px;margin:0 auto 6px;">
+₿
+</div>
+
+<div style="font-weight:700;font-size:14px;">
+Bitcoin
+</div>
+
+<div style="font-size:11px;color:var(--text-muted);">
+BTC
+</div>
+
+</button>
+
+<button class="coin-select-btn"
+id="btnUSDT"
+onclick="selectCoin('USDT')">
+
+<div class="coin-icon coin-usdt"
+style="width:30px;height:30px;font-size:13px;margin:0 auto 6px;">
+₮
+</div>
+
+<div style="font-weight:700;font-size:14px;">
+Tether
+</div>
+
+<div style="font-size:11px;color:var(--text-muted);">
+USDT BEP20
+</div>
+
+</button>
+
+</div>
+</div>
+
+<div class="deposit-address-box mb-20">
+
+<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+Send <span id="coinLabel">BTC</span> to this address:
+</div>
+
+<div class="wallet-address-row" style="max-width:100%;">
+
+<div class="wallet-address"
+id="depositAddressDisplay"
+style="font-size:11px;">
+
+bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe
+
+</div>
+
+<button class="copy-btn"
+onclick="copyDepositAddress()">
+📋
+</button>
+
+</div>
+
+</div>
+
+<div class="form-group">
+<label>Amount (USD equivalent)</label>
+
+<div class="input-group">
+
+<span class="input-icon">$</span>
+
+<input type="number"
+id="depositAmount"
+placeholder="500.00"
+min="1"
+step="0.01">
+
+<span class="input-suffix">USD</span>
+
+</div>
+</div>
+
+<div class="form-group">
+<label>Transaction ID (TXID)</label>
+
+<input type="text"
+id="depositTxid"
+placeholder="Paste your transaction hash here">
+</div>
+
+<div class="form-group">
+
+<label>Payment Screenshot</label>
+
+<div class="upload-zone"
+id="uploadZone"
+onclick="document.getElementById('screenshotInput').click()">
+
+<div style="font-size:13px;color:var(--text-muted);"
+id="uploadLabel">
+
+Click to upload screenshot
+
+</div>
+
+</div>
+
+<input type="file"
+id="screenshotInput"
+accept="image/*"
+style="display:none;">
+
+</div>
+
+<button class="btn btn-green btn-full"
+id="submitDepositBtn"
+onclick="submitDeposit()">
+
+📥 Submit Deposit Request
+
+</button>
+
+</div>
+</div>
+</div>
 
 </main>
-</div><!-- /app-shell -->
+</div>
 
 <script src="supabase.js"></script>
-<script src="dashboard-new.js"></script>
+<script src="dashboard.js"></script>
+
 </body>
 </html>
