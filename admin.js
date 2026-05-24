@@ -3,7 +3,7 @@
 
    Auth:      Supabase Auth — email + password
    SDK:       window.supabase  (CDN global, @supabase/supabase-js v2)
-   Tables:    deposits   (id, user_id, amount, status, created_at)
+   Tables:    deposits   (id, user_id, coin, amount, tx_hash, screenshot, status, created_at)
               profiles   (id, email, name, balance)
               transactions (id, user_id, type, amount, status)
               contracts  (id, user_id, plan, hashrate, active)
@@ -14,7 +14,7 @@
    REQUIRED in HTML before this script:
      <script>
        window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
-       window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
+       window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kJ";
      </script>
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
      <script src="admin.js"></script>
@@ -37,8 +37,8 @@ let sb = null;
  * Never throws.
  */
 function initSupabaseClient() {
-  const url = window.CRYPTOVAULT_SUPABASE_URL || 'https://fwgqydxkdbuzrehqifjw.supabase.co';
-  const key = window.CRYPTOVAULT_SUPABASE_KEY || 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+  const url = window.CRYPTOVAULT_SUPABASE_URL || '';
+  const key = window.CRYPTOVAULT_SUPABASE_KEY || '';
 
   if (!url || !key) {
     AdminUI.banner(
@@ -488,10 +488,9 @@ const OverviewModule = {
 
   async _depositStats() {
     try {
-      // Select only the columns we need — no join required here
       const { data, error } = await sb
         .from('deposits')
-        .select('amount, status');
+        .select('*');
       if (error) throw error;
 
       const rows     = data || [];
@@ -577,10 +576,9 @@ const DepositsModule = {
     setHTML(container, AdminUI.loading('Loading deposits…'));
 
     try {
-      // Join profiles to show name + email
       let q = sb
         .from('deposits')
-        .select('id, user_id, amount, status, created_at, profiles(email, name)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(300);
 
@@ -602,8 +600,8 @@ const DepositsModule = {
     if (!rows.length) { setHTML(container, AdminUI.empty('No deposit records.')); return; }
 
     const tbodyHTML = rows.map(d => {
-      const email  = d.profiles?.email || '—';
-      const name   = d.profiles?.name  || '—';
+      const email  = d.user_id ? d.user_id.slice(0, 8) + '…' : '—';
+      const name   = 'User ' + (d.user_id ? d.user_id.slice(0, 6) : '—');
       const amount = Number(d.amount   || 0).toFixed(8);
       const date   = d.created_at
         ? new Date(d.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
@@ -1098,13 +1096,13 @@ function initRealtime() {
             const filter = document.getElementById('depositStatusFilter')?.value || 'all';
             DepositsModule.load(filter);
           }
-          if (_loaded.has('overview')) OverviewModule.load();
+          if (_loaded.has('deposits')) DepositsModule.load();
         }
       )
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'transactions' },
         () => {
-          if (_loaded.has('overview')) OverviewModule.load();
+          if (_loaded.has('deposits')) DepositsModule.load();
         }
       )
       .subscribe(status => {
