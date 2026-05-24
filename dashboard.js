@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — dashboard.js  (Supabase-powered)
+   Uses supabase.js shared client: _sb, CV_Auth, CV_Wallet, CV_Deposits, CV_Plans
    Auth guard · user data · charts · mining stats · transactions
-   FIXED v2: No conflicts with supabase.js, immediate global exports
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -37,144 +37,9 @@ window.saveSettings      = saveSettings;
 window.purchasePlan      = purchasePlan;
 window.copyToClipboard   = copyToClipboard;
 
-/* ─── SUPABASE INIT ─────────────────────────────────────── */
-/* Use existing supabase client if supabase.js already loaded it */
-let _supabase = null;
-
-/* Check if supabase.js already created a global client */
-if (typeof window._supabaseClient !== 'undefined') {
-  _supabase = window._supabaseClient;
-} else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-  /* supabase.js loaded but no client created — create our own */
-  const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
-  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-} else if (typeof supabase !== 'undefined' && supabase.createClient) {
-  /* CDN loaded */
-  const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
-  _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-}
-
-/* ─── AUTH MODULE ───────────────────────────────────────── */
-const Auth = (() => {
-  let _session  = null;
-  let _profile  = null;
-
-  async function init() {
-    if (!_supabase) {
-      console.warn('Supabase not available — running in demo mode');
-      _profile = {
-        id: 'demo-user',
-        email: 'demo@cryptovault.io',
-        balance: 0.00042,
-        ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase(),
-        name: 'Demo User'
-      };
-      return true;
-    }
-
-    try {
-      const { data: { session } } = await _supabase.auth.getSession();
-
-      if (!session) {
-        window.location.href = 'login.html';
-        return false;
-      }
-
-      _session = session;
-
-      const { data: prof, error } = await _supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-
-      if (error || !prof) {
-        const { data: newProf } = await _supabase
-          .from('profiles')
-          .upsert({
-            id:       session.user.id,
-            email:    session.user.email,
-            balance:  0.00042,
-            ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
-          })
-          .select()
-          .single();
-        _profile = newProf;
-      } else {
-        _profile = prof;
-      }
-
-      _supabase.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_OUT') window.location.href = 'login.html';
-      });
-
-      return true;
-    } catch (err) {
-      console.error('Auth init error:', err);
-      _profile = {
-        id: 'demo-user',
-        email: 'demo@cryptovault.io',
-        balance: 0.00042,
-        ref_code: 'CVDEMO12',
-        name: 'Demo User'
-      };
-      return true;
-    }
-  }
-
-  async function logout() {
-    if (_supabase) {
-      await _supabase.auth.signOut();
-    }
-    localStorage.removeItem('cv_remember');
-    window.location.href = 'login.html';
-  }
-
-  function getUser()    { return _session?.user  || { email: _profile?.email }; }
-  function getProfile() { return _profile        || {};   }
-
-  async function updateProfile(fields) {
-    if (!_session || !_supabase) {
-      Object.assign(_profile, fields);
-      return _profile;
-    }
-    const { data } = await _supabase
-      .from('profiles')
-      .update(fields)
-      .eq('id', _session.user.id)
-      .select()
-      .single();
-    if (data) _profile = data;
-    return data;
-  }
-
-  return { init, logout, getUser, getProfile, updateProfile };
-})();
-
-/* ─── BTC PRICE (public API, no auth needed) ─────────────── */
-const BTCPrice = (() => {
-  let _price    = 67842;
-  let _cbs      = [];
-
-  function onChange(cb) { _cbs.push(cb); cb(_price); }
-
-  async function _fetch() {
-    try {
-      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-      if (r.ok) {
-        const j = await r.json();
-        _price = j.bitcoin?.usd || _price;
-        _cbs.forEach(cb => cb(_price));
-      }
-    } catch (_) { /* use cached price */ }
-  }
-
-  _fetch();
-  setInterval(_fetch, 60_000);
-  return { onChange, get: () => _price };
-})();
+/* ─── USE SUPABASE.JS SHARED CLIENT ─────────────────────── */
+/* supabase.js already creates: _sb, CV_Auth, CV_Wallet, CV_Deposits, CV_Plans, Toast, BTCPrice */
+/* We use those directly — no duplicate Supabase client creation */
 
 /* ─── SIMULATED MINING DATA ─────────────────────────────── */
 const MiningData = {
@@ -205,8 +70,8 @@ function $(id) { return document.getElementById(id); }
 
 function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
 
-/* ─── TOAST ──────────────────────────────────────────────── */
-const Toast = (() => {
+/* ─── TOAST (fallback if supabase.js not loaded) ─────────── */
+const Toast = window.Toast || (() => {
   let el = null;
   function _ensure() {
     if (el) return;
@@ -239,8 +104,9 @@ const Toast = (() => {
 
 /* ─── POPULATE USER DATA INTO UI ─────────────────────────── */
 function populateUserUI() {
-  const user    = Auth.getUser();
-  const profile = Auth.getProfile();
+  /* Use CV_Auth from supabase.js if available, else fallback */
+  const user    = (typeof CV_Auth !== 'undefined') ? CV_Auth.getUser() : { email: 'demo@cryptovault.io' };
+  const profile = (typeof CV_Auth !== 'undefined') ? CV_Auth.getProfile() : {};
 
   const email   = user?.email || 'user@cryptovault.io';
   const name    = profile.name  || email.split('@')[0];
@@ -282,7 +148,8 @@ function populateUserUI() {
   if (sEmail) sEmail.value = email;
 
   /* Update USD values when BTC price arrives */
-  BTCPrice.onChange((price) => {
+  const btcPrice = window.BTCPrice || BTCPrice;
+  btcPrice.onChange((price) => {
     const usd = (balance * price).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     setText('walletBalanceUSD',  '$' + usd);
     setText('walletBigUSD',      '≈ $' + usd + ' USD');
@@ -303,7 +170,13 @@ function wireLogout() {
     el.addEventListener('click', async (e) => {
       e.preventDefault();
       Toast.show('Logging out…', 'info', 1500);
-      setTimeout(() => Auth.logout(), 800);
+      setTimeout(() => {
+        if (typeof CV_Auth !== 'undefined') {
+          CV_Auth.logout();
+        } else {
+          window.location.href = 'login.html';
+        }
+      }, 800);
     });
   });
 }
@@ -318,7 +191,9 @@ async function _saveSettings_impl() {
   if (email) updates.email = email;
 
   if (Object.keys(updates).length) {
-    await Auth.updateProfile(updates);
+    if (typeof CV_Auth !== 'undefined') {
+      await CV_Auth.updateProfile(updates);
+    }
     if (name) document.querySelectorAll('.user-name-display').forEach(el => el.textContent = name);
     Toast.show('Settings saved!', 'success');
   } else {
@@ -378,10 +253,13 @@ function _selectCoin_impl(coin) {
   const addressDisplay = $('depositAddressDisplay');
   if (!addressDisplay) return;
 
-  const addresses = {
-    BTC:   'bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe',
-    USDT:  '0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0'
-  };
+  /* Use addresses from supabase.js if available */
+  const addresses = (typeof DEPOSIT_ADDRESSES !== 'undefined')
+    ? DEPOSIT_ADDRESSES
+    : {
+        BTC:   'bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe',
+        USDT:  '0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0'
+      };
 
   addressDisplay.textContent = addresses[coin] || addresses.BTC;
 
@@ -415,7 +293,28 @@ async function _submitDeposit_impl() {
     return;
   }
 
-  Toast.show(`✅ ${coin} deposit of $${amount} submitted! Pending confirmation...`, 'success', 4000);
+  /* If CV_Deposits available (supabase.js loaded), use real API */
+  if (typeof CV_Deposits !== 'undefined') {
+    try {
+      const { data, error } = await CV_Deposits.submit({
+        coin,
+        amount: parseFloat(amount),
+        txid: txHash || null,
+        screenshotUrl: null
+      });
+      if (error) {
+        Toast.show('Error: ' + error.message, 'error');
+        return;
+      }
+      Toast.show(`✅ ${coin} deposit of $${amount} submitted! Pending admin approval.`, 'success', 4000);
+    } catch (err) {
+      Toast.show('Error submitting deposit', 'error');
+      return;
+    }
+  } else {
+    /* Fallback demo mode */
+    Toast.show(`✅ ${coin} deposit of $${amount} submitted! Pending confirmation...`, 'success', 4000);
+  }
 
   /* Clear form */
   if ($('depositAmount')) $('depositAmount').value = '';
@@ -706,8 +605,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   _purchasePlan_fn      = _purchasePlan_impl;
   _copyToClipboard_fn   = _copyToClipboard_impl;
 
-  /* 1. Auth guard — now with fallback to demo mode */
-  const ok = await Auth.init();
+  /* 1. Auth via CV_Auth from supabase.js */
+  let ok = false;
+  if (typeof CV_Auth !== 'undefined') {
+    ok = await CV_Auth.init();
+  } else {
+    console.warn('CV_Auth not found — running in demo mode');
+    ok = true;
+  }
   if (!ok) return;
 
   /* 2. Populate UI with real user data */
@@ -745,6 +650,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.purchasePlan      = purchasePlan;
   window.copyToClipboard   = copyToClipboard;
   window.Toast             = Toast;
-  window.BTCPrice          = BTCPrice;
-  window.Auth              = Auth;
+  window.BTCPrice          = window.BTCPrice || BTCPrice;
+  window.Auth              = (typeof CV_Auth !== 'undefined') ? CV_Auth : null;
 });
