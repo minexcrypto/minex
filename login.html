@@ -1,392 +1,388 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>CryptoVault Login</title>
-
-<link rel="stylesheet" href="style.css">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <style>
+  body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #080b10;
+    padding: 20px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    margin: 0;
+  }
 
-body{
-min-height:100vh;
-display:flex;
-justify-content:center;
-align-items:center;
-background:#080b10;
-padding:20px;
-}
+  .auth-wrapper {
+    width: 100%;
+    max-width: 420px;
+    background: #11161d;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.45);
+    position: relative;
+    overflow: hidden;
+  }
 
-.auth-wrapper{
-width:100%;
-max-width:420px;
-background:#11161d;
-border:1px solid rgba(255,255,255,0.08);
-border-radius:24px;
-padding:40px;
-box-shadow:0 20px 80px rgba(0,0,0,0.45);
-position:relative;
-overflow:hidden;
-}
+  .auth-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 240px;
+    height: 240px;
+    background: rgba(245,158,11,0.08);
+    border-radius: 50%;
+    pointer-events: none;
+  }
 
-.auth-wrapper::before{
-content:'';
-position:absolute;
-top:-120px;
-right:-120px;
-width:240px;
-height:240px;
-background:rgba(245,158,11,0.08);
-border-radius:50%;
-}
+  .auth-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 30px;
+    justify-content: center;
+  }
 
-.auth-logo{
-display:flex;
-align-items:center;
-gap:12px;
-margin-bottom:30px;
-justify-content:center;
-}
+  .logo-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #f59e0b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #080b10;
+  }
 
-.logo-circle{
-width:48px;
-height:48px;
-border-radius:12px;
-background:#f59e0b;
-display:flex;
-align-items:center;
-justify-content:center;
-font-size:24px;
-font-weight:bold;
-color:#080b10;
-}
+  .auth-logo h1 {
+    font-size: 28px;
+    font-weight: 800;
+    color: white;
+    margin: 0;
+  }
 
-.auth-logo h1{
-font-size:28px;
-font-weight:800;
-color:white;
-}
+  .auth-logo span { color: #f59e0b; }
 
-.auth-logo span{
-color:#f59e0b;
-}
+  .tabs {
+    display: flex;
+    background: #1a212c;
+    border-radius: 12px;
+    padding: 5px;
+    margin-bottom: 30px;
+  }
 
-.tabs{
-display:flex;
-background:#1a212c;
-border-radius:12px;
-padding:5px;
-margin-bottom:30px;
-}
+  .tab-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: transparent;
+    color: #aaa;
+    font-size: 15px;
+    font-weight: 600;
+    transition: 0.2s;
+  }
 
-.tab-btn{
-flex:1;
-padding:12px;
-border:none;
-border-radius:10px;
-cursor:pointer;
-background:transparent;
-color:#aaa;
-font-size:15px;
-font-weight:600;
-}
+  .tab-btn.active {
+    background: #f59e0b;
+    color: #080b10;
+  }
 
-.tab-btn.active{
-background:#f59e0b;
-color:#080b10;
-}
+  .form-group { margin-bottom: 18px; }
 
-.form-group{
-margin-bottom:18px;
-}
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #ddd;
+  }
 
-.form-group label{
-display:block;
-margin-bottom:8px;
-font-size:14px;
-color:#ddd;
-}
+  .form-group input {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: #1b2330;
+    color: white;
+    font-size: 15px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+    outline: none;
+  }
 
-.form-group input{
-width:100%;
-padding:15px;
-border:none;
-border-radius:12px;
-background:#1b2330;
-color:white;
-font-size:15px;
-}
+  .form-group input:focus { border-color: #f59e0b; }
 
-.form-group input:focus{
-outline:none;
-border:1px solid #f59e0b;
-}
+  .auth-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    background: #f59e0b;
+    color: #080b10;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: transform 0.2s, opacity 0.2s;
+  }
 
-.auth-btn{
-width:100%;
-padding:16px;
-border:none;
-border-radius:14px;
-background:#f59e0b;
-color:#080b10;
-font-size:16px;
-font-weight:700;
-cursor:pointer;
-margin-top:10px;
-transition:0.3s;
-}
+  .auth-btn:hover { transform: translateY(-2px); }
+  .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-.auth-btn:hover{
-transform:translateY(-2px);
-}
+  .auth-footer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #aaa;
+    align-items: center;
+  }
 
-.auth-footer{
-margin-top:20px;
-display:flex;
-justify-content:space-between;
-font-size:13px;
-color:#aaa;
-}
+  .auth-footer a { color: #f59e0b; text-decoration: none; }
 
-.auth-footer a{
-color:#f59e0b;
-text-decoration:none;
-}
+  #message {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 8px;
+    display: none;
+  }
 
-#message{
-margin-top:18px;
-text-align:center;
-font-size:14px;
-color:#22c55e;
-}
+  #message.success {
+    display: block;
+    color: #22c55e;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.2);
+  }
 
-.back-home{
-display:block;
-margin-top:30px;
-text-align:center;
-color:#aaa;
-text-decoration:none;
-font-size:14px;
-}
+  #message.error {
+    display: block;
+    color: #ef4444;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.2);
+  }
 
-.back-home:hover{
-color:#f59e0b;
-}
+  .back-home {
+    display: block;
+    margin-top: 30px;
+    text-align: center;
+    color: #aaa;
+    text-decoration: none;
+    font-size: 14px;
+  }
 
-.hidden{
-display:none;
-}
+  .back-home:hover { color: #f59e0b; }
 
+  .hidden { display: none; }
+
+  .loading-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(8,11,16,0.3);
+    border-top-color: #080b10;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-
 </head>
-
 <body>
 
 <div class="auth-wrapper">
+  <div class="auth-logo">
+    <div class="logo-circle">₿</div>
+    <h1>Crypto<span>Vault</span></h1>
+  </div>
 
-<div class="auth-logo">
-<div class="logo-circle">₿</div>
-<h1>Crypto<span>Vault</span></h1>
-</div>
+  <div class="tabs">
+    <button class="tab-btn active" id="loginTab">Login</button>
+    <button class="tab-btn" id="registerTab">Register</button>
+  </div>
 
-<div class="tabs">
-<button class="tab-btn active" id="loginTab">
-Login
-</button>
+  <!-- LOGIN FORM -->
+  <div id="loginForm">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="Enter your email">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter your password">
+    </div>
+    <button class="auth-btn" id="loginBtn">Login To Dashboard</button>
+    <div class="auth-footer">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="rememberMe" style="accent-color:#f59e0b;">
+        Remember me
+      </label>
+      <a href="#">Forgot Password?</a>
+    </div>
+  </div>
 
-<button class="tab-btn" id="registerTab">
-Register
-</button>
-</div>
+  <!-- REGISTER FORM -->
+  <div id="registerForm" class="hidden">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="registerEmail" placeholder="Enter your email">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="registerPassword" placeholder="Create password (min 6 chars)">
+    </div>
+    <button class="auth-btn" id="registerBtn">Create Account</button>
+  </div>
 
-<!-- LOGIN FORM -->
-
-<div id="loginForm">
-
-<div class="form-group">
-<label>Email</label>
-<input
-type="email"
-id="loginEmail"
-placeholder="Enter your email"
->
-</div>
-
-<div class="form-group">
-<label>Password</label>
-<input
-type="password"
-id="loginPassword"
-placeholder="Enter your password"
->
-</div>
-
-<button class="auth-btn" id="loginBtn">
-Login To Dashboard
-</button>
-
-<div class="auth-footer">
-<label>
-<input type="checkbox">
-Remember me
-</label>
-
-<a href="#">
-Forgot Password?
-</a>
-</div>
-
-</div>
-
-<!-- REGISTER FORM -->
-
-<div id="registerForm" class="hidden">
-
-<div class="form-group">
-<label>Email</label>
-<input
-type="email"
-id="registerEmail"
-placeholder="Enter your email"
->
-</div>
-
-<div class="form-group">
-<label>Password</label>
-<input
-type="password"
-id="registerPassword"
-placeholder="Create password"
->
-</div>
-
-<button class="auth-btn" id="registerBtn">
-Create Account
-</button>
-
-</div>
-
-<p id="message"></p>
-
-<a href="index.html" class="back-home">
-← Back to Home
-</a>
-
+  <div id="message"></div>
+  <a href="index.html" class="back-home">← Back to Home</a>
 </div>
 
 <script>
+  /* ─── Supabase Init ─── */
+  const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+  const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const supabaseUrl =
-'https://fwgqydxkdbuzrehqifjw.supabase.co';
+  /* ─── Redirect if already logged in ─── */
+  (async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (session) window.location.href = 'dashboard.html';
+  })();
 
-const supabaseKey =
-'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+  /* ─── Message helper ─── */
+  function showMsg(text, type = 'success') {
+    const el = document.getElementById('message');
+    el.textContent = text;
+    el.className = type;
+  }
 
-const supabaseClient =
-supabase.createClient(
-supabaseUrl,
-supabaseKey
-);
+  function setLoading(btnId, loading, defaultText) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    btn.innerHTML = loading
+      ? `<span class="loading-spinner"></span> Please wait...`
+      : defaultText;
+  }
 
-const loginTab =
-document.getElementById('loginTab');
+  /* ─── Tab switching ─── */
+  document.getElementById('loginTab').addEventListener('click', () => {
+    document.getElementById('loginTab').classList.add('active');
+    document.getElementById('registerTab').classList.remove('active');
+    document.getElementById('loginForm').classList.remove('hidden');
+    document.getElementById('registerForm').classList.add('hidden');
+    document.getElementById('message').className = '';
+  });
 
-const registerTab =
-document.getElementById('registerTab');
+  document.getElementById('registerTab').addEventListener('click', () => {
+    document.getElementById('registerTab').classList.add('active');
+    document.getElementById('loginTab').classList.remove('active');
+    document.getElementById('registerForm').classList.remove('hidden');
+    document.getElementById('loginForm').classList.add('hidden');
+    document.getElementById('message').className = '';
+  });
 
-const loginForm =
-document.getElementById('loginForm');
+  /* ─── Allow Enter key to submit ─── */
+  ['loginEmail', 'loginPassword'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('loginBtn').click();
+    });
+  });
 
-const registerForm =
-document.getElementById('registerForm');
+  ['registerEmail', 'registerPassword'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('registerBtn').click();
+    });
+  });
 
-loginTab.addEventListener('click', () => {
+  /* ─── Register ─── */
+  document.getElementById('registerBtn').addEventListener('click', async () => {
+    const email    = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value;
 
-loginTab.classList.add('active');
-registerTab.classList.remove('active');
+    if (!email || !password) {
+      showMsg('Please fill in all fields.', 'error'); return;
+    }
+    if (password.length < 6) {
+      showMsg('Password must be at least 6 characters.', 'error'); return;
+    }
 
-loginForm.classList.remove('hidden');
-registerForm.classList.add('hidden');
+    setLoading('registerBtn', true, 'Create Account');
 
-});
+    const { data, error } = await _supabase.auth.signUp({ email, password });
 
-registerTab.addEventListener('click', () => {
+    setLoading('registerBtn', false, 'Create Account');
 
-registerTab.classList.add('active');
-loginTab.classList.remove('active');
+    if (error) {
+      showMsg(error.message, 'error');
+    } else {
+      /* Create profile row in public.profiles */
+      if (data.user) {
+        await _supabase.from('profiles').upsert({
+          id:      data.user.id,
+          email:   data.user.email,
+          balance: 0.00042,          /* demo starting balance */
+          ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
+        });
+      }
+      showMsg('Account created! Check your email to confirm, then log in.', 'success');
+    }
+  });
 
-registerForm.classList.remove('hidden');
-loginForm.classList.add('hidden');
+  /* ─── Login ─── */
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email    = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
 
-});
+    if (!email || !password) {
+      showMsg('Please enter your email and password.', 'error'); return;
+    }
 
-document.getElementById('registerBtn')
-.addEventListener('click', async () => {
+    setLoading('loginBtn', true, 'Login To Dashboard');
 
-const email =
-document.getElementById('registerEmail').value;
+    const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
 
-const password =
-document.getElementById('registerPassword').value;
+    setLoading('loginBtn', false, 'Login To Dashboard');
 
-const { data,error } =
-await supabaseClient.auth.signUp({
-email,
-password
-});
+    if (error) {
+      showMsg(error.message, 'error');
+    } else {
+      /* Ensure profile exists for this user */
+      const { data: prof } = await _supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
 
-if(error){
+      if (!prof) {
+        await _supabase.from('profiles').upsert({
+          id:      data.user.id,
+          email:   data.user.email,
+          balance: 0.00042,
+          ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
+        });
+      }
 
-document.getElementById('message').innerText =
-error.message;
+      /* Persist session flag so dashboard knows we're logged in */
+      if (document.getElementById('rememberMe').checked) {
+        localStorage.setItem('cv_remember', '1');
+      }
 
-}else{
-
-document.getElementById('message').innerText =
-'Account Created Successfully';
-
-}
-
-});
-
-document.getElementById('loginBtn')
-.addEventListener('click', async () => {
-
-const email =
-document.getElementById('loginEmail').value;
-
-const password =
-document.getElementById('loginPassword').value;
-
-const { data,error } =
-await supabaseClient.auth.signInWithPassword({
-email,
-password
-});
-
-if(error){
-
-document.getElementById('message').innerText =
-error.message;
-
-}else{
-
-window.location.href =
-'dashboard.html';
-
-}
-
-});
-
+      window.location.href = 'dashboard.html';
+    }
+  });
 </script>
-
 </body>
-
 </html>
