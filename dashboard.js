@@ -39,10 +39,11 @@ const Auth = (() => {
       const { data: newProf } = await _supabase
         .from('profiles')
         .upsert({
-          id:       session.user.id,
-          email:    session.user.email,
-          balance:  0.00042,
-          ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
+          id:            session.user.id,
+          email:         session.user.email,
+          btc_balance:   0.00042,
+          usdt_balance:  0.00,
+          ref_code:      'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
         })
         .select()
         .single();
@@ -272,7 +273,8 @@ function populateUserUI() {
 
   const email   = user?.email || 'user@cryptovault.io';
   const name    = profile.name  || email.split('@')[0];
-  const balance = typeof profile.balance === 'number' ? profile.balance : 0.00042;
+  const btcBalance  = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0.00042;
+  const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0.00;
   const refCode = profile.ref_code || 'CVXXXXXX';
   const initial = name.charAt(0).toUpperCase();
 
@@ -309,11 +311,12 @@ function populateUserUI() {
 
   /* Update USD values when BTC price arrives */
   BTCPrice.onChange((price) => {
-    const usd = (balance * price).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-    setText('walletBalanceUSD',  '$' + usd);
-    setText('walletBigUSD',      '≈ $' + usd + ' USD');
-    setText('walletItemUSD',     '$' + usd);
-    setText('portfolioBTCusd',   '$' + usd);
+    const btcUsd = (btcBalance * price).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    setText('walletBalanceUSD',  '$' + btcUsd);
+    setText('walletBigUSD',      '≈ $' + btcUsd + ' USD');
+    setText('walletItemUSD',     '$' + btcUsd);
+    setText('portfolioBTCusd',   '$' + btcUsd);
+    setText('usdtBalanceUSD',    '$' + usdtBalance.toFixed(2));
 
     /* Live BTC ticker in navbar */
     const tickerPrice = $('tickerPrice');
