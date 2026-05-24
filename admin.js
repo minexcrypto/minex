@@ -114,7 +114,7 @@ async function loadDeposits() {
 async function loadUsers() {
     const { data, error } = await sb
         .from('profiles')
-        .select('id, email, balance, created_at')
+        .select('id, email, btc_balance, usdt_balance, created_at')
         .order('created_at', { ascending: false });
     if (error) {
         showToast('Failed to load users: ' + error.message, 'error');
@@ -190,7 +190,7 @@ function renderDeposits() {
             : '<span class="text-muted">—</span>';
 
         const actionsHtml = status === 'pending'
-            ? `<button class="btn-approve" data-id="${dep.id}" data-uid="${dep.user_id}" data-amt="${dep.amount}">Approve</button>
+            ? `<button class="btn-approve" data-id="${dep.id}" data-uid="${dep.user_id}" data-amt="${dep.amount}" data-coin="${escapeHtml(dep.coin || '')}">Approve</button>
                <button class="btn-reject" data-id="${dep.id}">Reject</button>`
             : `<span class="badge badge-${status}">${status}</span>`;
 
@@ -230,9 +230,11 @@ function renderUsers() {
     }
     allUsers.forEach(u => {
         const tr = document.createElement('tr');
+        const btc  = u.btc_balance  != null ? Number(u.btc_balance).toFixed(6)  : '0.000000';
+        const usdt = u.usdt_balance != null ? Number(u.usdt_balance).toFixed(2) : '0.00';
         tr.innerHTML = `
             <td>${escapeHtml(u.email || '—')}</td>
-            <td>${u.balance != null ? Number(u.balance).toFixed(6) : '0.000000'}</td>
+            <td>₿ ${btc} / ${usdt} USDT</td>
             <td>${formatDate(u.created_at)}</td>
         `;
         usersBody.appendChild(tr);
@@ -245,48 +247,74 @@ async function handleApprove(btn) {
     const id = btn.dataset.id;
     const userId = btn.dataset.uid;
     const amount = parseFloat(btn.dataset.amt);
+    const coin = (btn.dataset.coin || '').toLowerCase();
     if (!id || !userId || isNaN(amount)) return;
+
+    /* ── Validate coin ──────────────────────────────────── */
+    const isBTC  = coin === 'btc';
+    const isUSDT = coin === 'usdt_bep20' || coin === 'usdt (bep20)' || coin === 'usdt';
+
+    console.log('Deposit coin:', coin);
+    console.log('BTC match:', isBTC);
+    console.log('USDT match:', isUSDT);
+
+    if (!isBTC && !isUSDT) {
+        console.error('Unknown coin, cannot approve:', coin);
+        showToast('❌ Cannot approve: unknown coin type.', 'error');
+        btn.disabled = false;
+        const sibling = btn.nextElementSibling;
+        if (sibling) sibling.disabled = false;
+        return;
+    }
 
     btn.disabled = true;
     const sibling = btn.nextElementSibling;
     if (sibling) sibling.disabled = true;
 
+    /* ── 1. Update deposit status ───────────────────────── */
     const { error: updErr } = await sb
         .from('deposits')
         .update({ status: 'approved' })
         .eq('id', id);
 
     if (updErr) {
+        console.error('Approve failed:', updErr);
         showToast('Approve failed: ' + updErr.message, 'error');
         btn.disabled = false;
         if (sibling) sibling.disabled = false;
         return;
     }
 
+    /* ── 2. Update correct balance column ─────────────────── */
+    const balanceCol = isBTC ? 'btc_balance' : 'usdt_balance';
     const { data: profile, error: profErr } = await sb
         .from('profiles')
-        .select('balance')
+        .select(balanceCol)
         .eq('id', userId)
         .single();
 
     if (profErr) {
+        console.error('Profile fetch failed:', profErr);
         showToast('Deposit approved but balance update failed: ' + profErr.message, 'error');
     } else {
-        const current = parseFloat(profile.balance || 0);
+        const current = parseFloat(profile[balanceCol] || 0);
         const newBal = current + amount;
+        const updates = {};
+        updates[balanceCol] = newBal;
         const { error: balErr } = await sb
             .from('profiles')
-            .update({ balance: newBal })
+            .update(updates)
             .eq('id', userId);
         if (balErr) {
+            console.error('Balance update failed:', balErr);
             showToast('Deposit approved but balance update failed: ' + balErr.message, 'error');
         }
     }
 
+    console.log('Approved deposit:', coin, amount);
     showToast('Deposit approved successfully.', 'success');
     await loadData();
 }
-
 async function handleReject(btn) {
     const id = btn.dataset.id;
     if (!id) return;
@@ -301,6 +329,7 @@ async function handleReject(btn) {
         .eq('id', id);
 
     if (error) {
+        console.error('Reject failed:', error);
         showToast('Reject failed: ' + error.message, 'error');
         btn.disabled = false;
         if (sibling) sibling.disabled = false;
