@@ -27,7 +27,7 @@
   <nav class="sidebar-nav">
     <div class="nav-section-label">Main</div>
 
-    <a href="dashboard.html" class="nav-item active" id="nav-dashboard" target="_self">
+    <a href="dashboard.html" class="nav-item active" id="nav-dashboard">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       Dashboard
     </a>
@@ -349,6 +349,8 @@
 
   <!-- ════════════ TAB: WALLET ════════════ -->
   <div id="tab-wallet" class="tab-content" style="display:none;">
+
+    <!-- Wallet Balance Header -->
     <div class="wallet-header mb-24">
       <div class="wallet-balance-label">Total Wallet Balance</div>
       <div class="wallet-balance-value" id="walletBigBalance">₿ …</div>
@@ -357,13 +359,144 @@
         <button class="btn btn-green" data-modal="depositModal">📥 Deposit</button>
         <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
       </div>
-      <div class="wallet-balance-label" style="margin-bottom:8px;">Your BTC Address</div>
-      <div class="wallet-address-row">
-        <div class="wallet-address" id="walletAddress">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</div>
-        <button class="copy-btn" onclick="copyToClipboard('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh','Address copied!')">📋</button>
+    </div>
+
+    <!-- ═══ DEPOSIT ADDRESSES ═══ -->
+    <div class="card mb-24 deposit-section">
+      <div class="card-header">
+        <div>
+          <div class="card-title">💰 Deposit Addresses</div>
+          <div class="card-subtitle">Send funds to the address below</div>
+        </div>
+        <span class="badge badge-success">Active</span>
+      </div>
+
+      <div class="deposit-methods-grid">
+
+        <!-- BTC Card -->
+        <div class="deposit-method-card">
+          <div class="deposit-method-header">
+            <div class="deposit-coin-badge btc">
+              <span class="coin-icon coin-btc">₿</span>
+              <div>
+                <div class="deposit-coin-name">Bitcoin</div>
+                <div class="deposit-coin-network">BTC Network</div>
+              </div>
+            </div>
+            <span class="badge badge-warning">BTC</span>
+          </div>
+
+          <div class="deposit-qr-area">
+            <div class="qr-placeholder btc-qr">
+              <svg viewBox="0 0 100 100" width="80" height="80">
+                <rect x="10" y="10" width="25" height="25" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="12" y="12" width="21" height="21" fill="currentColor" opacity="0.3"/>
+                <rect x="65" y="10" width="25" height="25" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="67" y="12" width="21" height="21" fill="currentColor" opacity="0.3"/>
+                <rect x="10" y="65" width="25" height="25" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="12" y="67" width="21" height="21" fill="currentColor" opacity="0.3"/>
+                <rect x="40" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="40" y="52" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="52" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="40" y="10" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="10" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="10" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="22" y="40" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="65" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="77" y="40" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="40" y="65" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="65" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="40" y="77" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="52" y="77" width="8" height="8" fill="currentColor"/>
+                <rect x="65" y="65" width="8" height="8" fill="currentColor"/>
+                <rect x="77" y="65" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="65" y="77" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="77" y="77" width="8" height="8" fill="currentColor"/>
+              </svg>
+              <span class="qr-label">Scan QR Code</span>
+            </div>
+          </div>
+
+          <div class="deposit-address-box">
+            <label class="deposit-label">Deposit Address</label>
+            <div class="wallet-address-row deposit-address-row">
+              <div class="wallet-address" id="btcAddress">bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe</div>
+              <button class="copy-btn" onclick="copyToClipboard('bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe','BTC address copied!')" title="Copy Address">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+            <div class="deposit-warning">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Minimum deposit: 0.0001 BTC. Funds will be credited after 1 network confirmation.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- USDT BEP20 Card -->
+        <div class="deposit-method-card">
+          <div class="deposit-method-header">
+            <div class="deposit-coin-badge usdt">
+              <span class="coin-icon coin-usdt">₮</span>
+              <div>
+                <div class="deposit-coin-name">USDT</div>
+                <div class="deposit-coin-network">BEP20 (Binance Smart Chain)</div>
+              </div>
+            </div>
+            <span class="badge badge-info">BEP20</span>
+          </div>
+
+          <div class="deposit-qr-area">
+            <div class="qr-placeholder">
+              <svg viewBox="0 0 100 100" width="80" height="80">
+                <rect x="10" y="10" width="25" height="25" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="12" y="12" width="21" height="21" fill="currentColor" opacity="0.3"/>
+                <rect x="65" y="10" width="25" height="25" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="67" y="12" width="21" height="21" fill="currentColor" opacity="0.3"/>
+                <rect x="10" y="65" width="25" height="25" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="12" y="67" width="21" height="21" fill="currentColor" opacity="0.3"/>
+                <rect x="40" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="40" y="52" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="52" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="40" y="10" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="10" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="10" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="22" y="40" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="65" y="40" width="8" height="8" fill="currentColor"/>
+                <rect x="77" y="40" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="40" y="65" width="8" height="8" fill="currentColor"/>
+                <rect x="52" y="65" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="40" y="77" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="52" y="77" width="8" height="8" fill="currentColor"/>
+                <rect x="65" y="65" width="8" height="8" fill="currentColor"/>
+                <rect x="77" y="65" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="65" y="77" width="8" height="8" fill="currentColor" opacity="0.5"/>
+                <rect x="77" y="77" width="8" height="8" fill="currentColor"/>
+              </svg>
+              <span class="qr-label">Scan QR Code</span>
+            </div>
+          </div>
+
+          <div class="deposit-address-box">
+            <label class="deposit-label">Deposit Address</label>
+            <div class="wallet-address-row deposit-address-row">
+              <div class="wallet-address" id="usdtAddress">0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0</div>
+              <button class="copy-btn" onclick="copyToClipboard('0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0','USDT address copied!')" title="Copy Address">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+            <div class="deposit-warning">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Only send USDT on BEP20 network. Sending other tokens may result in permanent loss.</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
+    <!-- Balances Grid -->
     <div class="grid-2 mb-24">
       <div class="card">
         <div class="card-title mb-16">Balances</div>
@@ -407,9 +540,7 @@
         </div>
       </div>
     </div>
-  </div><!-- /tab-wallet -->
-
-  <!-- ════════════ TAB: TRANSACTIONS ════════════ -->
+  </div><!-- /tab-wallet --><!-- ════════════ TAB: TRANSACTIONS ════════════ -->
   <div id="tab-transactions" class="tab-content" style="display:none;">
     <div class="card">
       <div class="card-header">
@@ -678,29 +809,88 @@
 
 <!-- Deposit Modal -->
 <div class="modal-overlay" id="depositModal" style="display:none;">
-  <div class="modal">
+  <div class="modal" style="max-width:540px;">
     <div class="modal-header">
-      <h3>📥 Deposit Bitcoin</h3>
+      <h3>📥 Submit Deposit</h3>
       <button class="modal-close" data-close-modal="depositModal">✕</button>
     </div>
-    <div style="text-align:center;padding:20px 0;">
-      <div style="width:160px;height:160px;background:white;border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:60px;color:#000;">₿</div>
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Send BTC to this address</div>
-      <div class="wallet-address-row" style="max-width:100%;margin-bottom:0;">
-        <div class="wallet-address">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</div>
-        <button class="copy-btn" onclick="copyToClipboard('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh','Address copied!')">📋</button>
+
+    <form id="depositForm" class="deposit-form-modal">
+      <!-- Coin Select -->
+      <div class="form-group">
+        <label for="depositCoin">Select Coin</label>
+        <div class="select-wrapper">
+          <select id="depositCoin" name="coin" required>
+            <option value="" disabled selected>Choose deposit method</option>
+            <option value="usdt_bep20">USDT (BEP20)</option>
+            <option value="btc">Bitcoin (BTC)</option>
+          </select>
+          <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
-    </div>
-    <div style="background:var(--gold-muted);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--gold);margin-top:16px;">
-      ⚠️ Only send BTC to this address. Minimum deposit: 0.0001 BTC. Confirmations: 1
-    </div>
-    <form id="depositForm" style="margin-top:20px;">
-      <button type="submit" class="btn btn-green btn-full">I've Made the Transfer</button>
+
+      <!-- Amount Input -->
+      <div class="form-group">
+        <label for="depositAmount">Amount</label>
+        <div class="input-group deposit-input-group">
+          <input type="number" id="depositAmount" name="amount" step="0.00000001" min="0.00000001" placeholder="0.00" required>
+          <span class="input-suffix" id="amountSuffix">—</span>
+        </div>
+        <div class="deposit-hint" id="amountHint">Enter the exact amount you sent</div>
+      </div>
+
+      <!-- Transaction Hash -->
+      <div class="form-group">
+        <label for="depositTxHash">Transaction Hash (TXID)</label>
+        <div class="input-group">
+          <span class="input-icon">🔗</span>
+          <input type="text" id="depositTxHash" name="txHash" placeholder="Paste your transaction hash here" required>
+        </div>
+        <div class="deposit-hint">You can find this in your wallet's transaction history</div>
+      </div>
+
+      <!-- Screenshot Upload -->
+      <div class="form-group">
+        <label>Screenshot / Proof of Payment</label>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="depositScreenshot" name="screenshot" accept="image/*" hidden>
+          <div class="upload-content" id="uploadContent">
+            <div class="upload-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="upload-text">
+              <span class="upload-title">Click to upload screenshot</span>
+              <span class="upload-subtitle">or drag and drop here</span>
+            </div>
+            <div class="upload-formats">PNG, JPG, GIF up to 5MB</div>
+          </div>
+          <!-- Image Preview -->
+          <div class="upload-preview" id="uploadPreview" style="display:none;">
+            <img id="previewImage" src="" alt="Preview">
+            <div class="preview-overlay">
+              <button type="button" class="preview-remove" id="removePreview" title="Remove">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <span class="preview-filename" id="previewFilename">screenshot.png</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="deposit-form-actions" style="margin-top:20px;">
+        <button type="submit" class="btn btn-green btn-full">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Submit Deposit Request
+        </button>
+        <p class="deposit-form-note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Your deposit will be reviewed within 15–30 minutes during business hours.
+        </p>
+      </div>
     </form>
   </div>
-</div>
-
-<!-- Withdraw Modal -->
+</div><!-- Withdraw Modal -->
 <div class="modal-overlay" id="withdrawModal" style="display:none;">
   <div class="modal">
     <div class="modal-header">
