@@ -5,10 +5,7 @@
 
 'use strict';
 
-/* ─── SUPABASE INIT ─────────────────────────────────────── */
-const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
-const _supabase    = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 
 /* ─── AUTH MODULE ───────────────────────────────────────── */
 const Auth = (() => {
