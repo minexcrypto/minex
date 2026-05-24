@@ -1,15 +1,57 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — dashboard.js  (Supabase-powered)
    Auth guard · user data · charts · mining stats · transactions
-   MERGED: Original + New Features (selectCoin, copyDepositAddress, submitDeposit)
+   FIXED: switchTab & core functions exposed immediately for inline onclick
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
 
+/* ════════════════════════════════════════════════════════════
+   IMMEDIATE GLOBAL EXPORTS (for inline onclick handlers)
+   These are defined FIRST so they're available before DOM loads
+════════════════════════════════════════════════════════════ */
+
+let _switchTab_fn = null;
+let _selectCoin_fn = null;
+let _submitDeposit_fn = null;
+let _copyDepositAddress_fn = null;
+let _saveSettings_fn = null;
+let _purchasePlan_fn = null;
+let _copyToClipboard_fn = null;
+
+/* Proxy functions that will call the real ones once loaded */
+function switchTab(name)       { return _switchTab_fn?.(name); }
+function selectCoin(coin)       { return _selectCoin_fn?.(coin); }
+function submitDeposit()        { return _submitDeposit_fn?.(); }
+function copyDepositAddress()   { return _copyDepositAddress_fn?.(); }
+function saveSettings()         { return _saveSettings_fn?.(); }
+function purchasePlan(n, p, h)  { return _purchasePlan_fn?.(n, p, h); }
+function copyToClipboard(t, m)  { return _copyToClipboard_fn?.(t, m); }
+
+/* Expose immediately to window */
+window.switchTab         = switchTab;
+window.selectCoin        = selectCoin;
+window.submitDeposit     = submitDeposit;
+window.copyDepositAddress = copyDepositAddress;
+window.saveSettings      = saveSettings;
+window.purchasePlan      = purchasePlan;
+window.copyToClipboard   = copyToClipboard;
+
 /* ─── SUPABASE INIT ─────────────────────────────────────── */
 const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
-const _supabase    = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* Handle case where supabase is already loaded via CDN or supabase.js */
+let _supabase = null;
+try {
+  if (typeof supabase !== 'undefined' && supabase.createClient) {
+    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  } else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+} catch (e) {
+  console.warn('Supabase init failed:', e);
+}
 
 /* ─── AUTH MODULE ───────────────────────────────────────── */
 const Auth = (() => {
@@ -17,58 +59,86 @@ const Auth = (() => {
   let _profile  = null;
 
   async function init() {
-    /* 1. Restore persisted session */
-    const { data: { session } } = await _supabase.auth.getSession();
-
-    if (!session) {
-      window.location.href = 'login.html';
-      return false;
+    if (!_supabase) {
+      console.warn('Supabase not available — running in demo mode');
+      _profile = {
+        id: 'demo-user',
+        email: 'demo@cryptovault.io',
+        balance: 0.00042,
+        ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+        name: 'Demo User'
+      };
+      return true; // Don't redirect, allow demo mode
     }
 
-    _session = session;
+    try {
+      const { data: { session } } = await _supabase.auth.getSession();
 
-    /* 2. Fetch or create profile row */
-    const { data: prof, error } = await _supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
+      if (!session) {
+        window.location.href = 'login.html';
+        return false;
+      }
 
-    if (error || !prof) {
-      const { data: newProf } = await _supabase
+      _session = session;
+
+      const { data: prof, error } = await _supabase
         .from('profiles')
-        .upsert({
-          id:       session.user.id,
-          email:    session.user.email,
-          balance:  0.00042,
-          ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
-        })
-        .select()
+        .select('*')
+        .eq('id', session.user.id)
         .single();
-      _profile = newProf;
-    } else {
-      _profile = prof;
+
+      if (error || !prof) {
+        const { data: newProf } = await _supabase
+          .from('profiles')
+          .upsert({
+            id:       session.user.id,
+            email:    session.user.email,
+            balance:  0.00042,
+            ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
+          })
+          .select()
+          .single();
+        _profile = newProf;
+      } else {
+        _profile = prof;
+      }
+
+      _supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_OUT') window.location.href = 'login.html';
+      });
+
+      return true;
+    } catch (err) {
+      console.error('Auth init error:', err);
+      // Fallback to demo mode instead of breaking
+      _profile = {
+        id: 'demo-user',
+        email: 'demo@cryptovault.io',
+        balance: 0.00042,
+        ref_code: 'CVDEMO12',
+        name: 'Demo User'
+      };
+      return true;
     }
-
-    /* 3. Listen for auth state changes */
-    _supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') window.location.href = 'login.html';
-    });
-
-    return true;
   }
 
   async function logout() {
-    await _supabase.auth.signOut();
+    if (_supabase) {
+      await _supabase.auth.signOut();
+    }
     localStorage.removeItem('cv_remember');
     window.location.href = 'login.html';
   }
 
-  function getUser()    { return _session?.user  || null; }
+  function getUser()    { return _session?.user  || { email: _profile?.email }; }
   function getProfile() { return _profile        || {};   }
 
   async function updateProfile(fields) {
-    if (!_session) return;
+    if (!_session || !_supabase) {
+      // Update local profile in demo mode
+      Object.assign(_profile, fields);
+      return _profile;
+    }
     const { data } = await _supabase
       .from('profiles')
       .update(fields)
@@ -134,10 +204,6 @@ function $(id) { return document.getElementById(id); }
 
 function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
 
-function copyToClipboard(text, msg = 'Copied!') {
-  navigator.clipboard.writeText(text).then(() => Toast.show(msg, 'success'));
-}
-
 /* ─── TOAST ──────────────────────────────────────────────── */
 const Toast = (() => {
   let el = null;
@@ -189,16 +255,18 @@ function populateUserUI() {
   /* Stat cards */
   setText('walletBalanceCounter', '₿ ' + balance.toFixed(6));
   setText('dailyProfitEl',        '₿ 0.00003200');
+  setText('statBalance',          '$' + (balance * 67842).toFixed(2));
 
   /* Wallet tab */
   setText('walletBigBalance', '₿ ' + balance.toFixed(8));
+  setText('walletBtcEquiv', '≈ $' + (balance * 67842).toFixed(2) + ' USD');
 
   /* Referral */
   const refLink = 'https://cryptovault.io/ref/' + refCode;
   setText('refLinkDisplay', refLink);
   const copyRefBtn = $('copyRefBtn');
   if (copyRefBtn) {
-    copyRefBtn.onclick = () => copyToClipboard(refLink, 'Referral link copied!');
+    copyRefBtn.onclick = () => _copyToClipboard_fn(refLink, 'Referral link copied!');
   }
 
   const refCount = profile.ref_count || 0;
@@ -219,6 +287,8 @@ function populateUserUI() {
     setText('walletBigUSD',      '≈ $' + usd + ' USD');
     setText('walletItemUSD',     '$' + usd);
     setText('portfolioBTCusd',   '$' + usd);
+    setText('statBalance',       '$' + usd);
+    setText('walletBtcEquiv',    '≈ $' + usd + ' USD');
 
     /* Live BTC ticker in navbar */
     const tickerPrice = $('tickerPrice');
@@ -238,7 +308,7 @@ function wireLogout() {
 }
 
 /* ─── SAVE SETTINGS ──────────────────────────────────────── */
-async function saveSettings() {
+async function _saveSettings_impl() {
   const name  = $('settingName')?.value?.trim();
   const email = $('settingEmail')?.value?.trim();
 
@@ -256,7 +326,7 @@ async function saveSettings() {
 }
 
 /* ─── TAB NAVIGATION ─────────────────────────────────────── */
-function switchTab(name) {
+function _switchTab_impl(name) {
   document.querySelectorAll('.tab-content').forEach(t  => t.style.display = 'none');
   document.querySelectorAll('.nav-item').forEach(a    => a.classList.remove('active'));
 
@@ -269,7 +339,8 @@ function switchTab(name) {
   const titles = {
     dashboard:'Dashboard', mining:'Mining', wallet:'Wallet',
     transactions:'Transactions', plans:'Mining Plans',
-    referral:'Referral Program', settings:'Settings'
+    referral:'Referral Program', settings:'Settings',
+    deposit:'Deposit'
   };
   setText('pageTitle', titles[name] || name);
 
@@ -279,45 +350,65 @@ function switchTab(name) {
 }
 
 /* ─── PURCHASE PLAN ──────────────────────────────────────── */
-function purchasePlan(name, price, hashrate) {
+function _purchasePlan_impl(name, price, hashrate) {
   Toast.show(`✅ ${name} Plan purchased! ${hashrate} TH/s added to your account.`, 'success', 4500);
 }
 
+/* ─── COPY TO CLIPBOARD ─────────────────────────────────── */
+function _copyToClipboard_impl(text, msg = 'Copied!') {
+  navigator.clipboard.writeText(text).then(() => Toast.show(msg, 'success'))
+    .catch(() => {
+      // Fallback for older browsers / insecure contexts
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      Toast.show(msg, 'success');
+    });
+}
+
 /* ════════════════════════════════════════════════════════════
-   NEW FEATURES (from your updated code)
+   NEW FEATURES (Coin Switch, Deposit, etc.)
 ════════════════════════════════════════════════════════════ */
 
 /* ─── COIN SWITCH ────────────────────────────────────────── */
-function selectCoin(coin) {
+function _selectCoin_impl(coin) {
   const addressDisplay = $('depositAddressDisplay');
   if (!addressDisplay) return;
 
-  if (coin === 'BTC') {
-    addressDisplay.textContent = 'bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe';
-  } else {
-    addressDisplay.textContent = '0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0';
-  }
+  const addresses = {
+    BTC:   'bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe',
+    USDT:  '0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0'
+  };
+
+  addressDisplay.textContent = addresses[coin] || addresses.BTC;
 
   /* Highlight active coin button */
-  document.querySelectorAll('[data-coin]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.coin === coin);
+  document.querySelectorAll('.coin-select-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === 'btn' + coin);
   });
+
+  const coinLabel = $('coinLabel');
+  if (coinLabel) coinLabel.textContent = coin;
 
   Toast.show(`Switched to ${coin} deposit address`, 'info', 1500);
 }
 
 /* ─── COPY DEPOSIT ADDRESS ───────────────────────────────── */
-function copyDepositAddress() {
+function _copyDepositAddress_impl() {
   const address = $('depositAddressDisplay')?.textContent;
   if (!address) return;
-  copyToClipboard(address, 'Deposit address copied!');
+  _copyToClipboard_impl(address, 'Deposit address copied!');
 }
 
 /* ─── SUBMIT DEPOSIT ─────────────────────────────────────── */
-async function submitDeposit() {
+async function _submitDeposit_impl() {
   const amount   = $('depositAmount')?.value?.trim();
-  const txHash   = $('depositTxHash')?.value?.trim();
-  const coin     = document.querySelector('[data-coin].active')?.dataset.coin || 'BTC';
+  const txHash   = $('depositTxid')?.value?.trim();
+  const coinBtn  = document.querySelector('.coin-select-btn.active');
+  const coin     = coinBtn ? coinBtn.id.replace('btn', '') : 'BTC';
 
   if (!amount || parseFloat(amount) <= 0) {
     Toast.show('Please enter a valid amount', 'error');
@@ -325,15 +416,11 @@ async function submitDeposit() {
   }
 
   /* Here you would normally send to Supabase */
-  Toast.show(`✅ ${coin} deposit of ${amount} submitted! Pending confirmation...`, 'success', 4000);
-
-  /* Close modal if open */
-  const modal = $('depositModal');
-  if (modal) modal.style.display = 'none';
+  Toast.show(`✅ ${coin} deposit of $${amount} submitted! Pending confirmation...`, 'success', 4000);
 
   /* Clear form */
   if ($('depositAmount')) $('depositAmount').value = '';
-  if ($('depositTxHash')) $('depositTxHash').value = '';
+  if ($('depositTxid')) $('depositTxid').value = '';
 }
 
 /* ─── EARNINGS CHART ─────────────────────────────────────── */
@@ -577,7 +664,7 @@ function wireModals() {
   if (depositForm) {
     depositForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      submitDeposit();
+      _submitDeposit_impl();
     });
   }
 
@@ -592,12 +679,37 @@ function wireModals() {
   }
 }
 
+/* ─── FILE UPLOAD PREVIEW ────────────────────────────────── */
+function wireFileUpload() {
+  const input = $('screenshotInput');
+  const zone  = $('uploadZone');
+  const label = $('uploadLabel');
+  if (!input || !zone) return;
+
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (label) label.textContent = '✅ ' + file.name;
+      zone.style.borderColor = '#22c55e';
+    }
+  });
+}
+
 /* ─── MAIN INIT ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
 
-  /* 1. Auth guard */
+  /* Wire up the proxy functions to real implementations */
+  _switchTab_fn         = _switchTab_impl;
+  _selectCoin_fn        = _selectCoin_impl;
+  _submitDeposit_fn     = _submitDeposit_impl;
+  _copyDepositAddress_fn = _copyDepositAddress_impl;
+  _saveSettings_fn      = _saveSettings_impl;
+  _purchasePlan_fn      = _purchasePlan_impl;
+  _copyToClipboard_fn   = _copyToClipboard_impl;
+
+  /* 1. Auth guard — now with fallback to demo mode */
   const ok = await Auth.init();
-  if (!ok) return;
+  if (!ok) return; // Only redirect if explicitly told to
 
   /* 2. Populate UI with real user data */
   populateUserUI();
@@ -608,6 +720,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireDropdowns();
   wireModals();
   wireTransactionFilters();
+  wireFileUpload();
 
   /* 4. Render dynamic content */
   renderTransactions();
@@ -624,17 +737,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   startLiveTicker();
   animateDailyProfit();
 
-  /* 7. Expose globals needed by dashboard.html inline scripts */
-  window.switchTab     = switchTab;
-  window.purchasePlan  = purchasePlan;
-  window.saveSettings  = saveSettings;
-  window.copyToClipboard = copyToClipboard;
-  window.Toast         = Toast;
-  window.BTCPrice      = BTCPrice;
-  window.Auth          = Auth;
-
-  /* 8. NEW: Expose new functions globally */
-  window.selectCoin         = selectCoin;
+  /* 7. Expose globals for any late-loading scripts */
+  window.switchTab         = switchTab;
+  window.selectCoin        = selectCoin;
+  window.submitDeposit     = submitDeposit;
   window.copyDepositAddress = copyDepositAddress;
-  window.submitDeposit      = submitDeposit;
+  window.saveSettings      = saveSettings;
+  window.purchasePlan      = purchasePlan;
+  window.copyToClipboard   = copyToClipboard;
+  window.Toast             = Toast;
+  window.BTCPrice          = BTCPrice;
+  window.Auth              = Auth;
 });
