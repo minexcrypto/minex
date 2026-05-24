@@ -1,45 +1,110 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — dashboard.js  (Supabase-powered)
-   Uses supabase.js shared client: _sb, CV_Auth, CV_Wallet, CV_Deposits, CV_Plans
    Auth guard · user data · charts · mining stats · transactions
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
 
-/* ════════════════════════════════════════════════════════════
-   IMMEDIATE GLOBAL EXPORTS (for inline onclick handlers)
-   These are defined FIRST so they're available before DOM loads
-════════════════════════════════════════════════════════════ */
+/* ─── SUPABASE INIT ─────────────────────────────────────── */
+const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+const _supabase    = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let _switchTab_fn = null;
-let _selectCoin_fn = null;
-let _submitDeposit_fn = null;
-let _copyDepositAddress_fn = null;
-let _saveSettings_fn = null;
-let _purchasePlan_fn = null;
-let _copyToClipboard_fn = null;
+/* ─── AUTH MODULE ───────────────────────────────────────── */
+const Auth = (() => {
+  let _session  = null;   // raw Supabase session
+  let _profile  = null;   // profiles row
 
-/* Proxy functions that will call the real ones once loaded */
-function switchTab(name)       { return _switchTab_fn?.(name); }
-function selectCoin(coin)       { return _selectCoin_fn?.(coin); }
-function submitDeposit()        { return _submitDeposit_fn?.(); }
-function copyDepositAddress()   { return _copyDepositAddress_fn?.(); }
-function saveSettings()         { return _saveSettings_fn?.(); }
-function purchasePlan(n, p, h)  { return _purchasePlan_fn?.(n, p, h); }
-function copyToClipboard(t, m)  { return _copyToClipboard_fn?.(t, m); }
+  async function init() {
+    /* 1. Restore persisted session */
+    const { data: { session } } = await _supabase.auth.getSession();
 
-/* Expose immediately to window */
-window.switchTab         = switchTab;
-window.selectCoin        = selectCoin;
-window.submitDeposit     = submitDeposit;
-window.copyDepositAddress = copyDepositAddress;
-window.saveSettings      = saveSettings;
-window.purchasePlan      = purchasePlan;
-window.copyToClipboard   = copyToClipboard;
+    if (!session) {
+      /* Not logged in → redirect */
+      window.location.href = 'login.html';
+      return false;
+    }
 
-/* ─── USE SUPABASE.JS SHARED CLIENT ─────────────────────── */
-/* supabase.js already creates: _sb, CV_Auth, CV_Wallet, CV_Deposits, CV_Plans, Toast, BTCPrice */
-/* We use those directly — no duplicate Supabase client creation */
+    _session = session;
+
+    /* 2. Fetch or create profile row */
+    const { data: prof, error } = await _supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error || !prof) {
+      /* Profile missing — create it */
+      const { data: newProf } = await _supabase
+        .from('profiles')
+        .upsert({
+          id:       session.user.id,
+          email:    session.user.email,
+          balance:  0.00042,
+          ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
+        })
+        .select()
+        .single();
+      _profile = newProf;
+    } else {
+      _profile = prof;
+    }
+
+    /* 3. Listen for auth state changes (token refresh / logout from another tab) */
+    _supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') window.location.href = 'login.html';
+    });
+
+    return true;
+  }
+
+  async function logout() {
+    await _supabase.auth.signOut();
+    localStorage.removeItem('cv_remember');
+    window.location.href = 'login.html';
+  }
+
+  function getUser()    { return _session?.user  || null; }
+  function getProfile() { return _profile        || {};   }
+
+  async function updateProfile(fields) {
+    if (!_session) return;
+    const { data } = await _supabase
+      .from('profiles')
+      .update(fields)
+      .eq('id', _session.user.id)
+      .select()
+      .single();
+    if (data) _profile = data;
+    return data;
+  }
+
+  return { init, logout, getUser, getProfile, updateProfile };
+})();
+
+/* ─── BTC PRICE (public API, no auth needed) ─────────────── */
+const BTCPrice = (() => {
+  let _price    = 67842;
+  let _cbs      = [];
+
+  function onChange(cb) { _cbs.push(cb); cb(_price); }
+
+  async function _fetch() {
+    try {
+      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+      if (r.ok) {
+        const j = await r.json();
+        _price = j.bitcoin?.usd || _price;
+        _cbs.forEach(cb => cb(_price));
+      }
+    } catch (_) { /* use cached price */ }
+  }
+
+  _fetch();
+  setInterval(_fetch, 60_000);
+  return { onChange, get: () => _price };
+})();
 
 /* ─── SIMULATED MINING DATA ─────────────────────────────── */
 const MiningData = {
@@ -70,8 +135,12 @@ function $(id) { return document.getElementById(id); }
 
 function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
 
-/* ─── TOAST (fallback if supabase.js not loaded) ─────────── */
-const Toast = window.Toast || (() => {
+function copyToClipboard(text, msg = 'Copied!') {
+  navigator.clipboard.writeText(text).then(() => Toast.show(msg, 'success'));
+}
+
+/* ─── TOAST ──────────────────────────────────────────────── */
+const Toast = (() => {
   let el = null;
   function _ensure() {
     if (el) return;
@@ -104,9 +173,8 @@ const Toast = window.Toast || (() => {
 
 /* ─── POPULATE USER DATA INTO UI ─────────────────────────── */
 function populateUserUI() {
-  /* Use CV_Auth from supabase.js if available, else fallback */
-  const user    = (typeof CV_Auth !== 'undefined') ? CV_Auth.getUser() : { email: 'demo@cryptovault.io' };
-  const profile = (typeof CV_Auth !== 'undefined') ? CV_Auth.getProfile() : {};
+  const user    = Auth.getUser();
+  const profile = Auth.getProfile();
 
   const email   = user?.email || 'user@cryptovault.io';
   const name    = profile.name  || email.split('@')[0];
@@ -122,18 +190,16 @@ function populateUserUI() {
   /* Stat cards */
   setText('walletBalanceCounter', '₿ ' + balance.toFixed(6));
   setText('dailyProfitEl',        '₿ 0.00003200');
-  setText('statBalance',          '$' + (balance * 67842).toFixed(2));
 
   /* Wallet tab */
   setText('walletBigBalance', '₿ ' + balance.toFixed(8));
-  setText('walletBtcEquiv', '≈ $' + (balance * 67842).toFixed(2) + ' USD');
 
   /* Referral */
   const refLink = 'https://cryptovault.io/ref/' + refCode;
   setText('refLinkDisplay', refLink);
   const copyRefBtn = $('copyRefBtn');
   if (copyRefBtn) {
-    copyRefBtn.onclick = () => _copyToClipboard_impl(refLink, 'Referral link copied!');
+    copyRefBtn.onclick = () => copyToClipboard(refLink, 'Referral link copied!');
   }
 
   const refCount = profile.ref_count || 0;
@@ -148,15 +214,12 @@ function populateUserUI() {
   if (sEmail) sEmail.value = email;
 
   /* Update USD values when BTC price arrives */
-  const btcPrice = window.BTCPrice || BTCPrice;
-  btcPrice.onChange((price) => {
+  BTCPrice.onChange((price) => {
     const usd = (balance * price).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     setText('walletBalanceUSD',  '$' + usd);
     setText('walletBigUSD',      '≈ $' + usd + ' USD');
     setText('walletItemUSD',     '$' + usd);
     setText('portfolioBTCusd',   '$' + usd);
-    setText('statBalance',       '$' + usd);
-    setText('walletBtcEquiv',    '≈ $' + usd + ' USD');
 
     /* Live BTC ticker in navbar */
     const tickerPrice = $('tickerPrice');
@@ -170,30 +233,22 @@ function wireLogout() {
     el.addEventListener('click', async (e) => {
       e.preventDefault();
       Toast.show('Logging out…', 'info', 1500);
-      setTimeout(() => {
-        if (typeof CV_Auth !== 'undefined') {
-          CV_Auth.logout();
-        } else {
-          window.location.href = 'login.html';
-        }
-      }, 800);
+      setTimeout(() => Auth.logout(), 800);
     });
   });
 }
 
 /* ─── SAVE SETTINGS ──────────────────────────────────────── */
-async function _saveSettings_impl() {
+async function saveSettings() {
   const name  = $('settingName')?.value?.trim();
   const email = $('settingEmail')?.value?.trim();
 
   const updates = {};
   if (name)  updates.name  = name;
-  if (email) updates.email = email;
+  if (email) updates.email = email;   // display only; email change requires Supabase auth API
 
   if (Object.keys(updates).length) {
-    if (typeof CV_Auth !== 'undefined') {
-      await CV_Auth.updateProfile(updates);
-    }
+    await Auth.updateProfile(updates);
     if (name) document.querySelectorAll('.user-name-display').forEach(el => el.textContent = name);
     Toast.show('Settings saved!', 'success');
   } else {
@@ -202,7 +257,7 @@ async function _saveSettings_impl() {
 }
 
 /* ─── TAB NAVIGATION ─────────────────────────────────────── */
-function _switchTab_impl(name) {
+function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(t  => t.style.display = 'none');
   document.querySelectorAll('.nav-item').forEach(a    => a.classList.remove('active'));
 
@@ -215,8 +270,7 @@ function _switchTab_impl(name) {
   const titles = {
     dashboard:'Dashboard', mining:'Mining', wallet:'Wallet',
     transactions:'Transactions', plans:'Mining Plans',
-    referral:'Referral Program', settings:'Settings',
-    deposit:'Deposit'
+    referral:'Referral Program', settings:'Settings'
   };
   setText('pageTitle', titles[name] || name);
 
@@ -226,99 +280,8 @@ function _switchTab_impl(name) {
 }
 
 /* ─── PURCHASE PLAN ──────────────────────────────────────── */
-function _purchasePlan_impl(name, price, hashrate) {
+function purchasePlan(name, price, hashrate) {
   Toast.show(`✅ ${name} Plan purchased! ${hashrate} TH/s added to your account.`, 'success', 4500);
-}
-
-/* ─── COPY TO CLIPBOARD ─────────────────────────────────── */
-function _copyToClipboard_impl(text, msg = 'Copied!') {
-  navigator.clipboard.writeText(text).then(() => Toast.show(msg, 'success'))
-    .catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      Toast.show(msg, 'success');
-    });
-}
-
-/* ════════════════════════════════════════════════════════════
-   NEW FEATURES (Coin Switch, Deposit, etc.)
-════════════════════════════════════════════════════════════ */
-
-/* ─── COIN SWITCH ────────────────────────────────────────── */
-function _selectCoin_impl(coin) {
-  const addressDisplay = $('depositAddressDisplay');
-  if (!addressDisplay) return;
-
-  /* Use addresses from supabase.js if available */
-  const addresses = (typeof DEPOSIT_ADDRESSES !== 'undefined')
-    ? DEPOSIT_ADDRESSES
-    : {
-        BTC:   'bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe',
-        USDT:  '0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0'
-      };
-
-  addressDisplay.textContent = addresses[coin] || addresses.BTC;
-
-  /* Highlight active coin button */
-  document.querySelectorAll('.coin-select-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.id === 'btn' + coin);
-  });
-
-  const coinLabel = $('coinLabel');
-  if (coinLabel) coinLabel.textContent = coin;
-
-  Toast.show(`Switched to ${coin} deposit address`, 'info', 1500);
-}
-
-/* ─── COPY DEPOSIT ADDRESS ───────────────────────────────── */
-function _copyDepositAddress_impl() {
-  const address = $('depositAddressDisplay')?.textContent;
-  if (!address) return;
-  _copyToClipboard_impl(address, 'Deposit address copied!');
-}
-
-/* ─── SUBMIT DEPOSIT ─────────────────────────────────────── */
-async function _submitDeposit_impl() {
-  const amount   = $('depositAmount')?.value?.trim();
-  const txHash   = $('depositTxid')?.value?.trim();
-  const coinBtn  = document.querySelector('.coin-select-btn.active');
-  const coin     = coinBtn ? coinBtn.id.replace('btn', '') : 'BTC';
-
-  if (!amount || parseFloat(amount) <= 0) {
-    Toast.show('Please enter a valid amount', 'error');
-    return;
-  }
-
-  /* If CV_Deposits available (supabase.js loaded), use real API */
-  if (typeof CV_Deposits !== 'undefined') {
-    try {
-      const { data, error } = await CV_Deposits.submit({
-        coin,
-        amount: parseFloat(amount),
-        txid: txHash || null,
-        screenshotUrl: null
-      });
-      if (error) {
-        Toast.show('Error: ' + error.message, 'error');
-        return;
-      }
-      Toast.show(`✅ ${coin} deposit of $${amount} submitted! Pending admin approval.`, 'success', 4000);
-    } catch (err) {
-      Toast.show('Error submitting deposit', 'error');
-      return;
-    }
-  } else {
-    /* Fallback demo mode */
-    Toast.show(`✅ ${coin} deposit of $${amount} submitted! Pending confirmation...`, 'success', 4000);
-  }
-
-  /* Clear form */
-  if ($('depositAmount')) $('depositAmount').value = '';
-  if ($('depositTxid')) $('depositTxid').value = '';
 }
 
 /* ─── EARNINGS CHART ─────────────────────────────────────── */
@@ -562,7 +525,8 @@ function wireModals() {
   if (depositForm) {
     depositForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      _submitDeposit_impl();
+      $('depositModal').style.display = 'none';
+      Toast.show('✅ Transfer noted! Funds will appear after 1 confirmation.', 'success', 4000);
     });
   }
 
@@ -577,43 +541,12 @@ function wireModals() {
   }
 }
 
-/* ─── FILE UPLOAD PREVIEW ────────────────────────────────── */
-function wireFileUpload() {
-  const input = $('screenshotInput');
-  const zone  = $('uploadZone');
-  const label = $('uploadLabel');
-  if (!input || !zone) return;
-
-  input.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (label) label.textContent = '✅ ' + file.name;
-      zone.style.borderColor = '#22c55e';
-    }
-  });
-}
-
 /* ─── MAIN INIT ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
 
-  /* Wire up the proxy functions to real implementations */
-  _switchTab_fn         = _switchTab_impl;
-  _selectCoin_fn        = _selectCoin_impl;
-  _submitDeposit_fn     = _submitDeposit_impl;
-  _copyDepositAddress_fn = _copyDepositAddress_impl;
-  _saveSettings_fn      = _saveSettings_impl;
-  _purchasePlan_fn      = _purchasePlan_impl;
-  _copyToClipboard_fn   = _copyToClipboard_impl;
-
-  /* 1. Auth via CV_Auth from supabase.js */
-  let ok = false;
-  if (typeof CV_Auth !== 'undefined') {
-    ok = await CV_Auth.init();
-  } else {
-    console.warn('CV_Auth not found — running in demo mode');
-    ok = true;
-  }
-  if (!ok) return;
+  /* 1. Auth guard — redirect to login.html if no session */
+  const ok = await Auth.init();
+  if (!ok) return;   // redirecting
 
   /* 2. Populate UI with real user data */
   populateUserUI();
@@ -624,7 +557,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireDropdowns();
   wireModals();
   wireTransactionFilters();
-  wireFileUpload();
 
   /* 4. Render dynamic content */
   renderTransactions();
@@ -641,15 +573,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   startLiveTicker();
   animateDailyProfit();
 
-  /* 7. Expose globals for any late-loading scripts */
-  window.switchTab         = switchTab;
-  window.selectCoin        = selectCoin;
-  window.submitDeposit     = submitDeposit;
-  window.copyDepositAddress = copyDepositAddress;
-  window.saveSettings      = saveSettings;
-  window.purchasePlan      = purchasePlan;
-  window.copyToClipboard   = copyToClipboard;
-  window.Toast             = Toast;
-  window.BTCPrice          = window.BTCPrice || BTCPrice;
-  window.Auth              = (typeof CV_Auth !== 'undefined') ? CV_Auth : null;
+  /* 7. Expose globals needed by dashboard.html inline scripts */
+  window.switchTab     = switchTab;
+  window.purchasePlan  = purchasePlan;
+  window.saveSettings  = saveSettings;
+  window.copyToClipboard = copyToClipboard;
+  window.Toast         = Toast;
+  window.BTCPrice      = BTCPrice;
+  window.Auth          = Auth;
 });
