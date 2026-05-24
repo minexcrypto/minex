@@ -5,81 +5,67 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dashboard — CryptoVault</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dashboard-extra.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₿</text></svg>">
-<!-- Supabase must load before dashboard.js -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-
 <div class="app-shell">
 
-<!-- ─── SIDEBAR OVERLAY ──────────────────────────────────── -->
+<!-- SIDEBAR OVERLAY -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<!-- ─── SIDEBAR ─────────────────────────────────────────── -->
+<!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <a href="index.html" class="sidebar-logo">
     <div class="logo-icon">₿</div>
     <div class="logo-text">Crypto<span>Vault</span></div>
   </a>
-
   <nav class="sidebar-nav">
     <div class="nav-section-label">Main</div>
-
-    <a href="dashboard.html" class="nav-item active" id="nav-dashboard">
+    <a href="#" class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard');return false;">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       Dashboard
     </a>
-
-    <a href="#" class="nav-item" onclick="switchTab('mining');return false;" id="nav-mining">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      Mining
-    </a>
-
-    <a href="#" class="nav-item" onclick="switchTab('wallet');return false;" id="nav-wallet">
+    <a href="#" class="nav-item" id="nav-wallet" onclick="switchTab('wallet');return false;">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" fill="currentColor"/><path d="M22 11V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v3"/></svg>
       Wallet
     </a>
-
-    <a href="#" class="nav-item" onclick="switchTab('transactions');return false;" id="nav-transactions">
+    <a href="#" class="nav-item" id="nav-deposit" onclick="switchTab('deposit');return false;">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+      Deposit
+      <span class="nav-badge" id="pendingDepositBadge" style="display:none;">!</span>
+    </a>
+    <a href="#" class="nav-item" id="nav-plans" onclick="switchTab('plans');return false;">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      Mining Plans
+    </a>
+    <a href="#" class="nav-item" id="nav-mining" onclick="switchTab('mining');return false;">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Active Plans
+    </a>
+    <a href="#" class="nav-item" id="nav-transactions" onclick="switchTab('transactions');return false;">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 3v18"/></svg>
       Transactions
-      <span class="nav-badge">8</span>
     </a>
-
-    <div class="nav-section-label" style="margin-top:12px;">Growth</div>
-
-    <a href="#" class="nav-item" onclick="switchTab('plans');return false;" id="nav-plans">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      Plans
-    </a>
-
-    <a href="#" class="nav-item" onclick="switchTab('referral');return false;" id="nav-referral">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Referral
-    </a>
-
     <div class="nav-section-label" style="margin-top:12px;">Account</div>
-
-    <a href="#" class="nav-item" onclick="switchTab('settings');return false;" id="nav-settings">
+    <a href="#" class="nav-item" id="nav-settings" onclick="switchTab('settings');return false;">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
     </a>
   </nav>
-
   <div class="sidebar-footer">
     <div class="sidebar-user">
       <div class="user-avatar user-avatar-display">U</div>
       <div class="user-info">
         <div class="user-name user-name-display">User</div>
-        <!-- real email shown here -->
         <div class="user-level user-email-display" style="font-size:11px;opacity:0.7;word-break:break-all;">Loading…</div>
       </div>
     </div>
   </div>
 </aside>
 
-<!-- ─── NAVBAR ───────────────────────────────────────────── -->
+<!-- NAVBAR -->
 <header class="navbar">
   <div class="navbar-left">
     <button class="menu-toggle" id="menuToggle">
@@ -88,19 +74,12 @@
     <span class="page-title" id="pageTitle">Dashboard</span>
   </div>
   <div class="navbar-right">
-    <!-- BTC Ticker -->
     <div class="btc-ticker">
       <div class="ticker-dot"></div>
       <span class="ticker-symbol">BTC</span>
       <span class="ticker-price" id="tickerPrice">$67,842.00</span>
-      <span class="ticker-change ticker-up">▲ 1.24%</span>
+      <span class="ticker-change ticker-up" id="tickerChange">▲ 0.00%</span>
     </div>
-    <!-- Notifications -->
-    <div class="icon-btn">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="notif-badge">3</span>
-    </div>
-    <!-- User dropdown -->
     <div class="dropdown">
       <div class="icon-btn" data-dropdown-toggle="userMenu" style="width:auto;padding:0 10px;gap:8px;cursor:pointer;">
         <div class="user-avatar user-avatar-display" style="width:28px;height:28px;font-size:12px;">U</div>
@@ -108,163 +87,69 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <div class="dropdown-menu" id="userMenu">
-        <!-- Real email displayed here -->
         <div style="padding:10px 16px 6px;font-size:11px;color:#6b7280;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;word-break:break-all;" class="user-email-display">…</div>
         <a class="dropdown-item" href="#" onclick="switchTab('settings');return false;">⚙️ Settings</a>
         <a class="dropdown-item" href="#" onclick="switchTab('wallet');return false;">💼 Wallet</a>
+        <a class="dropdown-item" href="admin.html">🛡️ Admin Panel</a>
         <div class="dropdown-sep"></div>
-        <!-- Logout wired via data-logout attribute in dashboard.js -->
         <a class="dropdown-item danger" href="#" data-logout>🚪 Logout</a>
       </div>
     </div>
   </div>
 </header>
 
-<!-- ─── MAIN CONTENT ─────────────────────────────────────── -->
+<!-- MAIN CONTENT -->
 <main class="main-content">
 
-  <!-- ════════════ TAB: DASHBOARD ════════════ -->
+  <!-- ════ TAB: DASHBOARD ════ -->
   <div id="tab-dashboard" class="tab-content">
-
     <div class="stats-grid mb-28">
       <div class="stat-card gold">
         <div class="stat-icon">💰</div>
-        <div class="stat-value mono" id="walletBalanceCounter">₿ …</div>
-        <div class="stat-label">Wallet Balance</div>
-        <div class="stat-change up">▲ +0.000032 today</div>
+        <div class="stat-value mono" id="statBalance">$0.00</div>
+        <div class="stat-label">Wallet Balance (USD)</div>
+        <div class="stat-change up" id="statBalanceNote">Available to invest</div>
       </div>
       <div class="stat-card green">
-        <div class="stat-icon">⛏️</div>
-        <div class="stat-value mono" id="liveHashrate">115.3 TH/s</div>
-        <div class="stat-label">Live Hashrate</div>
-        <div class="stat-change up">▲ 3 active contracts</div>
+        <div class="stat-icon">📈</div>
+        <div class="stat-value mono" id="statDailyEarnings">$0.00</div>
+        <div class="stat-label">Daily Earnings</div>
+        <div class="stat-change up" id="statActivePlansNote">0 active plans</div>
       </div>
       <div class="stat-card blue">
-        <div class="stat-icon">📈</div>
-        <div class="stat-value mono" id="dailyProfitEl">₿ 0.00003200</div>
-        <div class="stat-label">Daily Profit</div>
-        <div class="stat-change up">▲ +2.4% vs yesterday</div>
-      </div>
-      <div class="stat-card orange">
-        <div class="stat-icon">🏆</div>
-        <div class="stat-value mono">₿ 0.00217</div>
-        <div class="stat-label">Total Mined</div>
+        <div class="stat-icon">💎</div>
+        <div class="stat-value mono" id="statTotalEarned">$0.00</div>
+        <div class="stat-label">Total Earned</div>
         <div class="stat-change up">▲ All time</div>
       </div>
-    </div>
-
-    <div class="grid-2-1 mb-28">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Mining Earnings</div>
-            <div class="card-subtitle">Last 12 days • BTC</div>
-          </div>
-          <div class="tabs">
-            <button class="tab-btn active">12D</button>
-            <button class="tab-btn">30D</button>
-            <button class="tab-btn">90D</button>
-          </div>
-        </div>
-        <canvas id="earningsChart" style="width:100%;display:block;"></canvas>
-        <div style="display:flex;gap:24px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-          <div>
-            <div style="font-size:11px;color:var(--text-muted)">Total Earned (12d)</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;">₿ 0.000413</div>
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text-muted)">Avg Daily</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--green);font-weight:500;margin-top:3px;">₿ 0.0000344</div>
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text-muted)">Best Day</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--text-primary);font-weight:500;margin-top:3px;">₿ 0.0000430</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Portfolio</div>
-          <span class="badge badge-success">Live</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">
-          <canvas id="donutChart" style="flex-shrink:0;"></canvas>
-          <div style="flex:1;">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Total Value</div>
-            <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--gold)" id="walletBalanceUSD">$28.51</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">≈ 0.000420 BTC</div>
-          </div>
-        </div>
-        <div class="portfolio-item">
-          <div class="portfolio-coin">
-            <div class="coin-icon coin-btc">₿</div>
-            <div><div class="coin-name">Bitcoin</div><div class="coin-full">BTC</div></div>
-          </div>
-          <div class="portfolio-right">
-            <div class="portfolio-amount">0.000420</div>
-            <div class="portfolio-usd" id="portfolioBTCusd">$28.51</div>
-          </div>
-        </div>
-        <div class="portfolio-item">
-          <div class="portfolio-coin">
-            <div class="coin-icon coin-usdt">₮</div>
-            <div><div class="coin-name">Tether</div><div class="coin-full">USDT</div></div>
-          </div>
-          <div class="portfolio-right">
-            <div class="portfolio-amount">12.40</div>
-            <div class="portfolio-usd">$12.40</div>
-          </div>
-        </div>
+      <div class="stat-card orange">
+        <div class="stat-icon">⛏️</div>
+        <div class="stat-value mono" id="statActivePlans">0</div>
+        <div class="stat-label">Active Plans</div>
+        <div class="stat-change up">▲ Running now</div>
       </div>
     </div>
 
     <div class="grid-2 mb-28">
+      <!-- Active Plans Preview -->
       <div class="card">
         <div class="card-header">
-          <div>
-            <div class="card-title">Hashrate History</div>
-            <div class="card-subtitle">Last 24 data points</div>
-          </div>
-          <div style="text-align:right;">
-            <div class="mono text-gold" id="liveHashrate2" style="font-size:18px;font-weight:600;">115.3 TH/s</div>
-            <div class="text-xs text-muted mt-4">Live</div>
-          </div>
+          <div><div class="card-title">Active Plans</div><div class="card-subtitle">Your mining contracts</div></div>
+          <button class="btn btn-primary btn-sm" onclick="switchTab('plans')">+ New Plan</button>
         </div>
-        <canvas id="hashrateChart" style="width:100%;display:block;"></canvas>
-        <div style="display:flex;gap:20px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div><div class="text-xs text-muted">Peak</div><div class="text-sm mono" style="color:var(--text-primary);margin-top:3px;">115 TH/s</div></div>
-          <div><div class="text-xs text-muted">Avg</div><div class="text-sm mono" style="color:var(--text-secondary);margin-top:3px;">96.8 TH/s</div></div>
-          <div><div class="text-xs text-muted">Efficiency</div><div class="text-sm mono" style="color:var(--green);margin-top:3px;">98.4%</div></div>
+        <div id="dashActivePlans">
+          <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No active plans yet. <a href="#" onclick="switchTab('plans');return false;" style="color:var(--gold);">Browse plans →</a></div>
         </div>
       </div>
 
+      <!-- Recent Deposits -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">Recent Activity</div>
-          <button class="btn btn-ghost btn-sm" onclick="switchTab('transactions')">See All →</button>
+          <div><div class="card-title">Recent Deposits</div><div class="card-subtitle">Deposit history</div></div>
+          <button class="btn btn-green btn-sm" onclick="switchTab('deposit')">+ Deposit</button>
         </div>
-        <div id="recentActivityList">
-          <div class="rig-card" style="margin-bottom:8px;">
-            <div class="tx-icon mining">⛏️</div>
-            <div class="rig-info"><div class="rig-name">Daily Mining Reward</div><div class="rig-specs">May 24, 2026</div></div>
-            <div class="rig-metrics"><div class="rig-hash text-green" style="color:var(--green)">+₿0.000032</div></div>
-          </div>
-          <div class="rig-card" style="margin-bottom:8px;">
-            <div class="tx-icon in">📥</div>
-            <div class="rig-info"><div class="rig-name">Deposit</div><div class="rig-specs">May 23, 2026</div></div>
-            <div class="rig-metrics"><div class="rig-hash text-green" style="color:var(--green)">+₿0.00150</div></div>
-          </div>
-          <div class="rig-card" style="margin-bottom:8px;">
-            <div class="tx-icon out">📤</div>
-            <div class="rig-info"><div class="rig-name">Withdrawal</div><div class="rig-specs">May 22, 2026</div></div>
-            <div class="rig-metrics"><div class="rig-hash" style="color:var(--red)">-₿0.00080</div></div>
-          </div>
-          <div class="rig-card">
-            <div class="tx-icon mining">⛏️</div>
-            <div class="rig-info"><div class="rig-name">Daily Mining Reward</div><div class="rig-specs">May 22, 2026</div></div>
-            <div class="rig-metrics"><div class="rig-hash text-green" style="color:var(--green)">+₿0.000029</div></div>
-          </div>
+        <div id="dashRecentDeposits">
+          <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No deposits yet.</div>
         </div>
       </div>
     </div>
@@ -272,324 +157,257 @@
     <div class="card">
       <div class="card-header"><div class="card-title">Quick Actions</div></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
-        <button class="btn btn-green" data-modal="depositModal">📥 Deposit BTC</button>
-        <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
-        <button class="btn btn-ghost" onclick="switchTab('plans')">⛏️ Buy Mining Plan</button>
-        <button class="btn btn-outline" onclick="switchTab('referral')">👥 Refer Friends</button>
+        <button class="btn btn-green" onclick="switchTab('deposit')">📥 Deposit Funds</button>
+        <button class="btn btn-primary" onclick="switchTab('plans')">⛏️ Activate Plan</button>
+        <button class="btn btn-ghost" onclick="switchTab('mining')">📊 View Earnings</button>
+        <button class="btn btn-outline" onclick="switchTab('transactions')">📋 Transactions</button>
       </div>
     </div>
+  </div>
 
-  </div><!-- /tab-dashboard -->
-
-  <!-- ════════════ TAB: MINING ════════════ -->
-  <div id="tab-mining" class="tab-content" style="display:none;">
-    <div class="card mb-24">
-      <div class="card-header">
-        <div><div class="card-title">Active Mining Contracts</div><div class="card-subtitle">3 contracts running</div></div>
-        <button class="btn btn-primary btn-sm" onclick="switchTab('plans')">+ Add Contract</button>
-      </div>
-      <div id="contractsContainer"></div>
-    </div>
-
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title mb-16">Mining Statistics</div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Total Hashrate</h4><p>Across all active contracts</p></div>
-          <div class="mono text-gold" style="font-size:18px;font-weight:600;">160 TH/s</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Power Consumption</h4><p>Est. current draw</p></div>
-          <div class="mono" style="font-size:16px;font-weight:600;color:var(--text-primary);">3,900 W</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Daily Revenue</h4><p>Estimated at current BTC price</p></div>
-          <div class="mono text-green" style="font-size:16px;font-weight:600;color:var(--green);">₿ 0.000505</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Monthly Projection</h4><p>At current hashrate</p></div>
-          <div class="mono text-gold" style="font-size:16px;font-weight:600;">₿ 0.01515</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
-          <div class="settings-info"><h4>Efficiency</h4><p>Profit per TH/s per day</p></div>
-          <div class="mono" style="color:var(--green);font-size:16px;font-weight:600;">98.4%</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title mb-16">Contract Progress</div>
-        <div style="margin-bottom:16px;">
-          <div class="progress-label"><span>Starter Plan</span><span>22 days left</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:73%"></div></div>
-          <div class="text-xs text-muted mt-4">73% complete • 10 TH/s</div>
-        </div>
-        <div style="margin-bottom:16px;">
-          <div class="progress-label"><span>Silver Plan</span><span>41 days left</span></div>
-          <div class="progress-bar"><div class="progress-fill green" style="width:45%"></div></div>
-          <div class="text-xs text-muted mt-4">45% complete • 50 TH/s</div>
-        </div>
-        <div style="margin-bottom:16px;">
-          <div class="progress-label"><span>Gold Plan</span><span>79 days left</span></div>
-          <div class="progress-bar"><div class="progress-fill blue" style="width:12%"></div></div>
-          <div class="text-xs text-muted mt-4">12% complete • 100 TH/s</div>
-        </div>
-        <div class="card" style="background:var(--bg-surface);padding:16px;margin-top:8px;border-color:rgba(245,158,11,0.2);">
-          <div class="flex items-center gap-12">
-            <span style="font-size:24px;">💡</span>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text-primary);">Upgrade Tip</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Adding a Platinum plan would increase your daily earnings by 187%</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div><!-- /tab-mining -->
-
-  <!-- ════════════ TAB: WALLET ════════════ -->
+  <!-- ════ TAB: WALLET ════ -->
   <div id="tab-wallet" class="tab-content" style="display:none;">
     <div class="wallet-header mb-24">
       <div class="wallet-balance-label">Total Wallet Balance</div>
-      <div class="wallet-balance-value" id="walletBigBalance">₿ …</div>
-      <div class="wallet-balance-usd" id="walletBigUSD">≈ $— USD</div>
-      <div style="display:flex;gap:12px;margin-bottom:24px;">
-        <button class="btn btn-green" data-modal="depositModal">📥 Deposit</button>
-        <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
-      </div>
-      <div class="wallet-balance-label" style="margin-bottom:8px;">Your BTC Address</div>
-      <div class="wallet-address-row">
-        <div class="wallet-address" id="walletAddress">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</div>
-        <button class="copy-btn" onclick="copyToClipboard('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh','Address copied!')">📋</button>
+      <div class="wallet-balance-value" id="walletBigBalance">$0.00</div>
+      <div class="wallet-balance-usd" id="walletBtcEquiv">≈ 0.00000000 BTC</div>
+      <div style="display:flex;gap:12px;margin-bottom:0;">
+        <button class="btn btn-green" onclick="switchTab('deposit')">📥 Deposit</button>
+        <button class="btn btn-primary" onclick="switchTab('plans')">⛏️ Invest in Plan</button>
       </div>
     </div>
 
     <div class="grid-2 mb-24">
       <div class="card">
-        <div class="card-title mb-16">Balances</div>
-        <div class="portfolio-item">
-          <div class="portfolio-coin"><div class="coin-icon coin-btc">₿</div><div><div class="coin-name">Bitcoin</div><div class="coin-full">BTC</div></div></div>
-          <div class="portfolio-right"><div class="portfolio-amount">0.000420 BTC</div><div class="portfolio-usd" id="walletItemUSD">$28.51</div></div>
+        <div class="card-title mb-16">Balance Breakdown</div>
+        <div class="settings-item" style="padding:12px 0;">
+          <div class="settings-info"><h4>Available Balance</h4><p>Ready to invest or withdraw</p></div>
+          <div class="mono text-gold" id="walletAvailable" style="font-size:18px;font-weight:600;">$0.00</div>
         </div>
-        <div class="portfolio-item">
-          <div class="portfolio-coin"><div class="coin-icon coin-usdt">₮</div><div><div class="coin-name">Tether</div><div class="coin-full">USDT</div></div></div>
-          <div class="portfolio-right"><div class="portfolio-amount">12.40 USDT</div><div class="portfolio-usd">$12.40</div></div>
+        <div class="settings-item" style="padding:12px 0;">
+          <div class="settings-info"><h4>Total Deposited</h4><p>All-time deposits</p></div>
+          <div class="mono text-green" id="walletTotalDeposited" style="font-size:16px;font-weight:600;">$0.00</div>
         </div>
-        <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">
-          <div class="flex justify-between text-sm" style="color:var(--text-muted);">
-            <span>Total Mining Earnings</span>
-            <span class="mono text-gold" style="color:var(--gold);">₿ 0.00217</span>
-          </div>
-          <div class="flex justify-between text-sm mt-8" style="color:var(--text-muted);">
-            <span>Total Referral Earnings</span>
-            <span class="mono" style="color:var(--green);">₿ 0.000085</span>
-          </div>
+        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
+          <div class="settings-info"><h4>Total Earnings</h4><p>From all active plans</p></div>
+          <div class="mono" id="walletTotalEarnings" style="color:var(--blue);font-size:16px;font-weight:600;">$0.00</div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title mb-16">Transaction Summary</div>
-        <div class="settings-item" style="padding:10px 0;">
-          <div class="settings-info"><h4>Total Deposited</h4></div>
-          <div class="mono" style="color:var(--green);font-weight:600;">₿ 0.00350</div>
+        <div class="card-title mb-16">Invest Summary</div>
+        <div class="settings-item" style="padding:12px 0;">
+          <div class="settings-info"><h4>Total Invested</h4><p>Across all plans</p></div>
+          <div class="mono" id="walletTotalInvested" style="color:var(--orange);font-size:16px;font-weight:600;">$0.00</div>
         </div>
-        <div class="settings-item" style="padding:10px 0;">
-          <div class="settings-info"><h4>Total Withdrawn</h4></div>
-          <div class="mono" style="color:var(--red);font-weight:600;">₿ 0.00200</div>
+        <div class="settings-item" style="padding:12px 0;">
+          <div class="settings-info"><h4>Daily Earnings</h4><p>From active plans</p></div>
+          <div class="mono text-green" id="walletDailyEarnings" style="font-size:16px;font-weight:600;color:var(--green);">$0.00</div>
         </div>
-        <div class="settings-item" style="padding:10px 0;">
-          <div class="settings-info"><h4>Mining Income</h4></div>
-          <div class="mono text-gold" style="color:var(--gold);font-weight:600;">₿ 0.00217</div>
-        </div>
-        <div class="settings-item" style="padding:10px 0;border-bottom:none;">
-          <div class="settings-info"><h4>Referral Bonuses</h4></div>
-          <div class="mono" style="color:var(--blue);font-weight:600;">₿ 0.000085</div>
+        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
+          <div class="settings-info"><h4>Monthly Projection</h4><p>Based on current plans</p></div>
+          <div class="mono text-gold" id="walletMonthlyProj" style="font-size:16px;font-weight:600;">$0.00</div>
         </div>
       </div>
     </div>
-  </div><!-- /tab-wallet -->
+  </div>
 
-  <!-- ════════════ TAB: TRANSACTIONS ════════════ -->
+  <!-- ════ TAB: DEPOSIT ════ -->
+  <div id="tab-deposit" class="tab-content" style="display:none;">
+    <div class="grid-2-1 mb-24">
+
+      <!-- Deposit Form -->
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Make a Deposit</div><div class="card-subtitle">Funds credited after admin approval</div></div>
+        </div>
+
+        <!-- Coin Selector -->
+        <div style="margin-bottom:24px;">
+          <label style="margin-bottom:10px;display:block;">Select Currency</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <button class="coin-select-btn active" id="btnBTC" onclick="selectCoin('BTC')">
+              <div class="coin-icon coin-btc" style="width:30px;height:30px;font-size:13px;margin:0 auto 6px;">₿</div>
+              <div style="font-weight:700;font-size:14px;">Bitcoin</div>
+              <div style="font-size:11px;color:var(--text-muted);">BTC</div>
+            </button>
+            <button class="coin-select-btn" id="btnUSDT" onclick="selectCoin('USDT')">
+              <div class="coin-icon coin-usdt" style="width:30px;height:30px;font-size:13px;margin:0 auto 6px;">₮</div>
+              <div style="font-weight:700;font-size:14px;">Tether</div>
+              <div style="font-size:11px;color:var(--text-muted);">USDT BEP20</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Address Display -->
+        <div class="deposit-address-box mb-20">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Send <span id="coinLabel">BTC</span> to this address:</div>
+          <div class="wallet-address-row" style="max-width:100%;">
+            <div class="wallet-address" id="depositAddressDisplay" style="font-size:11px;">bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe</div>
+            <button class="copy-btn" onclick="copyDepositAddress()">📋</button>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--gold);background:var(--gold-muted);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:8px 12px;">
+            ⚠️ Only send <span id="coinLabelWarn">BTC</span> to this address. Wrong network = lost funds.
+          </div>
+        </div>
+
+        <!-- Amount -->
+        <div class="form-group">
+          <label>Amount (USD equivalent)</label>
+          <div class="input-group">
+            <span class="input-icon">$</span>
+            <input type="number" id="depositAmount" placeholder="500.00" min="1" step="0.01">
+            <span class="input-suffix" id="depositCoinSuffix">USD</span>
+          </div>
+        </div>
+
+        <!-- TXID -->
+        <div class="form-group">
+          <label>Transaction ID (TXID)</label>
+          <input type="text" id="depositTxid" placeholder="Paste your transaction hash here">
+        </div>
+
+        <!-- Screenshot Upload -->
+        <div class="form-group">
+          <label>Payment Screenshot</label>
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('screenshotInput').click()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="font-size:13px;color:var(--text-muted);" id="uploadLabel">Click to upload screenshot</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">PNG, JPG up to 5MB</div>
+          </div>
+          <input type="file" id="screenshotInput" accept="image/*" style="display:none;" onchange="handleFileSelect(this)">
+        </div>
+
+        <button class="btn btn-green btn-full" id="submitDepositBtn" onclick="submitDeposit()">
+          📥 Submit Deposit Request
+        </button>
+      </div>
+
+      <!-- Deposit History -->
+      <div class="card">
+        <div class="card-title mb-16">My Deposits</div>
+        <div id="myDepositsList">
+          <div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;">No deposits yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ TAB: PLANS ════ -->
+  <div id="tab-plans" class="tab-content" style="display:none;">
+    <div style="margin-bottom:28px;">
+      <h2 style="font-size:24px;font-family:'Syne',sans-serif;margin-bottom:6px;">Mining <span style="color:var(--gold)">Plans</span></h2>
+      <p style="font-size:13px;color:var(--text-muted);">Invest your deposited balance to start earning daily returns.</p>
+      <div style="margin-top:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;display:inline-flex;align-items:center;gap:10px;">
+        💰 Available Balance: <strong class="text-gold" id="plansAvailBalance">$0.00</strong>
+      </div>
+    </div>
+
+    <div class="plans-grid" id="plansGrid" style="grid-template-columns:repeat(3,1fr);">
+      <!-- rendered by JS -->
+    </div>
+
+    <!-- Activate Plan Modal Inline -->
+    <div id="activatePlanPanel" style="display:none;margin-top:28px;">
+      <div class="card" style="border-color:rgba(245,158,11,0.3);max-width:500px;">
+        <div class="card-header">
+          <div><div class="card-title" id="activatePlanTitle">Activate Plan</div><div class="card-subtitle" id="activatePlanSub">Enter investment amount</div></div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('activatePlanPanel').style.display='none'">✕</button>
+        </div>
+        <div class="form-group">
+          <label>Investment Amount (USD)</label>
+          <div class="input-group">
+            <span class="input-icon">$</span>
+            <input type="number" id="activateAmount" placeholder="0.00" step="0.01">
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="activateAmountHint"></div>
+        </div>
+        <div id="activatePreview" style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:16px;display:none;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;">
+            <span style="color:var(--text-muted);">Daily Earnings</span>
+            <span class="mono text-green" id="previewDaily">$0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;">
+            <span style="color:var(--text-muted);">Monthly Return</span>
+            <span class="mono text-gold" id="previewMonthly">$0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;">
+            <span style="color:var(--text-muted);">Contract Duration</span>
+            <span class="mono" id="previewDuration">30 days</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" id="confirmActivateBtn" onclick="confirmActivatePlan()">
+          ✅ Confirm & Activate
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ TAB: MINING (Active Plans) ════ -->
+  <div id="tab-mining" class="tab-content" style="display:none;">
+    <div class="card mb-24">
+      <div class="card-header">
+        <div><div class="card-title">Active Mining Plans</div><div class="card-subtitle" id="miningSubtitle">Loading…</div></div>
+        <button class="btn btn-primary btn-sm" onclick="switchTab('plans')">+ Add Plan</button>
+      </div>
+      <div id="activePlansList"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title mb-16">Earnings Summary</div>
+        <div class="settings-item" style="padding:12px 0;">
+          <div class="settings-info"><h4>Today's Earnings</h4></div>
+          <div class="mono text-green" id="miningTodayEarnings" style="font-size:18px;font-weight:600;color:var(--green);">$0.00</div>
+        </div>
+        <div class="settings-item" style="padding:12px 0;">
+          <div class="settings-info"><h4>Total Earned</h4></div>
+          <div class="mono text-gold" id="miningTotalEarned" style="font-size:16px;font-weight:600;">$0.00</div>
+        </div>
+        <div class="settings-item" style="padding:12px 0;">
+          <div class="settings-info"><h4>Monthly Projection</h4></div>
+          <div class="mono" id="miningMonthlyProj" style="color:var(--blue);font-size:16px;font-weight:600;">$0.00</div>
+        </div>
+        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
+          <div class="settings-info"><h4>Total Invested</h4></div>
+          <div class="mono" id="miningTotalInvested" style="color:var(--orange);font-size:16px;font-weight:600;">$0.00</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title mb-16">Plan Performance</div>
+        <div id="planPerformanceList">
+          <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No active plans.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ TAB: TRANSACTIONS ════ -->
   <div id="tab-transactions" class="tab-content" style="display:none;">
     <div class="card">
       <div class="card-header">
-        <div><div class="card-title">Transaction History</div><div class="card-subtitle">All account activity</div></div>
+        <div><div class="card-title">Transaction History</div><div class="card-subtitle">Deposits &amp; plan history</div></div>
         <div class="tabs">
           <button class="tab-btn active" data-tx-filter="all">All</button>
-          <button class="tab-btn" data-tx-filter="mining">Mining</button>
-          <button class="tab-btn" data-tx-filter="in">Deposits</button>
-          <button class="tab-btn" data-tx-filter="out">Withdrawals</button>
+          <button class="tab-btn" data-tx-filter="deposit">Deposits</button>
+          <button class="tab-btn" data-tx-filter="plan">Plans</button>
         </div>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr>
-              <th>Transaction</th>
-              <th>Asset</th>
-              <th>Amount</th>
-              <th>USD Value</th>
-              <th>Status</th>
-              <th>Date</th>
-            </tr>
+            <tr><th>Type</th><th>Description</th><th>Amount</th><th>Status</th><th>Date</th></tr>
           </thead>
-          <tbody id="txTableBody"></tbody>
+          <tbody id="txTableBody">
+            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Loading…</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
-  </div><!-- /tab-transactions -->
+  </div>
 
-  <!-- ════════════ TAB: PLANS ════════════ -->
-  <div id="tab-plans" class="tab-content" style="display:none;">
-    <div class="section-header" style="text-align:left;margin-bottom:28px;">
-      <h2 style="font-size:24px;">Mining <span style="color:var(--gold)">Plans</span></h2>
-      <p style="text-align:left;font-size:13px;">Upgrade your hashrate and increase daily earnings.</p>
-    </div>
-    <div class="plans-grid">
-      <div class="plan-card">
-        <div class="plan-icon">🌱</div>
-        <div class="plan-name">Starter</div>
-        <div class="plan-desc">Perfect for beginners</div>
-        <div class="plan-price">$9<span>.99</span></div>
-        <div class="plan-period">30 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">10 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green" style="color:var(--green)">~0.000032 BTC</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>10 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>Basic Dashboard</li>
-          <li class="unavail">Priority Support</li>
-        </ul>
-        <button class="btn btn-outline btn-full" onclick="purchasePlan('Starter','9.99','10')">Purchase</button>
-      </div>
-      <div class="plan-card">
-        <div class="plan-icon">🥈</div>
-        <div class="plan-name">Silver</div>
-        <div class="plan-desc">Growing portfolio</div>
-        <div class="plan-price">$49<span>.99</span></div>
-        <div class="plan-period">90 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">50 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green" style="color:var(--green)">~0.000158 BTC</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>50 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>Full Dashboard</li>
-          <li>Analytics Reports</li>
-        </ul>
-        <button class="btn btn-outline btn-full" onclick="purchasePlan('Silver','49.99','50')">Purchase</button>
-      </div>
-      <div class="plan-card featured">
-        <div class="plan-featured-badge">Popular</div>
-        <div class="plan-icon">🥇</div>
-        <div class="plan-name">Gold</div>
-        <div class="plan-desc">Best value</div>
-        <div class="plan-price">$199<span>.99</span></div>
-        <div class="plan-period">180 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">100 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val" style="color:var(--green)">~0.000315 BTC</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>100 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>Advanced Dashboard</li>
-          <li>Priority Support</li>
-          <li>Auto Reinvest</li>
-        </ul>
-        <button class="btn btn-primary btn-full" onclick="purchasePlan('Gold','199.99','100')">Purchase</button>
-      </div>
-      <div class="plan-card">
-        <div class="plan-icon">💎</div>
-        <div class="plan-name">Platinum</div>
-        <div class="plan-desc">Maximum returns</div>
-        <div class="plan-price">$499<span>.99</span></div>
-        <div class="plan-period">365 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">300 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val" style="color:var(--green)">~0.000945 BTC</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>300 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>VIP Dashboard</li>
-          <li>Dedicated Manager</li>
-          <li>Auto Reinvest + Compound</li>
-        </ul>
-        <button class="btn btn-outline btn-full" onclick="purchasePlan('Platinum','499.99','300')">Purchase</button>
-      </div>
-    </div>
-  </div><!-- /tab-plans -->
-
-  <!-- ════════════ TAB: REFERRAL ════════════ -->
-  <div id="tab-referral" class="tab-content" style="display:none;">
-    <div class="grid-2-1 mb-24">
-      <div class="referral-card">
-        <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:6px;">Earn 5% <span style="color:var(--gold)">Commission</span></div>
-        <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;max-width:480px;">Share your referral link. Every time someone purchases a mining contract using your link, you earn 5% of their contract value — paid instantly in BTC.</p>
-        <div class="referral-link-box">
-          <span class="referral-link" id="refLinkDisplay">Loading…</span>
-          <button class="btn btn-primary btn-sm" id="copyRefBtn">📋 Copy Link</button>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:12px;">
-          <button class="btn btn-ghost btn-sm">📱 Share via WhatsApp</button>
-          <button class="btn btn-ghost btn-sm">🐦 Share via Twitter</button>
-          <button class="btn btn-ghost btn-sm">✉️ Share via Email</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title mb-16">Your Stats</div>
-        <div style="text-align:center;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:12px;">
-          <div style="font-size:38px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold);" id="refCountEl">0</div>
-          <div style="font-size:12px;color:var(--text-muted);">Total Referrals</div>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
-          <span style="color:var(--text-muted)">Total Earned</span>
-          <span class="mono text-gold" style="color:var(--gold);" id="refEarningsEl">₿ 0.000000</span>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
-          <span style="color:var(--text-muted)">This Month</span>
-          <span class="mono" style="color:var(--green);">₿ 0.000000</span>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;">
-          <span style="color:var(--text-muted)">Active Referrals</span>
-          <span style="color:var(--text-primary);font-weight:600;" id="activeRefEl">0</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header"><div class="card-title">Commission Tiers</div></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
-        <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥉</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Bronze</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">1–4 referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">5%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥈</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Silver</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">5–19 referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">7%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥇</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Gold</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">20+ referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">10%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-      </div>
-    </div>
-  </div><!-- /tab-referral -->
-
-  <!-- ════════════ TAB: SETTINGS ════════════ -->
+  <!-- ════ TAB: SETTINGS ════ -->
   <div id="tab-settings" class="tab-content" style="display:none;">
     <div class="grid-2">
       <div class="card mb-20">
@@ -602,136 +420,27 @@
           <label>Email Address</label>
           <input type="email" id="settingEmail" placeholder="you@example.com" readonly style="opacity:0.7;cursor:not-allowed;">
         </div>
-        <div class="form-group">
-          <label>Country</label>
-          <select>
-            <option>India</option>
-            <option>United States</option>
-            <option>United Kingdom</option>
-            <option>Germany</option>
-            <option>Singapore</option>
-            <option>UAE</option>
-          </select>
-        </div>
         <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
       </div>
 
-      <div class="card mb-20">
-        <div class="card-header"><div class="card-title">Security</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Two-Factor Authentication</h4><p>Add an extra layer of security</p></div>
-          <label class="toggle"><input type="checkbox" id="toggle2fa"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Email Notifications</h4><p>Get alerts for payouts & activity</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleEmail" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Withdrawal Confirmation</h4><p>Require email confirm on withdrawals</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleWithdraw" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Login Alerts</h4><p>Notify on new device logins</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleLogin" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <div class="card mb-20">
-        <div class="card-header"><div class="card-title">Mining Preferences</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Auto Reinvest Earnings</h4><p>Automatically reinvest daily mining rewards</p></div>
-          <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Mining Reports</h4><p>Weekly PDF performance reports</p></div>
-          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Low Hashrate Alerts</h4><p>Alert when efficiency drops below 90%</p></div>
-          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
       <div class="card" style="border-color:rgba(239,68,68,0.2);">
-        <div class="card-header"><div class="card-title" style="color:var(--red)">Danger Zone</div></div>
+        <div class="card-header"><div class="card-title" style="color:var(--red)">Account</div></div>
         <div class="settings-item">
-          <div class="settings-info"><h4>Change Password</h4><p>Update your login password</p></div>
-          <button class="btn btn-outline btn-sm">Change</button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Export Data</h4><p>Download all your account data</p></div>
-          <button class="btn btn-outline btn-sm">Export CSV</button>
+          <div class="settings-info"><h4>Logout</h4><p>Sign out of this device</p></div>
+          <button class="btn btn-red btn-sm" data-logout>Logout</button>
         </div>
         <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Logout</h4><p>Sign out of this session</p></div>
-          <button class="btn btn-red btn-sm" data-logout>Logout</button>
+          <div class="settings-info"><h4>Admin Panel</h4><p>Manage deposits &amp; users</p></div>
+          <a href="admin.html" class="btn btn-outline btn-sm">Open →</a>
         </div>
       </div>
     </div>
-  </div><!-- /tab-settings -->
+  </div>
 
 </main>
 </div><!-- /app-shell -->
 
-<!-- ─── MODALS ────────────────────────────────────────────── -->
-
-<!-- Deposit Modal -->
-<div class="modal-overlay" id="depositModal" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>📥 Deposit Bitcoin</h3>
-      <button class="modal-close" data-close-modal="depositModal">✕</button>
-    </div>
-    <div style="text-align:center;padding:20px 0;">
-      <div style="width:160px;height:160px;background:white;border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:60px;color:#000;">₿</div>
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Send BTC to this address</div>
-      <div class="wallet-address-row" style="max-width:100%;margin-bottom:0;">
-        <div class="wallet-address">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</div>
-        <button class="copy-btn" onclick="copyToClipboard('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh','Address copied!')">📋</button>
-      </div>
-    </div>
-    <div style="background:var(--gold-muted);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--gold);margin-top:16px;">
-      ⚠️ Only send BTC to this address. Minimum deposit: 0.0001 BTC. Confirmations: 1
-    </div>
-    <form id="depositForm" style="margin-top:20px;">
-      <button type="submit" class="btn btn-green btn-full">I've Made the Transfer</button>
-    </form>
-  </div>
-</div>
-
-<!-- Withdraw Modal -->
-<div class="modal-overlay" id="withdrawModal" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>📤 Withdraw Bitcoin</h3>
-      <button class="modal-close" data-close-modal="withdrawModal">✕</button>
-    </div>
-    <form id="withdrawForm">
-      <div class="form-group">
-        <label>BTC Wallet Address</label>
-        <div class="input-group">
-          <span class="input-icon">₿</span>
-          <input type="text" placeholder="bc1q..." required>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Amount (BTC)</label>
-        <div class="input-group">
-          <span class="input-icon">💰</span>
-          <input type="number" name="amount" step="0.00000001" min="0.00005" placeholder="0.00000000" required>
-          <span class="input-suffix">BTC</span>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Min: 0.00005 BTC · Fee: 0.00001 BTC</div>
-      </div>
-      <div style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--red);margin-bottom:20px;">
-        ⚠️ Withdrawals are processed within 24 hours. Double-check your address.
-      </div>
-      <button type="submit" class="btn btn-primary btn-full">Confirm Withdrawal</button>
-    </form>
-  </div>
-</div>
-
-<!-- dashboard.js handles all logic; supabase is already loaded above -->
-<script src="dashboard.js"></script>
+<script src="supabase.js"></script>
+<script src="dashboard-new.js"></script>
 </body>
 </html>
