@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoVault Admin</title>
+    <link rel="stylesheet" href="admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<base target="_blank">
+</head>
+<body>
+    <div id="login-screen" class="login-screen">
+        <div class="login-box">
+            <h1>🔐 CryptoVault Admin</h1>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Admin Email" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
+            <p id="login-error" class="error-msg"></p>
+        </div>
+    </div>
+
+    <div id="admin-app" class="admin-app hidden">
+        <aside class="sidebar">
+            <div class="logo">🔐 CryptoVault Admin</div>
+            <nav>
+                <a href="#" class="nav-link active" data-tab="deposits">📋 Deposits</a>
+                <a href="#" class="nav-link" data-tab="users">👤 Users</a>
+            </nav>
+            <div class="sidebar-footer">
+                <span id="admin-email"></span>
+                <button id="logout-btn" class="btn-logout">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <h2>Admin Dashboard</h2>
+            </header>
+
+            <div id="tab-deposits" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Deposits</div>
+                        <div class="stat-value" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card pending">
+                        <div class="stat-label">Pending</div>
+                        <div class="stat-value" id="stat-pending">0</div>
+                    </div>
+                    <div class="stat-card approved">
+                        <div class="stat-label">Approved</div>
+                        <div class="stat-value" id="stat-approved">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Users</div>
+                        <div class="stat-value" id="stat-users">0</div>
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <select id="filter-status">
+                        <option value="all">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                    <input type="text" id="search-input" placeholder="Search email, coin, tx hash...">
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Coin</th>
+                                <th>Amount</th>
+                                <th>TX Hash</th>
+                                <th>Screenshot</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deposits-body">
+                            <!-- populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-users" class="tab-content">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Balance</th>
+                                <th>Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-body">
+                            <!-- populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <div id="lightbox" class="lightbox hidden">
+        <span class="lightbox-close">&times;</span>
+        <img id="lightbox-img" src="" alt="Screenshot">
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
