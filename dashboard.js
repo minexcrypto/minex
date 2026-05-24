@@ -112,15 +112,14 @@ const MiningData = {
   earnings:  [0.00031,0.00028,0.00033,0.00035,0.00032,0.00038,0.00034,0.00039,0.00037,0.00041,0.00036,0.00043],
   labels:    ['May 13','May 14','May 15','May 16','May 17','May 18','May 19','May 20','May 21','May 22','May 23','May 24'],
 
+  /* Simulated mining rewards & withdrawals — temporary fake data */
   transactions: [
     { id:'TX001', type:'mining', coin:'BTC', amount:'+0.000032', usd:'+$2.17',  status:'success', date:'May 24, 2026', desc:'Daily Mining Reward' },
-    { id:'TX002', type:'in',     coin:'BTC', amount:'+0.00150',  usd:'+$101.7', status:'success', date:'May 23, 2026', desc:'Deposit' },
     { id:'TX003', type:'mining', coin:'BTC', amount:'+0.000031', usd:'+$2.10',  status:'success', date:'May 23, 2026', desc:'Daily Mining Reward' },
-    { id:'TX004', type:'out',    coin:'BTC', amount:'-0.00080',  usd:'-$54.3',  status:'success', date:'May 22, 2026', desc:'Withdrawal' },
     { id:'TX005', type:'mining', coin:'BTC', amount:'+0.000029', usd:'+$1.97',  status:'success', date:'May 22, 2026', desc:'Daily Mining Reward' },
-    { id:'TX006', type:'in',     coin:'BTC', amount:'+0.00200',  usd:'+$135.6', status:'pending', date:'May 21, 2026', desc:'Deposit' },
     { id:'TX007', type:'mining', coin:'BTC', amount:'+0.000033', usd:'+$2.24',  status:'success', date:'May 21, 2026', desc:'Daily Mining Reward' },
-    { id:'TX008', type:'out',    coin:'BTC', amount:'-0.00120',  usd:'-$81.4',  status:'success', date:'May 20, 2026', desc:'Withdrawal' },
+    { id:'TX004', type:'withdrawals',    coin:'BTC', amount:'-0.00080',  usd:'-$54.3',  status:'success', date:'May 22, 2026', desc:'Withdrawal' },
+    { id:'TX008', type:'withdrawals',    coin:'BTC', amount:'-0.00120',  usd:'-$81.4',  status:'success', date:'May 20, 2026', desc:'Withdrawal' },
   ],
 
   contracts: [
@@ -129,6 +128,101 @@ const MiningData = {
     { name:'Gold Plan',    hashrate:100, power:2200, dailyProfit:'0.000315 BTC', progress:12, daysLeft:79 },
   ]
 };
+
+/* ─── REAL DEPOSIT DATA MODULE ──────────────────────────── */
+const DepositData = (() => {
+  let _deposits = [];
+  let _btcPrice = 67842;
+
+  /* Listen to BTC price for USD conversion */
+  BTCPrice.onChange((price) => { _btcPrice = price; });
+
+  /* Fetch real deposits from Supabase */
+  async function fetchDeposits() {
+    const user = Auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await _supabase
+      .from('deposits')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to fetch deposits:', error);
+      return [];
+    }
+
+    _deposits = data || [];
+    return _deposits;
+  }
+
+  /* Convert a deposit row into transaction row format */
+  function depositToTx(deposit) {
+    const coinLabel = deposit.coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
+    const amount    = parseFloat(deposit.amount) || 0;
+    const isUSDT    = deposit.coin === 'usdt_bep20';
+
+    /* USD value estimation */
+    let usdVal = 0;
+    if (isUSDT) {
+      usdVal = amount;
+    } else {
+      /* BTC → USD */
+      usdVal = amount * _btcPrice;
+    }
+    const usdStr = '+$' + usdVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    /* Format date: 2026-05-24T14:30:00 → "May 24, 2026" */
+    const d = new Date(deposit.created_at);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    /* Format amount with + sign */
+    const amountStr = '+' + amount.toFixed(isUSDT ? 2 : 8) + ' ' + coinLabel.split(' ')[0];
+
+    return {
+      id:        'DEP-' + deposit.id?.slice(-6).toUpperCase() || 'UNKNOWN',
+      type:      'deposits',
+      coin:      coinLabel,
+      amount:    amountStr,
+      usd:       usdStr,
+      status:    deposit.status || 'pending',
+      date:      dateStr,
+      desc:      'Deposit',
+      createdAt: deposit.created_at,
+      isReal:    true
+    };
+  }
+
+  /* Merge real deposits with simulated data, sort newest first */
+  function getMergedTransactions() {
+    /* Convert all real deposits */
+    const realTxs = _deposits.map(depositToTx);
+
+    /* Simulated transactions with a fake createdAt for sorting */
+    const simTxs = MiningData.transactions.map((tx, idx) => ({
+      ...tx,
+      createdAt: '2026-05-20T00:00:00.000Z', /* older than any real deposit */
+      isReal: false
+    }));
+
+    /* Merge and sort by date descending (newest first) */
+    const merged = [...realTxs, ...simTxs];
+    merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return merged;
+  }
+
+  /* Get only real deposits (for re-rendering after submit) */
+  function getDeposits() { return _deposits; }
+
+  /* Manually add a deposit (called immediately after successful submit) */
+  function addDeposit(deposit) {
+    _deposits.unshift(deposit);
+  }
+
+  return { fetchDeposits, getMergedTransactions, getDeposits, addDeposit, depositToTx };
+})();
 
 /* ─── UI HELPERS ─────────────────────────────────────────── */
 function $(id) { return document.getElementById(id); }
@@ -383,28 +477,59 @@ function initDonut() {
   ctx.fillText('58%', cx, cy + 8);
 }
 
-/* ─── TRANSACTION TABLE ──────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   REAL TRANSACTION TABLE — Supabase deposits + simulated data
+══════════════════════════════════════════════════════════════ */
+
+let _currentTxFilter = 'all';
+
 function renderTransactions(filter = 'all') {
+  _currentTxFilter = filter;
   const tbody = $('txTableBody');
   if (!tbody) return;
-  const rows = filter === 'all'
-    ? MiningData.transactions
-    : MiningData.transactions.filter(t => t.type === filter);
 
-  const statusBadge = s => s === 'success'
-    ? `<span style="background:rgba(34,197,94,0.15);color:#22c55e;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Success</span>`
-    : `<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Pending</span>`;
+  /* Get merged data (real deposits + simulated mining/withdrawals) */
+  const allRows = DepositData.getMergedTransactions();
+
+  /* Apply filter */
+  const rows = filter === 'all'
+    ? allRows
+    : allRows.filter(t => t.type === filter);
+
+  /* Status badge renderer */
+  const statusBadge = (s) => {
+    if (s === 'success' || s === 'approved') {
+      return `<span style="background:rgba(34,197,94,0.15);color:#22c55e;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Success</span>`;
+    } else if (s === 'pending') {
+      return `<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Pending</span>`;
+    } else if (s === 'rejected') {
+      return `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Rejected</span>`;
+    }
+    return `<span style="background:rgba(148,163,184,0.15);color:#94a3b8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${s}</span>`;
+  };
+
+  /* Amount color: green for +, red for - */
+  const amountColor = (amt) => {
+    const firstChar = String(amt).trim()[0];
+    return firstChar === '+' ? '#10b981' : '#ef4444';
+  };
 
   tbody.innerHTML = rows.map(tx => `
     <tr>
       <td>${tx.desc}</td>
       <td>${tx.coin}</td>
-      <td style="color:${tx.amount[0] === '+' ? '#10b981' : '#ef4444'};font-family:'DM Mono',monospace;">${tx.amount}</td>
+      <td style="color:${amountColor(tx.amount)};font-family:'DM Mono',monospace;">${tx.amount}</td>
       <td style="font-family:'DM Mono',monospace;color:#94a3b8;">${tx.usd}</td>
       <td>${statusBadge(tx.status)}</td>
       <td style="color:#94a3b8;">${tx.date}</td>
     </tr>
   `).join('');
+}
+
+/* Refresh transactions after a new deposit is submitted */
+async function refreshTransactions() {
+  await DepositData.fetchDeposits();
+  renderTransactions(_currentTxFilter);
 }
 
 /* ─── TX FILTER TABS ─────────────────────────────────────── */
@@ -749,6 +874,10 @@ function initDepositForm() {
     /* ── 6. Success ───────────────────────────────────────── */
     Toast.show('✅ Deposit request submitted! ' + numericAmount + ' ' + coinLabel + ' — Pending review', 'success', 5000);
 
+    /* ── 6b. INSTANTLY add to transaction table ───────────── */
+    DepositData.addDeposit(insertData);
+    renderTransactions(_currentTxFilter);
+
     /* ── 7. Reset form ────────────────────────────────────── */
     form.reset();
     if (removePreview) {
@@ -776,7 +905,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* 2. Populate UI with real user data */
   populateUserUI();
 
-  /* 3. Wire interactions */
+  /* 3. Fetch real deposits BEFORE rendering transactions */
+  await DepositData.fetchDeposits();
+
+  /* 4. Wire interactions */
   wireLogout();
   wireMobileMenu();
   wireDropdowns();
@@ -784,22 +916,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireTransactionFilters();
   initDepositForm();
 
-  /* 4. Render dynamic content */
+  /* 5. Render dynamic content (now uses real deposits) */
   renderTransactions();
   renderContracts();
 
-  /* 5. Charts (small delay to allow layout paint) */
+  /* 6. Charts (small delay to allow layout paint) */
   setTimeout(() => {
     initEarningsChart();
     initHashrateChart();
     initDonut();
   }, 120);
 
-  /* 6. Live tickers */
+  /* 7. Live tickers */
   startLiveTicker();
   animateDailyProfit();
 
-  /* 7. Expose globals needed by dashboard.html inline scripts */
+  /* 8. Expose globals needed by dashboard.html inline scripts */
   window.switchTab     = switchTab;
   window.purchasePlan  = purchasePlan;
   window.saveSettings  = saveSettings;
@@ -807,4 +939,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.Toast         = Toast;
   window.BTCPrice      = BTCPrice;
   window.Auth          = Auth;
+  window.DepositData   = DepositData;
+  window.refreshTransactions = refreshTransactions;
 });
