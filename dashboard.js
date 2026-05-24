@@ -583,13 +583,11 @@ function initDepositForm() {
 
   /* File upload handling */
   if (uploadArea && fileInput) {
-    // Click to upload
     uploadArea.addEventListener('click', function(e) {
       if (e.target.closest('.preview-remove')) return;
       fileInput.click();
     });
 
-    // Drag & drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
       uploadArea.addEventListener(eventName, function(e) {
         e.preventDefault();
@@ -614,25 +612,20 @@ function initDepositForm() {
       if (files.length) handleFile(files[0]);
     });
 
-    // File input change
     fileInput.addEventListener('change', function() {
       if (fileInput.files.length) handleFile(fileInput.files[0]);
     });
 
     function handleFile(file) {
-      // Validate file type
       var validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
       if (validTypes.indexOf(file.type) === -1) {
-        Toast.show('❌ Please upload an image file (PNG, JPG, GIF)', 'error');
+        Toast.show('Please upload an image file (PNG, JPG, GIF)', 'error');
         return;
       }
-      // Validate file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
-        Toast.show('❌ File too large. Maximum size is 5MB.', 'error');
+        Toast.show('File too large. Maximum size is 5MB.', 'error');
         return;
       }
-
-      // Show preview
       var reader = new FileReader();
       reader.onload = function(e) {
         previewImage.src = e.target.result;
@@ -640,12 +633,11 @@ function initDepositForm() {
         uploadContent.style.display = 'none';
         uploadPreview.style.display = 'flex';
         uploadArea.classList.add('has-file');
-        Toast.show('✅ Screenshot uploaded successfully', 'success');
+        Toast.show('Screenshot uploaded successfully', 'success');
       };
       reader.readAsDataURL(file);
     }
 
-    // Remove preview
     if (removePreview) {
       removePreview.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -661,40 +653,35 @@ function initDepositForm() {
   /* Form submit */
   form.addEventListener('submit', function(e) {
     e.preventDefault();
-
     var coin = coinSelect ? coinSelect.value : '';
     var amount = amountInput ? amountInput.value : '';
     var txHashEl = document.getElementById('depositTxHash');
     var txHash = txHashEl ? txHashEl.value.trim() : '';
     var hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
 
-    // Validation
     if (!coin) {
-      Toast.show('❌ Please select a coin', 'error');
+      Toast.show('Please select a coin', 'error');
       if (coinSelect) coinSelect.focus();
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
-      Toast.show('❌ Please enter a valid amount', 'error');
+      Toast.show('Please enter a valid amount', 'error');
       if (amountInput) amountInput.focus();
       return;
     }
     if (!txHash) {
-      Toast.show('❌ Please enter the transaction hash', 'error');
+      Toast.show('Please enter the transaction hash', 'error');
       if (txHashEl) txHashEl.focus();
       return;
     }
     if (!hasFile) {
-      Toast.show('❌ Please upload a screenshot as proof of payment', 'error');
+      Toast.show('Please upload a screenshot as proof of payment', 'error');
       return;
     }
 
-    // Show success (no backend)
     var coinLabel = coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
-    Toast.show('✅ Deposit request submitted!
-' + amount + ' ' + coinLabel + ' — Pending review', 'success', 5000);
+    Toast.show('Deposit request submitted! ' + amount + ' ' + coinLabel + ' — Pending review', 'success', 5000);
 
-    // Reset form
     form.reset();
     if (removePreview) {
       fileInput.value = '';
@@ -705,8 +692,6 @@ function initDepositForm() {
     }
     if (amountSuffix) amountSuffix.textContent = '—';
     if (amountHint) amountHint.textContent = 'Enter the exact amount you sent';
-
-    // Close modal
     var modal = document.getElementById('depositModal');
     if (modal) modal.style.display = 'none';
   });
