@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — dashboard.js  (Supabase-powered)
    Auth guard · user data · charts · mining stats · transactions
-   FIXED: switchTab & core functions exposed immediately for inline onclick
+   FIXED v2: No conflicts with supabase.js, immediate global exports
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -38,19 +38,22 @@ window.purchasePlan      = purchasePlan;
 window.copyToClipboard   = copyToClipboard;
 
 /* ─── SUPABASE INIT ─────────────────────────────────────── */
-const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
-
-/* Handle case where supabase is already loaded via CDN or supabase.js */
+/* Use existing supabase client if supabase.js already loaded it */
 let _supabase = null;
-try {
-  if (typeof supabase !== 'undefined' && supabase.createClient) {
-    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  } else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
-} catch (e) {
-  console.warn('Supabase init failed:', e);
+
+/* Check if supabase.js already created a global client */
+if (typeof window._supabaseClient !== 'undefined') {
+  _supabase = window._supabaseClient;
+} else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+  /* supabase.js loaded but no client created — create our own */
+  const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} else if (typeof supabase !== 'undefined' && supabase.createClient) {
+  /* CDN loaded */
+  const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+  _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
 /* ─── AUTH MODULE ───────────────────────────────────────── */
@@ -68,7 +71,7 @@ const Auth = (() => {
         ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase(),
         name: 'Demo User'
       };
-      return true; // Don't redirect, allow demo mode
+      return true;
     }
 
     try {
@@ -110,7 +113,6 @@ const Auth = (() => {
       return true;
     } catch (err) {
       console.error('Auth init error:', err);
-      // Fallback to demo mode instead of breaking
       _profile = {
         id: 'demo-user',
         email: 'demo@cryptovault.io',
@@ -135,7 +137,6 @@ const Auth = (() => {
 
   async function updateProfile(fields) {
     if (!_session || !_supabase) {
-      // Update local profile in demo mode
       Object.assign(_profile, fields);
       return _profile;
     }
@@ -266,7 +267,7 @@ function populateUserUI() {
   setText('refLinkDisplay', refLink);
   const copyRefBtn = $('copyRefBtn');
   if (copyRefBtn) {
-    copyRefBtn.onclick = () => _copyToClipboard_fn(refLink, 'Referral link copied!');
+    copyRefBtn.onclick = () => _copyToClipboard_impl(refLink, 'Referral link copied!');
   }
 
   const refCount = profile.ref_count || 0;
@@ -358,7 +359,6 @@ function _purchasePlan_impl(name, price, hashrate) {
 function _copyToClipboard_impl(text, msg = 'Copied!') {
   navigator.clipboard.writeText(text).then(() => Toast.show(msg, 'success'))
     .catch(() => {
-      // Fallback for older browsers / insecure contexts
       const ta = document.createElement('textarea');
       ta.value = text;
       document.body.appendChild(ta);
@@ -415,7 +415,6 @@ async function _submitDeposit_impl() {
     return;
   }
 
-  /* Here you would normally send to Supabase */
   Toast.show(`✅ ${coin} deposit of $${amount} submitted! Pending confirmation...`, 'success', 4000);
 
   /* Clear form */
@@ -709,7 +708,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* 1. Auth guard — now with fallback to demo mode */
   const ok = await Auth.init();
-  if (!ok) return; // Only redirect if explicitly told to
+  if (!ok) return;
 
   /* 2. Populate UI with real user data */
   populateUserUI();
