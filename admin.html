@@ -5,41 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CryptoVault Admin</title>
     <link rel="stylesheet" href="admin.css">
+    <script>
+        window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
+        window.CRYPTOVAULT_SUPABASE_KEY = "PASTE_FULL_SUPABASE_PUBLISHABLE_KEY_HERE";
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 </head>
 <body>
-    <div id="login-screen" class="login-screen">
+    <div id="adminLoginScreen" class="login-screen">
         <div class="login-box">
             <h1>🔐 CryptoVault Admin</h1>
-            <form id="login-form">
-                <input type="email" id="login-email" placeholder="Admin Email" required>
-                <input type="password" id="login-password" placeholder="Password" required>
-                <button type="submit" class="btn-primary">Sign In</button>
+            <form id="adminLoginForm">
+                <input type="email" id="adminLoginEmail" placeholder="Admin Email" required>
+                <input type="password" id="adminLoginPassword" placeholder="Password" required>
+                <button type="submit" id="adminLoginBtn" class="btn-primary">Sign In</button>
             </form>
-            <p id="login-error" class="error-msg"></p>
+            <p id="adminLoginError" class="error-msg"></p>
         </div>
     </div>
 
-    <div id="admin-app" class="admin-app hidden">
-        <aside class="sidebar">
+    <div id="adminAppShell" class="admin-app hidden">
+        <aside class="sidebar" id="adminSidebar">
             <div class="logo">🔐 CryptoVault Admin</div>
             <nav>
-                <a href="#" class="nav-link active" data-tab="deposits">📋 Deposits</a>
-                <a href="#" class="nav-link" data-tab="users">👤 Users</a>
+                <a href="#" class="nav-link active" data-admin-tab="deposits">📋 Deposits
+                    <span id="sidebarDepositBadge"></span>
+                </a>
+                <a href="#" class="nav-link" data-admin-tab="users">👤 Users</a>
             </nav>
             <div class="sidebar-footer">
-                <span id="admin-email"></span>
-                <button id="logout-btn" class="btn-logout">Logout</button>
+                <span id="adminUserEmail"></span>
+                <button class="btn-logout" data-admin-logout>Logout</button>
             </div>
         </aside>
+        <div id="adminSidebarOverlay"></div>
 
         <main class="main-content">
             <header class="topbar">
-                <h2>Admin Dashboard</h2>
+                <h2 id="adminPageTitle">Admin Dashboard</h2>
             </header>
 
-            <div id="tab-deposits" class="tab-content active">
+            <div data-admin-section="deposits" class="tab-content active">
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-label">Total Deposits</div>
@@ -47,11 +53,11 @@
                     </div>
                     <div class="stat-card pending">
                         <div class="stat-label">Pending</div>
-                        <div class="stat-value" id="stat-pending">0</div>
+                        <div class="stat-value" id="depositCountPending">0</div>
                     </div>
                     <div class="stat-card approved">
                         <div class="stat-label">Approved</div>
-                        <div class="stat-value" id="stat-approved">0</div>
+                        <div class="stat-value" id="depositCountApproved">0</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Total Users</div>
@@ -60,50 +66,26 @@
                 </div>
 
                 <div class="filters">
-                    <select id="filter-status">
+                    <select id="depositStatusFilter">
                         <option value="all">All Statuses</option>
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
                     </select>
-                    <input type="text" id="search-input" placeholder="Search email, coin, tx hash...">
+                    <input type="text" id="depositSearchInput" placeholder="Search email, coin, tx hash...">
                 </div>
 
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Coin</th>
-                                <th>Amount</th>
-                                <th>TX Hash</th>
-                                <th>Screenshot</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="deposits-body">
-                            <!-- populated by JS -->
-                        </tbody>
-                    </table>
+                <div class="table-container" id="depositsTableWrap">
+                    <!-- populated by JS -->
                 </div>
             </div>
 
-            <div id="tab-users" class="tab-content">
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Email</th>
-                                <th>Balance</th>
-                                <th>Joined</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-body">
-                            <!-- populated by JS -->
-                        </tbody>
-                    </table>
+            <div data-admin-section="users" class="tab-content">
+                <div class="filters">
+                    <input type="text" id="userSearchInput" placeholder="Search users...">
+                </div>
+                <div class="table-container" id="usersTableWrap">
+                    <!-- populated by JS -->
                 </div>
             </div>
         </main>
@@ -115,10 +97,6 @@
         <img id="lightbox-img" src="" alt="Screenshot">
     </div>
 
-    <script>
-    window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
-    window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
-    </script>
     <script src="admin.js"></script>
 </body>
 </html>
