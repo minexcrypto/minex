@@ -1583,3 +1583,439 @@ footer {
   from { opacity: 0.4; }
   to   { opacity: 1; }
 }
+/* ═══════════════════════════════════════════════════════════════
+   CRYPTOVAULT — Deposit Section Styles (Add to style.css)
+═══════════════════════════════════════════════════════════════ */
+
+/* ─── DEPOSIT SECTION ─────────────────────────────────────── */
+.deposit-section {
+  background: linear-gradient(160deg, var(--bg-card) 0%, rgba(245,158,11,0.03) 100%);
+  border: 1px solid rgba(245,158,11,0.15);
+}
+
+.deposit-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* Deposit Method Card */
+.deposit-method-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.deposit-method-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--orange));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.deposit-method-card:hover {
+  border-color: rgba(245,158,11,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.deposit-method-card:hover::before {
+  opacity: 1;
+}
+
+/* Header */
+.deposit-method-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.deposit-coin-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.deposit-coin-badge .coin-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  font-size: 18px;
+}
+
+.deposit-coin-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.deposit-coin-network {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* QR Code Area */
+.deposit-qr-area {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.qr-placeholder {
+  width: 140px;
+  height: 140px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+
+.qr-placeholder:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 20px rgba(245,158,11,0.1);
+}
+
+.qr-placeholder svg {
+  color: var(--text-secondary);
+  transition: color var(--transition);
+}
+
+.qr-placeholder:hover svg {
+  color: var(--gold);
+}
+
+.qr-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Address Box */
+.deposit-address-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.deposit-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+
+.deposit-address-row {
+  background: var(--bg-deep) !important;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.deposit-address-row .wallet-address {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.deposit-address-row .copy-btn {
+  color: var(--gold);
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(245,158,11,0.1);
+  transition: all var(--transition);
+}
+
+.deposit-address-row .copy-btn:hover {
+  background: rgba(245,158,11,0.2);
+  transform: scale(1.05);
+}
+
+/* Warning */
+.deposit-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--gold);
+  line-height: 1.5;
+}
+
+.deposit-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--gold);
+}
+
+/* ─── DEPOSIT FORM (Modal) ───────────────────────────────── */
+.deposit-form-modal .form-group {
+  margin-bottom: 16px;
+}
+
+.deposit-input-group input {
+  padding-right: 70px;
+}
+
+.deposit-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* Select Wrapper */
+.select-wrapper {
+  position: relative;
+}
+
+.select-wrapper select {
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.select-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ─── UPLOAD AREA ─────────────────────────────────────────── */
+.upload-area {
+  position: relative;
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: var(--bg-deep);
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-area:hover {
+  border-color: var(--gold);
+  background: rgba(245,158,11,0.03);
+}
+
+.upload-area.dragover {
+  border-color: var(--gold);
+  background: rgba(245,158,11,0.08);
+  transform: scale(1.01);
+}
+
+.upload-area.has-file {
+  border-style: solid;
+  border-color: var(--green);
+  background: rgba(16,185,129,0.05);
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.upload-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--gold-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+}
+
+.upload-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.upload-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.upload-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.upload-formats {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-top: 4px;
+}
+
+/* Upload Preview */
+.upload-preview {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity var(--transition);
+  border-radius: 12px;
+}
+
+.upload-preview:hover .preview-overlay {
+  opacity: 1;
+}
+
+.preview-remove {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--red);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition);
+}
+
+.preview-remove:hover {
+  transform: scale(1.1);
+}
+
+.preview-filename {
+  font-size: 12px;
+  color: white;
+  font-weight: 500;
+  background: rgba(0,0,0,0.6);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* ─── FORM ACTIONS ──────────────────────────────────────── */
+.deposit-form-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deposit-form-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  justify-content: center;
+  margin: 0;
+}
+
+.deposit-form-note svg {
+  flex-shrink: 0;
+  color: var(--gold);
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .deposit-methods-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .deposit-method-card {
+    padding: 20px;
+  }
+
+  .qr-placeholder {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  .deposit-section {
+    padding: 20px;
+  }
+
+  .deposit-method-card {
+    padding: 16px;
+  }
+
+  .deposit-coin-badge .coin-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .deposit-coin-name {
+    font-size: 14px;
+  }
+
+  .qr-placeholder {
+    width: 100px;
+    height: 100px;
+  }
+
+  .qr-placeholder svg {
+    width: 60px;
+    height: 60px;
+  }
+
+  .upload-area {
+    padding: 24px 16px;
+    min-height: 150px;
+  }
+}
