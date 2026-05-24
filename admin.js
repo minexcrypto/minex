@@ -1,7 +1,7 @@
 // ─── CryptoVault Admin Panel ───
 
-const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -43,7 +43,6 @@ async function init() {
 }
 
 async function checkAdmin(userId) {
-    // Option A: check a column on profiles table
     const { data, error } = await sb
         .from('profiles')
         .select('is_admin')
@@ -102,7 +101,7 @@ async function loadData() {
 async function loadDeposits() {
     const { data, error } = await sb
         .from('deposits')
-        .select('*, profiles(email, balance)')
+        .select('*')
         .order('created_at', { ascending: false });
     if (error) {
         showToast('Failed to load deposits: ' + error.message, 'error');
@@ -158,7 +157,7 @@ function renderDeposits() {
 
     if (query) {
         rows = rows.filter(r => {
-            const email = (r.profiles?.email || '').toLowerCase();
+            const email = (r.email || '').toLowerCase();
             const coin = (r.coin || '').toLowerCase();
             const tx = (r.tx_hash || '').toLowerCase();
             return email.includes(query) || coin.includes(query) || tx.includes(query);
@@ -176,7 +175,7 @@ function renderDeposits() {
         const tr = document.createElement('tr');
         if (dep.status === 'pending') tr.classList.add('pending-row');
 
-        const email = escapeHtml(dep.profiles?.email || '—');
+        const email = escapeHtml(dep.email || '—');
         const coin = escapeHtml(dep.coin || '—');
         const amount = dep.amount != null ? Number(dep.amount).toFixed(6) : '—';
         const txHash = escapeHtml(dep.tx_hash || '—');
@@ -250,7 +249,6 @@ async function handleApprove(btn) {
     const sibling = btn.nextElementSibling;
     if (sibling) sibling.disabled = true;
 
-    // 1. Update deposit status
     const { error: updErr } = await sb
         .from('deposits')
         .update({ status: 'approved' })
@@ -263,7 +261,6 @@ async function handleApprove(btn) {
         return;
     }
 
-    // 2. Add amount to user's balance
     const { data: profile, error: profErr } = await sb
         .from('profiles')
         .select('balance')
