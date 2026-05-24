@@ -1,101 +1,93 @@
 'use strict';
 
-function $(id){
-  return document.getElementById(id);
-}
-
 function switchTab(name){
 
-  document.querySelectorAll('.tab-content')
-    .forEach(tab=>{
-      tab.style.display='none';
-    });
+document.querySelectorAll('.tab-content')
+.forEach(tab=>{
+tab.style.display='none';
+});
 
-  document.querySelectorAll('.nav-item')
-    .forEach(item=>{
-      item.classList.remove('active');
-    });
+document.querySelectorAll('.nav-item')
+.forEach(item=>{
+item.classList.remove('active');
+});
 
-  const tab = $('tab-' + name);
-  const nav = $('nav-' + name);
+const activeTab =
+document.getElementById('tab-' + name);
 
-  if(tab){
-    tab.style.display='block';
-  }
+const activeNav =
+document.getElementById('nav-' + name);
 
-  if(nav){
-    nav.classList.add('active');
-  }
+if(activeTab){
+activeTab.style.display='block';
+}
 
-  const title = $('pageTitle');
+if(activeNav){
+activeNav.classList.add('active');
+}
 
-  if(title){
-    title.textContent =
-      name.charAt(0).toUpperCase() +
-      name.slice(1);
-  }
+const title =
+document.getElementById('pageTitle');
+
+if(title){
+title.textContent =
+name.charAt(0).toUpperCase() +
+name.slice(1);
+}
 
 }
 
 function selectCoin(coin){
 
-  const addr =
-    $('depositAddressDisplay');
+const addr =
+document.getElementById('depositAddressDisplay');
 
-  if(!addr) return;
+if(!addr) return;
 
-  if(coin === 'BTC'){
+if(coin === 'BTC'){
 
-    addr.textContent =
-    'bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe';
+addr.textContent =
+'bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe';
 
-  }else{
+}else{
 
-    addr.textContent =
-    '0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0';
+addr.textContent =
+'0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0';
 
-  }
+}
 
 }
 
 function copyDepositAddress(){
 
-  const text =
-    $('depositAddressDisplay')?.textContent;
+const text =
+document.getElementById('depositAddressDisplay')
+?.textContent;
 
-  if(text){
+if(text){
 
-    navigator.clipboard.writeText(text);
+navigator.clipboard.writeText(text);
 
-    alert('Address copied');
+alert('Address copied');
 
-  }
+}
 
 }
 
 function submitDeposit(){
 
-  alert('Deposit request submitted');
+alert('Deposit request submitted');
 
 }
 
 function saveSettings(){
 
-  alert('Settings saved');
+alert('Settings saved');
 
 }
 
-document.addEventListener(
-'DOMContentLoaded',
-()=>{
-
-  window.switchTab = switchTab;
-  window.selectCoin = selectCoin;
-  window.copyDepositAddress =
-    copyDepositAddress;
-  window.submitDeposit =
-    submitDeposit;
-  window.saveSettings =
-    saveSettings;
-
-});
+window.switchTab = switchTab;
+window.selectCoin = selectCoin;
+window.copyDepositAddress = copyDepositAddress;
+window.submitDeposit = submitDeposit;
+window.saveSettings = saveSettings;
