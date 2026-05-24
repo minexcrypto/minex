@@ -108,6 +108,7 @@ async function loadDeposits() {
         return;
     }
     allDeposits = data || [];
+    console.log('Deposits fetched:', allDeposits.length, 'rows');
 }
 
 async function loadUsers() {
@@ -120,6 +121,7 @@ async function loadUsers() {
         return;
     }
     allUsers = data || [];
+    console.log('Users fetched:', allUsers.length, 'rows');
 }
 
 // ─── Stats ───
@@ -157,7 +159,7 @@ function renderDeposits() {
 
     if (query) {
         rows = rows.filter(r => {
-            const email = (r.email || '').toLowerCase();
+            const email = (r.user_email || '').toLowerCase();
             const coin = (r.coin || '').toLowerCase();
             const tx = (r.tx_hash || '').toLowerCase();
             return email.includes(query) || coin.includes(query) || tx.includes(query);
@@ -175,7 +177,7 @@ function renderDeposits() {
         const tr = document.createElement('tr');
         if (dep.status === 'pending') tr.classList.add('pending-row');
 
-        const email = escapeHtml(dep.email || '—');
+        const email = escapeHtml(dep.user_email || '—');
         const coin = escapeHtml(dep.coin || '—');
         const amount = dep.amount != null ? Number(dep.amount).toFixed(6) : '—';
         const txHash = escapeHtml(dep.tx_hash || '—');
