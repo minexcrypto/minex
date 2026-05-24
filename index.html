@@ -88,11 +88,11 @@ id="password"
 placeholder="Enter Password"
 >
 
-<button onclick="signup()">
+<button id="signupBtn">
 Create Account
 </button>
 
-<button onclick="login()">
+<button id="loginBtn">
 Login
 </button>
 
@@ -108,13 +108,19 @@ const supabaseUrl =
 const supabaseKey =
 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
 
-const supabase =
-window.supabase.createClient(
+const supabaseClient =
+supabase.createClient(
 supabaseUrl,
 supabaseKey
 );
 
-async function signup(){
+const signupBtn =
+document.getElementById('signupBtn');
+
+const loginBtn =
+document.getElementById('loginBtn');
+
+signupBtn.addEventListener('click', async () => {
 
 const email =
 document.getElementById('email').value;
@@ -123,7 +129,7 @@ const password =
 document.getElementById('password').value;
 
 const { data,error } =
-await supabase.auth.signUp({
+await supabaseClient.auth.signUp({
 email,
 password
 });
@@ -140,9 +146,9 @@ document.getElementById('message').innerText =
 
 }
 
-}
+});
 
-async function login(){
+loginBtn.addEventListener('click', async () => {
 
 const email =
 document.getElementById('email').value;
@@ -151,7 +157,7 @@ const password =
 document.getElementById('password').value;
 
 const { data,error } =
-await supabase.auth.signInWithPassword({
+await supabaseClient.auth.signInWithPassword({
 email,
 password
 });
@@ -168,7 +174,7 @@ document.getElementById('message').innerText =
 
 }
 
-}
+});
 
 </script>
 
