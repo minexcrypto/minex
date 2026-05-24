@@ -37,8 +37,8 @@ let sb = null;
  * Never throws.
  */
 function initSupabaseClient() {
-  const url = window.CRYPTOVAULT_SUPABASE_URL || '';
-  const key = window.CRYPTOVAULT_SUPABASE_KEY || '';
+  const url = window.CRYPTOVAULT_SUPABASE_URL || 'https://fwgqydxkdbuzrehqifjw.supabase.co';
+  const key = window.CRYPTOVAULT_SUPABASE_KEY || 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
 
   if (!url || !key) {
     AdminUI.banner(
