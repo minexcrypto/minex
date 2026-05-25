@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════
-   CRYPTOVAULT — admin.js  (final, production build)
+   CRYPTOVAULT — admin.js  (fixed build)
 
    Auth:      Supabase Auth — email + password
    SDK:       window.supabase  (CDN global, @supabase/supabase-js v2)
@@ -13,10 +13,10 @@
 
    REQUIRED in HTML before this script:
      <script>
-       window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
-       window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kJ";
+       window.CRYPTOVAULT_SUPABASE_URL = "https://...supabase.co";
+       window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
      </script>
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/..."></script>
      <script src="admin.js"></script>
 ══════════════════════════════════════════════════════════════════════ */
 
@@ -24,18 +24,11 @@
 
 /* ══════════════════════════════════════════════════════════════════════
    §1  SUPABASE CLIENT
-       window.supabase is the CDN UMD global from @supabase/supabase-js v2.
-       The .createClient method lives directly on that object.
 ══════════════════════════════════════════════════════════════════════ */
 
 /** @type {import('@supabase/supabase-js').SupabaseClient | null} */
 let sb = null;
 
-/**
- * Initialise the Supabase client from window globals.
- * Returns true on success, false with a visible banner on failure.
- * Never throws.
- */
 function initSupabaseClient() {
   const url = window.CRYPTOVAULT_SUPABASE_URL || '';
   const key = window.CRYPTOVAULT_SUPABASE_KEY || '';
@@ -50,7 +43,6 @@ function initSupabaseClient() {
     return false;
   }
 
-  // window.supabase is set by the CDN UMD bundle
   if (typeof window.supabase?.createClient !== 'function') {
     AdminUI.banner(
       '⚠ Supabase SDK not found. ' +
@@ -62,6 +54,7 @@ function initSupabaseClient() {
 
   try {
     sb = window.supabase.createClient(url, key);
+    console.log('[CryptoVault] SUPABASE INITIALIZED');
     return true;
   } catch (err) {
     AdminUI.banner('⚠ Supabase init error: ' + err.message, 'error');
@@ -71,28 +64,33 @@ function initSupabaseClient() {
 
 /* ══════════════════════════════════════════════════════════════════════
    §2  SAFE DOM HELPERS
-       All selectors are wrapped — missing elements never throw.
+       show/hide use the .hidden class (defined in admin.html <style>)
+       so they never conflict with inline display values set by CSS.
 ══════════════════════════════════════════════════════════════════════ */
 
-/** @param {string} sel @param {ParentNode} [ctx] */
-const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel);     } catch { return null; } };
-/** @param {string} sel @param {ParentNode} [ctx] */
+const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel);      } catch { return null; } };
 const $$ = (sel, ctx = document) => { try { return [...ctx.querySelectorAll(sel)]; } catch { return []; } };
 
-/** Set innerHTML safely. sel can be a CSS string or an Element. */
 function setHTML(sel, html)  { const el = resolve(sel); if (el) el.innerHTML  = html;  }
-/** Set textContent safely. */
 function setText(sel, text)  { const el = resolve(sel); if (el) el.textContent = text; }
-/** Remove display:none. */
-function show(sel)           { const el = resolve(sel); if (el) el.style.display = ''; }
-/** Set display:none. */
-function hide(sel)           { const el = resolve(sel); if (el) el.style.display = 'none'; }
-/** Attach an event listener safely. */
+
+/** Remove .hidden to reveal an element */
+function show(sel) {
+  const el = resolve(sel);
+  if (el) el.classList.remove('hidden');
+}
+
+/** Add .hidden to conceal an element */
+function hide(sel) {
+  const el = resolve(sel);
+  if (el) el.classList.add('hidden');
+}
+
 function on(sel, evt, fn, ctx = document) {
   const el = typeof sel === 'string' ? $(sel, ctx) : sel;
   if (el) el.addEventListener(evt, fn);
 }
-/** Resolve a selector string or return an element directly. */
+
 function resolve(sel) { return typeof sel === 'string' ? $(sel) : (sel || null); }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -101,7 +99,6 @@ function resolve(sel) { return typeof sel === 'string' ? $(sel) : (sel || null);
 
 const AdminUI = {
 
-  /* ── Toast (bottom-right notification) ─────────────────────────── */
   toast(msg, type = 'info', ms = 4000) {
     let wrap = document.getElementById('_cvToastWrap');
     if (!wrap) {
@@ -114,11 +111,9 @@ const AdminUI = {
       document.body.appendChild(wrap);
     }
 
-    const palette = {
-      success: '#10b981', error: '#ef4444', info: '#f59e0b', warning: '#f97316',
-    };
-    const icons = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
-    const border = palette[type] || palette.info;
+    const palette = { success: '#10b981', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
+    const icons   = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
+    const border  = palette[type] || palette.info;
 
     const t = document.createElement('div');
     t.style.cssText = [
@@ -142,7 +137,6 @@ const AdminUI = {
     }, ms);
   },
 
-  /* ── Full-width config / error banner ───────────────────────────── */
   banner(msg, type = 'warning') {
     const colours = { warning: '#f59e0b', error: '#ef4444', success: '#10b981', info: '#3b82f6' };
     const c = colours[type] || colours.warning;
@@ -157,7 +151,6 @@ const AdminUI = {
     document.body.prepend(b);
   },
 
-  /* ── Section loading skeleton ────────────────────────────────────── */
   loading(msg = 'Loading…') {
     return `
       <div style="padding:48px;text-align:center;color:#475569;font-size:13px;">
@@ -167,29 +160,26 @@ const AdminUI = {
       </div>`;
   },
 
-  /* ── Error state ─────────────────────────────────────────────────── */
   error(msg = 'Failed to load data.') {
     return `<div style="padding:48px;text-align:center;color:#ef4444;font-size:13px;">❌ ${msg}</div>`;
   },
 
-  /* ── Empty state ─────────────────────────────────────────────────── */
   empty(msg = 'No records found.') {
     return `<div style="padding:48px;text-align:center;color:#475569;font-size:13px;">📭 ${msg}</div>`;
   },
 
-  /* ── Status badge ────────────────────────────────────────────────── */
   badge(status) {
     const map = {
-      pending:  { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'  },
-      approved: { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved' },
-      rejected: { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected' },
-      active:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Active'   },
-      inactive: { bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: 'Inactive' },
-      completed:{ bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Completed'},
-      mining:   { bg: 'rgba(249,115,22,.15)',  fg: '#f97316', label: 'Mining'   },
-      deposit:  { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Deposit'  },
-      withdrawal:{ bg:'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Withdrawal'},
-      referral: { bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Referral' },
+      pending:   { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'   },
+      approved:  { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved'  },
+      rejected:  { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected'  },
+      active:    { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Active'    },
+      inactive:  { bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: 'Inactive'  },
+      completed: { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Completed' },
+      mining:    { bg: 'rgba(249,115,22,.15)',  fg: '#f97316', label: 'Mining'    },
+      deposit:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Deposit'   },
+      withdrawal:{ bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Withdrawal'},
+      referral:  { bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Referral'  },
     };
     const s = map[String(status).toLowerCase()] || {
       bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: status || '—',
@@ -200,14 +190,19 @@ const AdminUI = {
       white-space:nowrap;">${s.label}</span>`;
   },
 
-  /* ── Switch active tab ───────────────────────────────────────────── */
   activateTab(name) {
     $$('[data-admin-tab]').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.adminTab === name)
     );
-    $$('[data-admin-section]').forEach(sec =>
-      Object.assign(sec.style, { display: sec.dataset.adminSection === name ? '' : 'none' })
-    );
+    $$('[data-admin-section]').forEach(sec => {
+      if (sec.dataset.adminSection === name) {
+        sec.classList.add('active');
+        sec.style.display = '';
+      } else {
+        sec.classList.remove('active');
+        sec.style.display = 'none';
+      }
+    });
     const TITLES = {
       overview:     'Dashboard Overview',
       deposits:     'Deposit Requests',
@@ -248,29 +243,22 @@ const AdminUI = {
   document.head.appendChild(s);
 })();
 
-/* shared <th> style string */
 const TH = [
   'font-size:11px', 'font-weight:700', 'letter-spacing:.8px',
   'text-transform:uppercase', 'color:#475569', 'padding:11px 16px',
   'text-align:left', 'white-space:nowrap', 'border-bottom:1px solid #1e2d45',
 ].join(';');
 
-/* shared <td> style string */
 const TD = 'padding:13px 16px;font-size:13px;color:#94a3b8;border-bottom:1px solid rgba(30,45,69,.5);';
 
 /* ══════════════════════════════════════════════════════════════════════
    §4  ADMIN AUTH
-       • Supabase email + password login (confirmed spec).
-       • Role verified via three progressive strategies so it works
-         regardless of whether the project uses app_metadata, a custom
-         admins table, or a role column on the profiles table.
 ══════════════════════════════════════════════════════════════════════ */
 
 const AdminAuth = {
   /** @type {import('@supabase/supabase-js').User | null} */
   user: null,
 
-  /* ── Check an existing Supabase session ─────────────────────────── */
   async check() {
     if (!sb) return false;
     let user;
@@ -287,7 +275,6 @@ const AdminAuth = {
     return true;
   },
 
-  /* ── Login with email + password ────────────────────────────────── */
   async login(email, password) {
     if (!sb) throw new Error('Supabase client not ready.');
 
@@ -297,17 +284,16 @@ const AdminAuth = {
     const user = data.user;
 
     if (!(await this._isAdmin(user))) {
-      // Sign out immediately so the session is not persisted
       await sb.auth.signOut().catch(() => {});
       throw new Error('Access denied — this account does not have admin privileges.');
     }
 
     this.user = user;
     this._fillUI(user);
+    console.log('[CryptoVault] AUTH SUCCESS');
     return user;
   },
 
-  /* ── Logout ─────────────────────────────────────────────────────── */
   async logout() {
     if (sb) await sb.auth.signOut().catch(() => {});
     this.user = null;
@@ -316,16 +302,11 @@ const AdminAuth = {
     setHTML('#adminLoginError', '');
   },
 
-  /* ── Role verification (three strategies, in order) ──────────────
-     1. app_metadata.role === 'admin'         (set via service-key / SQL)
-     2. 'admins' table row matching user.id
-     3. profiles.role === 'admin'
-  ─────────────────────────────────────────────────────────────────── */
   async _isAdmin(user) {
-    // Strategy 1 — app_metadata (most reliable, set server-side)
+    // Strategy 1 — app_metadata
     if (user?.app_metadata?.role === 'admin') return true;
 
-    // Strategy 2 — separate admins table: CREATE TABLE admins (id uuid PRIMARY KEY)
+    // Strategy 2 — admins table
     try {
       const { data, error } = await sb
         .from('admins')
@@ -333,9 +314,9 @@ const AdminAuth = {
         .eq('id', user.id)
         .maybeSingle();
       if (!error && data) return true;
-    } catch { /* table may not exist — skip */ }
+    } catch { /* skip */ }
 
-    // Strategy 3 — profiles.role column
+    // Strategy 3 — profiles.role
     try {
       const { data, error } = await sb
         .from('profiles')
@@ -351,8 +332,8 @@ const AdminAuth = {
   _fillUI(user) {
     const name  = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
     const email = user.email || '';
-    setText('#adminUserName',   name);
-    setText('#adminUserEmail',  email);
+    setText('#adminUserName',  name);
+    setText('#adminUserEmail', email);
     const av = document.getElementById('adminAvatarText');
     if (av) av.textContent = (email[0] || 'A').toUpperCase();
   },
@@ -369,9 +350,8 @@ function initLoginForm() {
   const passEl = document.getElementById('adminLoginPassword');
   const eyeEl  = document.getElementById('adminTogglePassword');
 
-  if (!form) return; // admin.html may not have a login screen
+  if (!form) return;
 
-  // Password visibility toggle
   on(eyeEl, 'click', () => {
     if (!passEl) return;
     passEl.type = passEl.type === 'password' ? 'text' : 'password';
@@ -396,6 +376,7 @@ function initLoginForm() {
       await AdminAuth.login(email, password);
       hide('#adminLoginScreen');
       show('#adminAppShell');
+      console.log('[CryptoVault] APP SHELL SHOWN');
       await _bootPanel();
     } catch (err) {
       if (errEl) errEl.textContent = err.message;
@@ -406,7 +387,7 @@ function initLoginForm() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   §6  BTC PRICE WIDGET  (CoinGecko — safe fallback if unavailable)
+   §6  BTC PRICE WIDGET
 ══════════════════════════════════════════════════════════════════════ */
 
 const PriceService = {
@@ -417,25 +398,23 @@ const PriceService = {
 
   async fetch() {
     try {
-      const ctrl = new AbortController();
+      const ctrl  = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 8000);
-      const res = await fetch(
+      const res   = await fetch(
         'https://api.coingecko.com/api/v3/simple/price' +
         '?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
         { signal: ctrl.signal }
       );
       clearTimeout(timer);
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const json = await res.json();
-      const price  = json?.bitcoin?.usd   ?? null;
-      const change = json?.bitcoin?.usd_24h_change ?? null;
+      const json   = await res.json();
+      const price  = json?.bitcoin?.usd             ?? null;
+      const change = json?.bitcoin?.usd_24h_change  ?? null;
       if (price !== null) {
         this.current = { price, change };
         this._handlers.forEach(fn => fn(this.current));
       }
-    } catch {
-      // silent — UI shows '--' until a fetch succeeds
-    }
+    } catch { /* silent */ }
   },
 
   fmt(n) {
@@ -458,26 +437,20 @@ function initPriceWidget() {
       : '--';
     const colour    = change != null ? (up ? '#10b981' : '#ef4444') : '#64748b';
 
-    $$('.admin-btc-price').forEach(el => { el.textContent = priceStr; });
-    $$('.admin-btc-change').forEach(el => {
-      el.textContent  = changeStr;
-      el.style.color  = colour;
-    });
+    $$('.admin-btc-price').forEach(el  => { el.textContent = priceStr; });
+    $$('.admin-btc-change').forEach(el => { el.textContent = changeStr; el.style.color = colour; });
     setText('#overviewBTCPrice', priceStr);
   });
-
   PriceService.start();
 }
 
 /* ══════════════════════════════════════════════════════════════════════
    §7  OVERVIEW / DASHBOARD STATS
-       All queries are independent — one failure never blocks another.
 ══════════════════════════════════════════════════════════════════════ */
 
 const OverviewModule = {
 
   async load() {
-    // Run all four stat queries in parallel; settle individually
     await Promise.allSettled([
       this._depositStats(),
       this._userStats(),
@@ -488,9 +461,7 @@ const OverviewModule = {
 
   async _depositStats() {
     try {
-      const { data, error } = await sb
-        .from('deposits')
-        .select('*');
+      const { data, error } = await sb.from('deposits').select('*');
       if (error) throw error;
 
       const rows     = data || [];
@@ -499,16 +470,14 @@ const OverviewModule = {
       const rejected = rows.filter(r => r.status === 'rejected');
       const volume   = approved.reduce((s, r) => s + Number(r.amount || 0), 0);
 
-      setText('#overviewTotalDeposits',   rows.length);
-      setText('#overviewApprovedVolume',  volume.toFixed(6) + ' BTC');
-      setText('#overviewPendingDeposits', pending.length);
+      setText('#overviewTotalDeposits',    rows.length);
+      setText('#overviewApprovedVolume',   volume.toFixed(6) + ' BTC');
+      setText('#overviewPendingDeposits',  pending.length);
       setText('#overviewRejectedDeposits', rejected.length);
-
-      // Keep sidebar / filter badges in sync
-      setText('#sidebarDepositBadge', pending.length > 0 ? pending.length : '');
-      setText('#depositCountPending',  pending.length);
-      setText('#depositCountApproved', approved.length);
-      setText('#depositCountRejected', rejected.length);
+      setText('#sidebarDepositBadge',      pending.length > 0 ? pending.length : '');
+      setText('#depositCountPending',      pending.length);
+      setText('#depositCountApproved',     approved.length);
+      setText('#depositCountRejected',     rejected.length);
     } catch (err) {
       console.warn('[CryptoVault] deposit stats:', err.message);
     }
@@ -516,7 +485,6 @@ const OverviewModule = {
 
   async _userStats() {
     try {
-      // head:true returns only the count, no row data
       const { count, error } = await sb
         .from('profiles')
         .select('id', { count: 'exact', head: true });
@@ -529,9 +497,7 @@ const OverviewModule = {
 
   async _contractStats() {
     try {
-      const { data, error } = await sb
-        .from('contracts')
-        .select('active, hashrate');
+      const { data, error } = await sb.from('contracts').select('active, hashrate');
       if (error) throw error;
 
       const rows      = data || [];
@@ -560,15 +526,11 @@ const OverviewModule = {
 
 /* ══════════════════════════════════════════════════════════════════════
    §8  DEPOSITS MODULE
-       Table: deposits (id, user_id, amount, status, created_at)
-       Joined: profiles (email, name) via user_id → profiles.id
 ══════════════════════════════════════════════════════════════════════ */
 
 const DepositsModule = {
-  /** @type {Array} */
   _rows: [],
 
-  /* ── Load (with optional status filter) ─────────────────────────── */
   async load(statusFilter = 'all') {
     const container = document.getElementById('depositsTableWrap');
     if (!container || !sb) return;
@@ -595,14 +557,13 @@ const DepositsModule = {
     }
   },
 
-  /* ── Render table ────────────────────────────────────────────────── */
   _render(container, rows) {
     if (!rows.length) { setHTML(container, AdminUI.empty('No deposit records.')); return; }
 
     const tbodyHTML = rows.map(d => {
       const email  = d.user_id ? d.user_id.slice(0, 8) + '…' : '—';
       const name   = 'User ' + (d.user_id ? d.user_id.slice(0, 6) : '—');
-      const amount = Number(d.amount   || 0).toFixed(8);
+      const amount = Number(d.amount || 0).toFixed(8);
       const date   = d.created_at
         ? new Date(d.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
         : '—';
@@ -650,7 +611,6 @@ const DepositsModule = {
 
     setHTML(container, tableHTML);
 
-    // Single delegated listener on the tbody
     on('#depositsBody', 'click', (e) => {
       const btn = e.target.closest('[data-action][data-id]');
       if (!btn || btn.disabled) return;
@@ -658,11 +618,9 @@ const DepositsModule = {
     }, container);
   },
 
-  /* ── Approve / Reject a deposit ─────────────────────────────────── */
   async updateStatus(depositId, newStatus) {
     if (!sb || !depositId) return;
 
-    // Disable both action buttons immediately (optimistic lock)
     $$(`[data-actions-cell="${depositId}"] .admin-btn`).forEach(btn => {
       btn.disabled = true;
       btn.textContent = 'Saving…';
@@ -676,17 +634,14 @@ const DepositsModule = {
 
       if (error) throw error;
 
-      // Update badge in row without a full re-render
       setHTML(`[data-status-cell="${depositId}"]`, AdminUI.badge(newStatus));
       setHTML(`[data-actions-cell="${depositId}"]`, '<span style="font-size:12px;color:#475569">—</span>');
 
-      // Patch local cache
       this._rows = this._rows.map(r =>
         r.id === depositId ? { ...r, status: newStatus } : r
       );
       this._syncBadges(this._rows);
 
-      // Credit user balance when approving
       if (newStatus === 'approved') await this._creditBalance(depositId);
 
       AdminUI.toast(
@@ -694,8 +649,7 @@ const DepositsModule = {
         newStatus === 'approved' ? 'success' : 'warning'
       );
     } catch (err) {
-      // Re-enable buttons so the admin can retry
-      const row = document.querySelector(`[data-deposit-row="${depositId}"]`);
+      const row     = document.querySelector(`[data-deposit-row="${depositId}"]`);
       const actCell = row?.querySelector(`[data-actions-cell="${depositId}"]`);
       if (actCell) {
         actCell.innerHTML =
@@ -707,21 +661,17 @@ const DepositsModule = {
     }
   },
 
-  /* ── Credit balance on approval ─────────────────────────────────── */
   async _creditBalance(depositId) {
     const dep = this._rows.find(r => r.id === depositId);
     if (!dep?.user_id || !dep?.amount) return;
 
-    // Prefer an atomic RPC if the project has one:
-    //   CREATE FUNCTION increment_user_balance(p_user_id uuid, p_amount numeric)
     const { error: rpcErr } = await sb.rpc('increment_user_balance', {
       p_user_id: dep.user_id,
       p_amount:  dep.amount,
     });
 
-    if (!rpcErr) return; // RPC handled it
+    if (!rpcErr) return;
 
-    // Fallback: read-modify-write on profiles.balance
     try {
       const { data: profile, error: fetchErr } = await sb
         .from('profiles')
@@ -739,32 +689,28 @@ const DepositsModule = {
 
       if (updateErr) throw updateErr;
     } catch (err) {
-      // Non-fatal — the status was already updated; log for manual reconciliation
       console.warn('[CryptoVault] balance credit failed for deposit', depositId, err.message);
       AdminUI.toast('⚠ Deposit approved but balance credit failed — check manually.', 'warning', 7000);
     }
   },
 
-  /* ── Sync sidebar / filter count badges ─────────────────────────── */
   _syncBadges(rows) {
     const pending  = rows.filter(r => r.status === 'pending').length;
     const approved = rows.filter(r => r.status === 'approved').length;
     const rejected = rows.filter(r => r.status === 'rejected').length;
-    setText('#depositCountPending',  pending);
-    setText('#depositCountApproved', approved);
-    setText('#depositCountRejected', rejected);
+    setText('#depositCountPending',     pending);
+    setText('#depositCountApproved',    approved);
+    setText('#depositCountRejected',    rejected);
     setText('#overviewPendingDeposits', pending);
-    setText('#sidebarDepositBadge', pending > 0 ? String(pending) : '');
+    setText('#sidebarDepositBadge',     pending > 0 ? String(pending) : '');
   },
 };
 
 /* ══════════════════════════════════════════════════════════════════════
    §9  USERS MODULE
-       Table: profiles (id, email, name, balance)
 ══════════════════════════════════════════════════════════════════════ */
 
 const UsersModule = {
-  /** @type {Array} */
   _rows: [],
 
   async load() {
@@ -784,7 +730,7 @@ const UsersModule = {
 
       this._rows = data || [];
       this._render(container, this._rows);
-      setText('#overviewTotalUsers', this._rows.length);
+      setText('#overviewTotalUsers',  this._rows.length);
       setText('#overviewActiveUsers', this._rows.filter(u => u.is_active !== false).length);
     } catch (err) {
       setHTML(container, AdminUI.error('Could not load users: ' + err.message));
@@ -868,7 +814,6 @@ const UsersModule = {
         `User ${currentlyActive ? 'suspended' : 'reinstated'} successfully.`,
         currentlyActive ? 'warning' : 'success'
       );
-      // Mark section as needing a refresh
       _loaded.delete('users');
       await this.load();
     } catch (err) {
@@ -877,13 +822,10 @@ const UsersModule = {
   },
 };
 
-// Expose for inline onclick handlers in the rendered table HTML
 window.UsersModule = UsersModule;
 
 /* ══════════════════════════════════════════════════════════════════════
    §10  TRANSACTIONS MODULE
-        Table: transactions (id, user_id, type, amount, status)
-        Joined: profiles (email) via user_id
 ══════════════════════════════════════════════════════════════════════ */
 
 const TransactionsModule = {
@@ -967,8 +909,7 @@ const TransactionsModule = {
 };
 
 /* ══════════════════════════════════════════════════════════════════════
-   §11  CONTRACTS MODULE  (read-only for now)
-        Table: contracts (id, user_id, plan, hashrate, active)
+   §11  CONTRACTS MODULE
 ══════════════════════════════════════════════════════════════════════ */
 
 const ContractsModule = {
@@ -992,9 +933,9 @@ const ContractsModule = {
       if (!rows.length) { setHTML(container, AdminUI.empty('No contracts found.')); return; }
 
       const tbodyHTML = rows.map(c => {
-        const email   = c.profiles?.email || '—';
-        const name    = c.profiles?.name  || email;
-        const date    = c.created_at
+        const email    = c.profiles?.email || '—';
+        const name     = c.profiles?.name  || email;
+        const date     = c.created_at
           ? new Date(c.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
           : '—';
         const hashrate = Number(c.hashrate || 0).toFixed(1);
@@ -1042,21 +983,18 @@ const ContractsModule = {
 ══════════════════════════════════════════════════════════════════════ */
 
 function initFilters() {
-  // Deposit status dropdown — server-side filter
   on('#depositStatusFilter', 'change', e => {
     _loaded.delete('deposits');
     DepositsModule.load(e.target.value || 'all');
     _loaded.add('deposits');
   });
 
-  // Transaction type dropdown — server-side filter
   on('#transactionTypeFilter', 'change', e => {
     _loaded.delete('transactions');
     TransactionsModule.load(e.target.value || 'all');
     _loaded.add('transactions');
   });
 
-  // Client-side search for deposits
   on('#depositSearchInput', 'input', e => {
     const term = e.target.value.toLowerCase();
     $$('#depositsTableWrap tbody tr').forEach(row => {
@@ -1064,7 +1002,6 @@ function initFilters() {
     });
   });
 
-  // Client-side search for users
   on('#userSearchInput', 'input', e => {
     const term = e.target.value.toLowerCase();
     $$('#usersTableWrap tbody tr').forEach(row => {
@@ -1074,11 +1011,11 @@ function initFilters() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   §13  REALTIME  (optional Supabase channel — graceful no-op if absent)
+   §13  REALTIME
 ══════════════════════════════════════════════════════════════════════ */
 
 function initRealtime() {
-  if (typeof sb?.channel !== 'function') return; // realtime not in this SDK version
+  if (typeof sb?.channel !== 'function') return;
 
   try {
     sb.channel('admin-realtime')
@@ -1087,28 +1024,24 @@ function initRealtime() {
         payload => {
           if (payload.new?.status === 'pending') {
             AdminUI.toast('🆕 New deposit request received.', 'info', 6000);
-            setText('#sidebarDepositBadge',
-              String((parseInt(document.getElementById('sidebarDepositBadge')?.textContent || '0') + 1))
-            );
+            const badge = document.getElementById('sidebarDepositBadge');
+            const cur   = parseInt(badge?.textContent || '0', 10);
+            setText('#sidebarDepositBadge', String(cur + 1));
           }
-          // Refresh deposits list if it's already loaded
           if (_loaded.has('deposits')) {
             const filter = document.getElementById('depositStatusFilter')?.value || 'all';
             DepositsModule.load(filter);
           }
-          if (_loaded.has('deposits')) DepositsModule.load();
         }
       )
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'transactions' },
         () => {
-          if (_loaded.has('deposits')) DepositsModule.load();
+          if (_loaded.has('transactions')) TransactionsModule.load();
         }
       )
       .subscribe(status => {
-        if (status === 'SUBSCRIBED') {
-          console.info('[CryptoVault] Realtime subscribed.');
-        }
+        if (status === 'SUBSCRIBED') console.info('[CryptoVault] Realtime subscribed.');
       });
   } catch (err) {
     console.warn('[CryptoVault] Realtime unavailable:', err.message);
@@ -1116,26 +1049,22 @@ function initRealtime() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   §14  NAVIGATION  (tabs + mobile sidebar + logout)
+   §14  NAVIGATION
 ══════════════════════════════════════════════════════════════════════ */
 
-/** Tracks which sections have been loaded at least once this session. */
 const _loaded = new Set();
 
 function initNavigation() {
-  // Tab buttons (sidebar links)
   $$('[data-admin-tab]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const name = btn.dataset.adminTab;
       AdminUI.activateTab(name);
       await loadSection(name);
-      // Close mobile drawer
       document.getElementById('adminSidebar')?.classList.remove('open');
       document.getElementById('adminSidebarOverlay')?.classList.remove('open');
     });
   });
 
-  // Mobile hamburger
   on('#adminMenuToggle', 'click', () => {
     document.getElementById('adminSidebar')?.classList.toggle('open');
     document.getElementById('adminSidebarOverlay')?.classList.toggle('open');
@@ -1145,13 +1074,11 @@ function initNavigation() {
     document.getElementById('adminSidebarOverlay')?.classList.remove('open');
   });
 
-  // Logout — any element with data-admin-logout
   $$('[data-admin-logout]').forEach(btn => {
     btn.addEventListener('click', () => AdminAuth.logout());
   });
 }
 
-/** Load a section's data lazily (once per session unless cleared). */
 async function loadSection(name) {
   if (_loaded.has(name)) return;
   _loaded.add(name);
@@ -1162,19 +1089,18 @@ async function loadSection(name) {
     case 'users':        await UsersModule.load();        break;
     case 'transactions': await TransactionsModule.load(); break;
     case 'contracts':    await ContractsModule.load();    break;
-    // 'settings' has no async data to load
   }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   §15  PANEL BOOT  (called after successful auth)
+   §15  PANEL BOOT
 ══════════════════════════════════════════════════════════════════════ */
 
 async function _bootPanel() {
-  _loaded.clear();              // allow fresh loads on re-login
-  initFilters();                // wire search + dropdowns
-  initPriceWidget();            // start BTC price polling
-  initRealtime();               // subscribe to live changes
+  _loaded.clear();
+  initFilters();
+  initPriceWidget();
+  initRealtime();
 
   AdminUI.activateTab('deposits');
   await loadSection('deposits');
@@ -1182,35 +1108,61 @@ async function _bootPanel() {
 
 /* ══════════════════════════════════════════════════════════════════════
    §16  ENTRY POINT
+       KEY FIX: show/hide now toggle .hidden class, not display style.
+       This means admin.html can use class="hidden" safely and the
+       CSS rule  .hidden { display:none !important }  stays in charge.
 ══════════════════════════════════════════════════════════════════════ */
 
+console.log('[CryptoVault] ADMIN JS LOADED');
+
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Wire navigation and login form so they work regardless of auth state
+
+  // Wire nav + login form first (works regardless of auth state)
   initNavigation();
   initLoginForm();
 
-  // 2. Initialise Supabase — show banner and stop here if config is missing
+  // Ensure .hidden class is defined even if admin.css loads slowly
+  if (!document.getElementById('_cvHidden')) {
+    const s = document.createElement('style');
+    s.id = '_cvHidden';
+    s.textContent = '.hidden { display: none !important; }';
+    document.head.appendChild(s);
+  }
+
+  // Supabase init
   if (!initSupabaseClient()) {
-    hide('#adminAppShell');
+    // Banner already shown; keep login screen visible
     show('#adminLoginScreen');
+    hide('#adminAppShell');
     return;
   }
 
-  // 3. Check for a persisted Supabase session (user already logged in)
-  const alreadyLoggedIn = await AdminAuth.check();
+  // Check for persisted session
+  let alreadyLoggedIn = false;
+  try {
+    alreadyLoggedIn = await AdminAuth.check();
+  } catch (err) {
+    console.warn('[CryptoVault] Session check error:', err.message);
+  }
 
   if (alreadyLoggedIn) {
     hide('#adminLoginScreen');
     show('#adminAppShell');
-    await _bootPanel();
+    console.log('[CryptoVault] APP SHELL SHOWN');
+    try {
+      await _bootPanel();
+    } catch (err) {
+      console.error('[CryptoVault] Boot error:', err.message);
+      AdminUI.banner('⚠ Panel boot error: ' + err.message, 'error');
+    }
   } else {
-    hide('#adminAppShell');
     show('#adminLoginScreen');
+    hide('#adminAppShell');
   }
 });
 
 /* ══════════════════════════════════════════════════════════════════════
-   §17  PUBLIC EXPORTS  (for admin.html inline calls if needed)
+   §17  PUBLIC EXPORTS
 ══════════════════════════════════════════════════════════════════════ */
 
 Object.assign(window, {
