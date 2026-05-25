@@ -1,5 +1,3 @@
-Yeh raha fixed `admin.js` — `_isAdmin` function mein `role` ki jagah `is_admin` check ab sahi hai:
-
 ```javascript
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — admin.js
