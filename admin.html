@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CryptoVault Admin</title>
     <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="style.css">
     <script>
         window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
         window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
-
 </head>
 <body>
     <div id="adminLoginScreen" class="login-screen">
@@ -19,7 +18,10 @@
             <h1>🔐 CryptoVault Admin</h1>
             <form id="adminLoginForm">
                 <input type="email" id="adminLoginEmail" placeholder="Admin Email" required>
-                <input type="password" id="adminLoginPassword" placeholder="Password" required>
+                <div style="position:relative;">
+                    <input type="password" id="adminLoginPassword" placeholder="Password" required>
+                    <button type="button" id="adminTogglePassword" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;">👁</button>
+                </div>
                 <button type="submit" id="adminLoginBtn" class="btn-primary">Sign In</button>
             </form>
             <p id="adminLoginError" class="error-msg"></p>
@@ -30,11 +32,15 @@
         <aside class="sidebar" id="adminSidebar">
             <div class="logo">🔐 CryptoVault Admin</div>
             <nav>
-                <a href="#" class="nav-link active" data-admin-tab="deposits">📋 Deposits
-                    <span id="sidebarDepositBadge"></span>
-                </a>
+                <a href="#" class="nav-link active" data-admin-tab="overview">📊 Overview</a>
+                <a href="#" class="nav-link" data-admin-tab="deposits">📋 Deposits <span id="sidebarDepositBadge" class="nav-badge" style="display:none;"></span></a>
+                <a href="#" class="nav-link" data-admin-tab="withdrawals">📤 Withdrawals <span id="sidebarWithdrawalBadge" class="nav-badge" style="display:none;"></span></a>
+                <a href="#" class="nav-link" data-admin-tab="transactions">💱 Transactions</a>
+                <a href="#" class="nav-link" data-admin-tab="contracts">⛏ Contracts</a>
                 <a href="#" class="nav-link" data-admin-tab="users">👤 Users</a>
+                <a href="#" class="nav-link" data-admin-tab="referrals">🔗 Referrals</a>
                 <a href="#" class="nav-link" data-admin-tab="notifications">🔔 Notifications</a>
+                <a href="#" class="nav-link" data-admin-tab="logs">🛡 Security Logs</a>
             </nav>
             <div class="sidebar-footer">
                 <span id="adminUserEmail"></span>
@@ -45,105 +51,167 @@
 
         <main class="main-content">
             <header class="topbar">
-                <h2 id="adminPageTitle">Admin Dashboard</h2>
+                <div class="topbar-left">
+                    <button id="adminMenuToggle" class="menu-toggle">☰</button>
+                    <h2 id="adminPageTitle">Admin Dashboard</h2>
+                </div>
+                <div class="topbar-right">
+                    <div class="global-search-wrap">
+                        <input type="text" id="globalSearchInput" placeholder="🔍 Search email, ID, tx hash, phone...">
+                        <button id="globalSearchBtn" class="admin-btn admin-btn-outline">Search</button>
+                    </div>
+                    <div class="btc-ticker" style="margin-left:12px;">
+                        <span class="ticker-symbol">₿</span>
+                        <span class="ticker-price admin-btc-price">—</span>
+                        <span class="ticker-change admin-btc-change">—</span>
+                    </div>
+                </div>
             </header>
 
-            <div data-admin-section="deposits" class="tab-content active">
+            <!-- OVERVIEW -->
+            <div data-admin-section="overview" class="tab-content active">
                 <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Deposits</div>
-                        <div class="stat-value" id="stat-total">0</div>
-                    </div>
-                    <div class="stat-card pending">
-                        <div class="stat-label">Pending</div>
-                        <div class="stat-value" id="depositCountPending">0</div>
-                    </div>
-                    <div class="stat-card approved">
-                        <div class="stat-label">Approved</div>
-                        <div class="stat-value" id="depositCountApproved">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Users</div>
-                        <div class="stat-value" id="stat-users">0</div>
-                    </div>
+                    <div class="stat-card gold"><div class="stat-label">Total Users</div><div class="stat-value" id="stat-total-users">0</div></div>
+                    <div class="stat-card pending"><div class="stat-label">Pending Deposits</div><div class="stat-value" id="stat-pending-deposits">0</div></div>
+                    <div class="stat-card pending"><div class="stat-label">Pending Withdrawals</div><div class="stat-value" id="stat-pending-withdrawals">0</div></div>
+                    <div class="stat-card approved"><div class="stat-label">Total Deposits</div><div class="stat-value" id="stat-total-deposits">0</div></div>
+                    <div class="stat-card blue"><div class="stat-label">Active Contracts</div><div class="stat-value" id="stat-active-contracts">0</div></div>
+                    <div class="stat-card orange"><div class="stat-label">Total Referrals</div><div class="stat-value" id="stat-total-referrals">0</div></div>
+                    <div class="stat-card green"><div class="stat-label">BTC Volume</div><div class="stat-value" id="stat-btc-volume">0</div></div>
+                    <div class="stat-card green"><div class="stat-label">USDT Volume</div><div class="stat-value" id="stat-usdt-volume">0</div></div>
                 </div>
-
-                <div class="filters">
-                    <select id="depositStatusFilter">
-                        <option value="all">All Statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                    <input type="text" id="depositSearchInput" placeholder="Search email, coin, tx hash...">
-                </div>
-
-                <div class="table-container" id="depositsTableWrap">
-                    <!-- populated by JS -->
+                <div class="grid-2">
+                    <div class="card"><div class="card-header"><div class="card-title">Live Activity</div></div><div id="overviewActivityFeed" style="max-height:300px;overflow-y:auto;"></div></div>
+                    <div class="card"><div class="card-header"><div class="card-title">Admin Quick Actions</div></div>
+                        <div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 0;">
+                            <button class="admin-btn admin-btn-primary" onclick="DepositsModule.openCreateModal()">➕ Manual Deposit</button>
+                            <button class="admin-btn admin-btn-primary" onclick="WithdrawalsModule.openCreateModal()">➕ Manual Withdrawal</button>
+                            <button class="admin-btn admin-btn-primary" onclick="ContractsModule.openCreateModal()">➕ Add Contract</button>
+                            <button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openCreateModal()">➕ Add Transaction</button>
+                            <button class="admin-btn admin-btn-outline" onclick="AdminUI.toast('Use Users tab to manage accounts','info')">👤 Manage Users</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            <!-- DEPOSITS -->
+            <div data-admin-section="deposits" class="tab-content">
+                <div class="filters">
+                    <select id="depositStatusFilter"><option value="all">All Statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+                    <input type="date" id="depositDateFrom" title="From"><input type="date" id="depositDateTo" title="To">
+                    <input type="text" id="depositSearchInput" placeholder="Search email, coin, tx hash...">
+                    <button class="admin-btn admin-btn-outline" onclick="DepositsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="depositsTableWrap"></div>
+                <div class="pagination-bar" id="depositsPagination"></div>
+            </div>
+
+            <!-- WITHDRAWALS -->
+            <div data-admin-section="withdrawals" class="tab-content">
+                <div class="filters">
+                    <select id="withdrawalStatusFilter"><option value="all">All Statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+                    <input type="date" id="withdrawalDateFrom"><input type="date" id="withdrawalDateTo">
+                    <input type="text" id="withdrawalSearchInput" placeholder="Search email, address...">
+                    <button class="admin-btn admin-btn-outline" onclick="WithdrawalsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="withdrawalsTableWrap"></div>
+                <div class="pagination-bar" id="withdrawalsPagination"></div>
+            </div>
+
+            <!-- TRANSACTIONS -->
+            <div data-admin-section="transactions" class="tab-content">
+                <div class="filters">
+                    <select id="transactionTypeFilter"><option value="all">All Types</option><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="mining">Mining</option><option value="purchase">Purchase</option><option value="referral">Referral</option></select>
+                    <input type="date" id="transactionDateFrom"><input type="date" id="transactionDateTo">
+                    <input type="text" id="transactionSearchInput" placeholder="Search user, type...">
+                    <button class="admin-btn admin-btn-outline" onclick="TransactionsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="transactionsTableWrap"></div>
+                <div class="pagination-bar" id="transactionsPagination"></div>
+            </div>
+
+            <!-- CONTRACTS -->
+            <div data-admin-section="contracts" class="tab-content">
+                <div class="filters">
+                    <select id="contractStatusFilter"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+                    <input type="text" id="contractSearchInput" placeholder="Search plan, user...">
+                    <button class="admin-btn admin-btn-outline" onclick="ContractsModule.export()">📥 CSV</button>
+                    <button class="admin-btn admin-btn-primary" onclick="ContractsModule.openCreateModal()">➕ Add Contract</button>
+                </div>
+                <div class="table-container" id="contractsTableWrap"></div>
+                <div class="pagination-bar" id="contractsPagination"></div>
+            </div>
+
+            <!-- USERS -->
             <div data-admin-section="users" class="tab-content">
                 <div class="filters">
+                    <select id="userStatusFilter"><option value="all">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="banned">Banned</option></select>
                     <input type="text" id="userSearchInput" placeholder="Search users...">
+                    <button class="admin-btn admin-btn-outline" onclick="UsersModule.export()">📥 CSV</button>
                 </div>
-                <div class="table-container" id="usersTableWrap">
-                    <!-- populated by JS -->
+                <div class="table-container" id="usersTableWrap"></div>
+                <div class="pagination-bar" id="usersPagination"></div>
+            </div>
+
+            <!-- REFERRALS -->
+            <div data-admin-section="referrals" class="tab-content">
+                <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+                    <div class="stat-card blue"><div class="stat-label">Total Referrals</div><div class="stat-value" id="refStatTotal">0</div></div>
+                    <div class="stat-card green"><div class="stat-label">Referral Earnings</div><div class="stat-value" id="refStatEarnings">0</div></div>
+                    <div class="stat-card gold"><div class="stat-label">Top Referrer</div><div class="stat-value" id="refStatTop">—</div></div>
+                    <div class="stat-card orange"><div class="stat-label">Conversion Rate</div><div class="stat-value" id="refStatConv">—</div></div>
+                </div>
+                <div class="grid-2">
+                    <div class="card"><div class="card-header"><div class="card-title">🏆 Referral Leaderboard</div></div><div id="referralLeaderboardWrap"></div></div>
+                    <div class="card"><div class="card-header"><div class="card-title">🔗 Referral Tree Search</div></div>
+                        <div style="padding:16px;"><input type="text" id="referralTreeSearch" placeholder="Enter email or user ID..." style="margin-bottom:12px;"><button class="admin-btn admin-btn-primary" onclick="ReferralModule.loadTree()">Load Tree</button><div id="referralTreeWrap" style="margin-top:16px;"></div></div>
+                    </div>
                 </div>
             </div>
 
+            <!-- NOTIFICATIONS -->
             <div data-admin-section="notifications" class="tab-content">
                 <div class="grid-2">
-                    <div class="card">
-                        <div class="card-header"><div class="card-title">Send Notification</div></div>
+                    <div class="card"><div class="card-header"><div class="card-title">Send Notification</div></div>
                         <div class="notif-form">
-                            <div class="form-group">
-                                <label>Target</label>
-                                <select id="notifTarget">
-                                    <option value="all">All Users</option>
-                                    <option value="specific">Specific User</option>
-                                </select>
-                            </div>
-                            <div class="form-group" id="notifUserGroup" style="display:none;">
-                                <label>User Email</label>
-                                <input type="email" id="notifUserEmail" placeholder="user@example.com">
-                            </div>
-                            <div class="form-group">
-                                <label>Title</label>
-                                <input type="text" id="notifTitle" placeholder="Notification title">
-                            </div>
-                            <div class="form-group">
-                                <label>Message</label>
-                                <textarea id="notifMessage" rows="3" placeholder="Message content..."></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Type</label>
-                                <select id="notifType">
-                                    <option value="info">Info</option>
-                                    <option value="success">Success</option>
-                                    <option value="warning">Warning</option>
-                                    <option value="error">Error</option>
-                                    <option value="announcement">Announcement</option>
-                                </select>
-                            </div>
+                            <div class="form-group"><label>Target</label><select id="notifTarget"><option value="all">All Users</option><option value="specific">Specific User</option></select></div>
+                            <div class="form-group" id="notifUserGroup" style="display:none;"><label>User Email</label><input type="email" id="notifUserEmail" placeholder="user@example.com"></div>
+                            <div class="form-group"><label>Title</label><input type="text" id="notifTitle" placeholder="Notification title"></div>
+                            <div class="form-group"><label>Message</label><textarea id="notifMessage" rows="3" placeholder="Message content..."></textarea></div>
+                            <div class="form-group"><label>Type</label><select id="notifType"><option value="info">Info</option><option value="success">Success</option><option value="warning">Warning</option><option value="error">Error</option><option value="announcement">Announcement</option></select></div>
                             <button class="admin-btn admin-btn-primary" id="sendNotifBtn">📤 Send Notification</button>
                         </div>
                     </div>
-
-                    <div class="card">
-                        <div class="card-header"><div class="card-title">Recent Notifications</div></div>
-                        <div id="adminNotifTableWrap"></div>
-                    </div>
+                    <div class="card"><div class="card-header"><div class="card-title">Recent Notifications</div></div><div id="adminNotifTableWrap"></div></div>
                 </div>
+            </div>
+
+            <!-- LOGS -->
+            <div data-admin-section="logs" class="tab-content">
+                <div class="filters">
+                    <input type="date" id="logDateFrom"><input type="date" id="logDateTo">
+                    <input type="text" id="logSearchInput" placeholder="Search action, admin, target...">
+                    <button class="admin-btn admin-btn-outline" onclick="SecurityLogsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="logsTableWrap"></div>
+                <div class="pagination-bar" id="logsPagination"></div>
             </div>
         </main>
     </div>
 
-    <div id="toast" class="toast"></div>
-    <div id="lightbox" class="lightbox hidden">
-        <span class="lightbox-close">&times;</span>
-        <img id="lightbox-img" src="" alt="Screenshot">
+    <!-- USER DETAIL MODAL -->
+    <div id="userDetailModal" class="modal-overlay hidden">
+        <div class="modal modal-xl">
+            <div class="modal-header"><h3 id="udModalTitle">User Details</h3><button class="modal-close" onclick="UsersModule.closeModal()">×</button></div>
+            <div class="modal-body" id="userDetailBody"></div>
+        </div>
     </div>
+
+    <!-- ENTITY EDIT/CREATE MODALS -->
+    <div id="entityModal" class="modal-overlay hidden"><div class="modal"><div class="modal-header"><h3 id="entityModalTitle">Edit</h3><button class="modal-close" onclick="closeEntityModal()">×</button></div><div class="modal-body" id="entityModalBody"></div></div></div>
+
+    <div id="toast" class="toast"></div>
+    <div id="lightbox" class="lightbox hidden"><span class="lightbox-close">×</span><img id="lightbox-img" src="" alt="Screenshot"></div>
 
     <script src="admin.js"></script>
 </body>
