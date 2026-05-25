@@ -1051,14 +1051,20 @@ async function purchasePlan(planName, priceUsd, hashrate) {
     if (contractErr) throw contractErr;
 
     /* 2. Record transaction (for history only, NOT balance calculation) */
-    await _supabase.from('transactions').insert({
-      user_id:    user.id,
-      type:       'purchase',
-      amount:     cost,
-      coin:       'usdt',
-      status:     'success',
-      created_at: new Date().toISOString(),
-    });
+    const { error: txErr } = await _supabase
+      .from('transactions')
+      .insert({
+        user_id:    user.id,
+        type:       'purchase',
+        amount:     cost,
+        coin:       'usdt',
+        status:     'success',
+        created_at: new Date().toISOString(),
+      });
+    if (txErr) {
+      console.error('Transaction insert failed:', txErr);
+      throw txErr;
+    }
 
     /* 3. Deduct USDT balance (source of truth) */
     const newBalance = balance - cost;
@@ -1083,6 +1089,71 @@ async function purchasePlan(planName, priceUsd, hashrate) {
 function _planDays(name) {
   const map = { Starter: 30, Silver: 90, Gold: 180, Platinum: 365 };
   return map[name] || 30;
+}
+
+/*
+  ADMIN HELPER:
+  Approves a pending deposit, credits profile balance, and ALWAYS writes a
+  history row to transactions so history/recent activity stay in sync.
+*/
+async function approveDeposit(deposit) {
+  if (!_supabase || !deposit?.id || !deposit?.user_id) {
+    throw new Error('Invalid approveDeposit payload.');
+  }
+
+  const coin = String(deposit.coin || '').toLowerCase();
+  const amount = Number(deposit.amount || 0);
+  if (amount <= 0) throw new Error('Invalid deposit amount.');
+
+  /* 1) Mark deposit approved */
+  const { error: depErr } = await _supabase
+    .from('deposits')
+    .update({ status: 'approved', approved_at: new Date().toISOString() })
+    .eq('id', deposit.id);
+  if (depErr) throw depErr;
+
+  /* 2) Credit user profile balance */
+  const { data: prof, error: profErr } = await _supabase
+    .from('profiles')
+    .select('btc_balance, usdt_balance')
+    .eq('id', deposit.user_id)
+    .single();
+  if (profErr) throw profErr;
+
+  const btc = Number(prof?.btc_balance || 0);
+  const usdt = Number(prof?.usdt_balance || 0);
+  const profilePatch = coin === 'usdt_bep20' || coin === 'usdt'
+    ? { usdt_balance: usdt + amount }
+    : { btc_balance: btc + amount };
+
+  const { error: balErr } = await _supabase
+    .from('profiles')
+    .update(profilePatch)
+    .eq('id', deposit.user_id);
+  if (balErr) throw balErr;
+
+  /* 3) ALWAYS write history row */
+  const { error: txErr } = await _supabase
+    .from('transactions')
+    .insert({
+      user_id: deposit.user_id,
+      type: 'deposit',
+      amount: amount,
+      coin: deposit.coin,
+      status: 'approved',
+      created_at: new Date().toISOString(),
+    });
+  if (txErr) {
+    console.error('Deposit approval transaction insert failed:', txErr);
+    throw txErr;
+  }
+
+  /* 4) Refresh local UI if current viewer is same user */
+  if (Auth.getUser()?.id === deposit.user_id) {
+    await Auth.refreshProfile();
+    await refreshAll();
+    populateUserUI();
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1409,6 +1480,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.Auth               = Auth;
   window.openDepositModal   = openDepositModal;
   window.openWithdrawModal  = openWithdrawModal;
+  window.approveDeposit     = approveDeposit;
   window.refreshTransactions = async () => {
     _allDeposits     = await loadDeposits();
     _allTransactions = await loadTransactions();
