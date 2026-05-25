@@ -62,6 +62,16 @@ const Toast = (() => {
 function $(id)            { return document.getElementById(id); }
 function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
 
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
 
@@ -1010,6 +1020,11 @@ function switchTab(name) {
   };
   setText('pageTitle', titles[name] || name);
 
+  /* Auto-read transaction notifications when opening Transactions */
+  if (name === 'transactions') {
+    Notifications.markRead(null, ['deposit','withdrawal','mining','purchase','referral']);
+  }
+
   /* close mobile sidebar */
   $('sidebar')?.classList.remove('open');
   $('sidebarOverlay')?.classList.remove('open');
@@ -1455,11 +1470,182 @@ async function refreshAll() {
   updatePortfolioValue();
   populateDashboardStats(contracts);
 
+  /* Refresh notifications */
+  await Notifications.load();
+
   setTimeout(() => {
     initEarningsChart(txns);
     initHashrateChart(contracts);
     initDonut(Auth.getProfile());
   }, 120);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   NOTIFICATIONS MODULE
+══════════════════════════════════════════════════════════════ */
+const Notifications = (() => {
+  let _notifications = [];
+
+  async function load() {
+    const user = Auth.getUser();
+    if (!user || !_supabase) return [];
+    const { data, error } = await _supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) { console.error('loadNotifications:', error); return []; }
+    _notifications = data || [];
+    render();
+    updateBadge();
+    return _notifications;
+  }
+
+  function render() {
+    const list = $('notificationList');
+    if (!list) return;
+
+    if (!_notifications.length) {
+      list.innerHTML = `<div style="padding:32px;text-align:center;color:#475569;font-size:13px;">📭 No notifications yet.</div>`;
+      return;
+    }
+
+    const typeColors = {
+      success: '#10b981', warning: '#f97316', error: '#ef4444', info: '#3b82f6',
+      deposit: '#10b981', withdrawal: '#ef4444', mining: '#f59e0b', purchase: '#3b82f6',
+      announcement: '#8b5cf6', referral: '#8b5cf6',
+    };
+    const icons = {
+      success: '✅', warning: '⚠️', error: '❌', info: '💡',
+      deposit: '📥', withdrawal: '📤', mining: '⛏️', purchase: '🛒',
+      announcement: '📢', referral: '👥',
+    };
+
+    list.innerHTML = _notifications.map(n => {
+      const isUnread = !n.is_read;
+      const color = typeColors[n.type] || typeColors.info;
+      const icon = icons[n.type] || '🔔';
+      return `
+        <div class="notification-item ${isUnread ? 'unread' : ''}" data-notif-id="${n.id}">
+          <div class="notification-dot" style="background:${color};box-shadow:0 0 8px ${color}66;"></div>
+          <div class="notification-content">
+            <div class="notification-title">${icon} ${escapeHtml(n.title) || 'Notification'}</div>
+            <div class="notification-message">${escapeHtml(n.message)}</div>
+            <div class="notification-time">${_fmtDate(n.created_at)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function updateBadge() {
+    const unread = _notifications.filter(n => !n.is_read).length;
+    const badge = $('notifBadge');
+    const txBadge = document.querySelector('#nav-transactions .nav-badge');
+
+    if (badge) {
+      if (unread > 0) {
+        badge.textContent = unread > 99 ? '99+' : String(unread);
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    const txUnread = _notifications.filter(n => !n.is_read && ['deposit','withdrawal','mining','purchase','referral'].includes(n.type)).length;
+    if (txBadge) {
+      if (txUnread > 0) {
+        txBadge.textContent = txUnread > 99 ? '99+' : String(txUnread);
+        txBadge.style.display = 'flex';
+      } else {
+        txBadge.style.display = 'none';
+      }
+    }
+
+    const label = $('notifCountLabel');
+    if (label) label.textContent = unread + ' unread';
+  }
+
+  async function markRead(ids = null, types = null) {
+    const user = Auth.getUser();
+    if (!user || !_supabase) return;
+
+    let query = _supabase.from('notifications').update({ is_read: true });
+
+    if (ids) {
+      query = query.in('id', Array.isArray(ids) ? ids : [ids]);
+    } else if (types) {
+      const typeArr = Array.isArray(types) ? types : [types];
+      query = query.eq('user_id', user.id).eq('is_read', false).in('type', typeArr);
+    } else {
+      query = query.eq('user_id', user.id).eq('is_read', false);
+    }
+
+    const { error } = await query;
+    if (error) { console.error('markRead:', error); return; }
+
+    if (ids) {
+      const idArr = Array.isArray(ids) ? ids : [ids];
+      _notifications.forEach(n => { if (idArr.includes(n.id)) n.is_read = true; });
+    } else if (types) {
+      const typeArr = Array.isArray(types) ? types : [types];
+      _notifications.forEach(n => { if (typeArr.includes(n.type)) n.is_read = true; });
+    } else {
+      _notifications.forEach(n => { n.is_read = true; });
+    }
+    render();
+    updateBadge();
+  }
+
+  return { load, render, updateBadge, markRead, getUnread: () => _notifications.filter(n => !n.is_read).length };
+})();
+
+function wireNotificationBell() {
+  const bell = $('notificationBell');
+  if (!bell) return;
+
+  bell.addEventListener('click', () => {
+    requestAnimationFrame(() => {
+      const menu = $('notificationMenu');
+      if (menu && menu.classList.contains('open')) {
+        Notifications.markRead();
+      }
+    });
+  });
+
+  const list = $('notificationList');
+  if (list) {
+    list.addEventListener('click', e => {
+      const item = e.target.closest('.notification-item');
+      if (!item) return;
+      const id = item.dataset.notifId;
+      if (id) Notifications.markRead(id);
+    });
+  }
+}
+
+function initNotificationRealtime() {
+  if (!_supabase || typeof _supabase.channel !== 'function') return;
+  const userId = Auth.getUser()?.id;
+  if (!userId) return;
+  try {
+    _supabase.channel('user-notifications')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        payload => {
+          if (payload.new && payload.new.user_id === userId) {
+            Notifications.load();
+            Toast.show(payload.new.title || 'New notification', payload.new.type || 'info', 4000);
+          }
+        }
+      )
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') console.log('[Dashboard] Notification realtime subscribed.');
+      });
+  } catch (err) {
+    console.warn('[Dashboard] Notification realtime error:', err);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1481,6 +1667,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireTransactionFilters();
   wireDepositButtons();
   wireWithdrawButtons();
+  wireNotificationBell();
+  initNotificationRealtime();
+
   initDepositForm();
 
   /* 4. Load all real data and render */
