@@ -605,32 +605,27 @@ const DepositsModule = {
   async _creditBalance(depositId, dep) {
     if (!dep?.user_id || !dep?.amount) return;
 
-    /* Idempotency check: verify deposit is actually approved before crediting */
-    const { data: verifyRow, error: verifyErr } = await sb
-      .from('deposits')
-      .select('status')
-      .eq('id', depositId)
-      .maybeSingle();
-    if (verifyErr) {
-      console.warn('[Admin] Verification fetch failed for', depositId, verifyErr.message);
-    }
-    if (verifyRow && verifyRow.status !== 'approved') {
-      console.log('[Admin] Deposit not approved — skipping balance credit:', depositId);
-      return;
-    }
+    /*
+      CRITICAL: updateStatus() already verified the deposit was pending
+      and successfully updated it to approved BEFORE calling this function.
+      Do NOT re-fetch the deposit row here — that would see status=approved
+      and incorrectly skip the balance credit.
+      The dep object passed in is the pending row fetched by updateStatus().
+    */
 
-    /* Check if transaction record already exists for this deposit to prevent double-credit */
+    /* ── Idempotency: transaction already exists for this deposit? ── */
     const { data: existingTx, error: txCheckErr } = await sb
       .from('transactions')
       .select('id')
       .eq('user_id', dep.user_id)
       .eq('type', 'deposit')
       .eq('amount', dep.amount)
-      .gte('created_at', new Date(Date.now() - 60000).toISOString()) /* within last 60s */
+      .eq('status', 'approved')
+      .gte('created_at', new Date(Date.now() - 300000).toISOString()) /* within last 5 min */
       .maybeSingle();
     if (txCheckErr) console.warn('[Admin] Transaction check error:', txCheckErr.message);
     if (existingTx) {
-      console.log('[Admin] Transaction record already exists — balance already credited for deposit', depositId);
+      console.log('[Admin] Transaction record already exists — skipping deposit', depositId);
       AdminUI.toast('Deposit already credited — no duplicate balance added.', 'warning');
       return;
     }
@@ -638,26 +633,33 @@ const DepositsModule = {
     const isUSDT = dep.coin === 'usdt_bep20';
     const field  = isUSDT ? 'usdt_balance' : 'btc_balance';
 
-    /* Try RPC first */
+    /* ── Helper: create transaction row ── */
+    const _createTx = async () => {
+      const { error: txErr } = await sb.from('transactions').insert({
+        user_id:    dep.user_id,
+        type:       'deposit',
+        amount:     dep.amount,
+        coin:       dep.coin || (isUSDT ? 'usdt_bep20' : 'btc'),
+        status:     'approved',
+        created_at: new Date().toISOString(),
+      });
+      if (txErr) throw new Error('Transaction insert failed: ' + txErr.message);
+      console.log('[Admin] Transaction row created for deposit', depositId);
+    };
+
+    /* ── Try RPC first ── */
     const rpcName = isUSDT ? 'increment_user_usdt_balance' : 'increment_user_balance';
     const { error: rpcErr } = await sb.rpc(rpcName, {
       p_user_id: dep.user_id,
       p_amount:  dep.amount,
     });
     if (!rpcErr) {
-      console.log('[Admin] Balance credited once via RPC for deposit', depositId);
-      /* Also create a transaction record */
-      await sb.from('transactions').insert({
-        user_id:    dep.user_id,
-        type:       'deposit',
-        amount:     dep.amount,
-        status:     'success',
-        created_at: new Date().toISOString(),
-      }).catch(console.warn);
+      console.log('[Admin] Balance credited via RPC for deposit', depositId);
+      try { await _createTx(); } catch (txErr) { console.warn(txErr.message); }
       return;
     }
 
-    /* Fallback: manual read-modify-write */
+    /* ── Fallback: manual read-modify-write ── */
     try {
       const { data: profile, error: fetchErr } = await sb
         .from('profiles')
@@ -673,18 +675,10 @@ const DepositsModule = {
         .eq('id', dep.user_id);
       if (updErr) throw updErr;
 
-      console.log('[Admin] Balance credited once via fallback for deposit', depositId);
-
-      /* Create transaction record */
-      await sb.from('transactions').insert({
-        user_id:    dep.user_id,
-        type:       'deposit',
-        amount:     dep.amount,
-        status:     'success',
-        created_at: new Date().toISOString(),
-      }).catch(console.warn);
+      console.log('[Admin] Balance credited via fallback for deposit', depositId);
+      await _createTx();
     } catch (err) {
-      console.warn('[Admin] balance credit failed for', depositId, err.message);
+      console.warn('[Admin] Balance credit failed for', depositId, err.message);
       AdminUI.toast('⚠ Deposit approved but balance credit failed — check manually.', 'warning', 7000);
     }
   },
