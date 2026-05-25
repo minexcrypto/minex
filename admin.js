@@ -815,6 +815,20 @@ window.UsersModule = UsersModule;
 /* ══════════════════════════════════════════════════════════════
    §10  TRANSACTIONS MODULE
 ══════════════════════════════════════════════════════════════ */
+
+/* Helper: fetch profiles for a list of user IDs and return a lookup map */
+async function _fetchProfiles(userIds) {
+  if (!sb || !userIds.length) return {};
+  const { data, error } = await sb
+    .from('profiles')
+    .select('id, email, name')
+    .in('id', userIds);
+  if (error) { console.warn('[Admin] Profile fetch error:', error.message); return {}; }
+  const map = {};
+  (data || []).forEach(p => { map[p.id] = p; });
+  return map;
+}
+
 const TransactionsModule = {
 
   async load(typeFilter = 'all') {
@@ -824,7 +838,7 @@ const TransactionsModule = {
     try {
       let q = sb
         .from('transactions')
-        .select('id, user_id, type, amount, status, created_at, profiles(email, name)')
+        .select('id, user_id, plan, hashrate, daily_profit, active, days_left, progress, created_at')
         .order('created_at', { ascending: false })
         .limit(400);
       if (typeFilter !== 'all') {
@@ -845,12 +859,19 @@ const TransactionsModule = {
       const { data, error } = await q;
       if (error) throw error;
       const rows = data || [];
+      const nUserIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+      const nProfileMap = await _fetchProfiles(nUserIds);
+
+      const nUserIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+      const nProfileMap = await _fetchProfiles(nUserIds);
+      const cUserIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+      const cProfileMap = await _fetchProfiles(cUserIds);
       if (!rows.length) { setHTML(container, AdminUI.empty('No transactions found.')); return; }
 
       const TYPE_ICON = { mining: '⛏️', deposit: '📥', withdrawal: '📤', referral: '👥', transfer: '↔️', purchase: '🛒' };
       const tbodyHTML = rows.map(tx => {
-        const email  = tx.profiles?.email || '—';
-        const name   = tx.profiles?.name  || email;
+        const email  = (txProfileMap[tx.user_id]?.email || '—') || '—';
+        const name   = (txProfileMap[tx.user_id]?.name || email)  || email;
         const amount = Number(tx.amount || 0).toFixed(8);
         const date   = tx.created_at
           ? new Date(tx.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
@@ -909,7 +930,7 @@ const ContractsModule = {
     try {
       const { data, error } = await sb
         .from('contracts')
-        .select('id, user_id, plan, hashrate, daily_profit, active, days_left, progress, created_at, profiles(email, name)')
+        .select('id, user_id, title, message, type, is_read, created_at')
         .order('created_at', { ascending: false })
         .limit(300);
       if (error) throw error;
@@ -917,8 +938,8 @@ const ContractsModule = {
       if (!rows.length) { setHTML(container, AdminUI.empty('No contracts found.')); return; }
 
       const tbodyHTML = rows.map(c => {
-        const email    = c.profiles?.email || '—';
-        const name     = c.profiles?.name  || email;
+        const email    = (cProfileMap[c.user_id]?.email || '—') || '—';
+        const name     = (cProfileMap[c.user_id]?.name || email)  || email;
         const date     = c.created_at
           ? new Date(c.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
           : '—';
@@ -973,7 +994,7 @@ const NotificationsModule = {
     try {
       const { data, error } = await sb
         .from('notifications')
-        .select('id, user_id, title, message, type, is_read, created_at, profiles(email, name)')
+        .select('id, user_id, title, message, type, is_read, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -981,8 +1002,8 @@ const NotificationsModule = {
       if (!rows.length) { setHTML(container, AdminUI.empty('No notifications sent yet.')); return; }
 
       const tbodyHTML = rows.map(n => {
-        const email = n.profiles?.email || 'All Users';
-        const name = n.profiles?.name || email;
+        const email = (nProfileMap[n.user_id]?.email || 'All Users') || 'All Users';
+        const name = (nProfileMap[n.user_id]?.name || email) || email;
         const date = n.created_at ? new Date(n.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
         return `
           <tr>
