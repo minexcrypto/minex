@@ -274,8 +274,11 @@ function populateUserUI() {
   const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
 
   const btcStr = '₿ ' + btcBalance.toFixed(8);
+  const walletBigDisplay = usdtBalance > 0
+    ? ('$' + usdtBalance.toFixed(2) + ' USDT')
+    : btcStr;
   setText('walletBalanceCounter', btcStr);
-  setText('walletBigBalance',     btcStr);
+  setText('walletBigBalance',     walletBigDisplay);
   setText('walletBigUSD',         '≈ — USD');
   setText('walletItemUSD',        '—');
   setText('portfolioBTCusd',      '—');
@@ -964,10 +967,11 @@ function openWithdrawModal() {
    PURCHASE PLAN (UI only — real purchase flow wired to balance)
 ══════════════════════════════════════════════════════════════ */
 async function purchasePlan(planName, priceUsd, hashrate) {
-  const profile = Auth.getProfile();
+  /* Force latest profile before balance check (avoid stale local state) */
+  const latestProfile = await Auth.refreshProfile();
 
   /* ── SOURCE OF TRUTH: profiles.usdt_balance ── */
-  const balance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+  const balance = typeof latestProfile?.usdt_balance === 'number' ? latestProfile.usdt_balance : 0;
   const cost    = parseFloat(priceUsd);
 
   if (balance < cost) {
@@ -1021,7 +1025,7 @@ async function purchasePlan(planName, priceUsd, hashrate) {
 
     Toast.show(`✅ ${planName} Plan activated! ${hashrate} TH/s added.`, 'success', 5000);
 
-    /* 4. Refresh */
+    /* 4. Refresh profile/UI from latest DB state */
     await Auth.refreshProfile();
     populateUserUI();
     await refreshAll();
