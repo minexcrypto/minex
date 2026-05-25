@@ -1,3 +1,6 @@
+Yeh raha fixed `admin.js` — `_isAdmin` function mein `role` ki jagah `is_admin` check ab sahi hai:
+
+```javascript
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — admin.js
    All data is real — read from Supabase tables:
@@ -248,8 +251,12 @@ const AdminAuth = {
       if (data) return true;
     } catch { /* skip */ }
     try {
-      const { data } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
-      if (data?.role === 'admin') return true;
+      const { data } = await sb
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data?.is_admin === true) return true;
     } catch { /* skip */ }
     return false;
   },
@@ -1158,3 +1165,4 @@ Object.assign(window, {
   OverviewModule,
   PriceService,
 });
+```
