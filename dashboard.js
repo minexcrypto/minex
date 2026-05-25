@@ -1137,15 +1137,18 @@ async function approveDeposit(deposit) {
     .insert({
       user_id: deposit.user_id,
       type: 'deposit',
-      amount: amount,
-      coin: deposit.coin,
-      status: 'approved',
+      amount: Number(deposit.amount || 0),
+      coin: (deposit.coin || 'usdt').toLowerCase(),
+      status: 'success',
       created_at: new Date().toISOString(),
     });
+
   if (txErr) {
-    console.error('Deposit approval transaction insert failed:', txErr);
+    console.error('Deposit transaction insert failed:', txErr);
+    alert(txErr.message);
     throw txErr;
   }
+  console.log('Deposit transaction saved');
 
   /* 4) Refresh local UI if current viewer is same user */
   if (Auth.getUser()?.id === deposit.user_id) {
