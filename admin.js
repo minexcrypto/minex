@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — admin.js
    All data is real — read from Supabase tables:
-     deposits · profiles · transactions · contracts
+     deposits · profiles · transactions · contracts · notifications
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -148,6 +148,10 @@ const AdminUI = {
       withdrawal: { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Withdrawal' },
       referral:   { bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Referral'   },
       purchase:   { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Purchase'   },
+      info:       { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Info'       },
+      warning:    { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Warning'    },
+      error:      { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Error'      },
+      announcement:{ bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Announcement'},
     };
     const s = map[String(status).toLowerCase()] || {
       bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: status || '—',
@@ -174,6 +178,7 @@ const AdminUI = {
       transactions: 'Transaction History',
       contracts:    'Mining Contracts',
       settings:     'Admin Settings',
+      notifications:'Send Notifications',
     };
     setText('#adminPageTitle', TITLES[name] || name);
   },
@@ -958,7 +963,124 @@ const ContractsModule = {
 };
 
 /* ══════════════════════════════════════════════════════════════
-   §12  SEARCH / FILTER WIRING
+   §12  NOTIFICATIONS MODULE
+══════════════════════════════════════════════════════════════ */
+const NotificationsModule = {
+  async load() {
+    const container = document.getElementById('adminNotifTableWrap');
+    if (!container || !sb) return;
+    setHTML(container, AdminUI.loading('Loading notifications…'));
+    try {
+      const { data, error } = await sb
+        .from('notifications')
+        .select('id, user_id, title, message, type, is_read, created_at, profiles(email, name)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      const rows = data || [];
+      if (!rows.length) { setHTML(container, AdminUI.empty('No notifications sent yet.')); return; }
+
+      const tbodyHTML = rows.map(n => {
+        const email = n.profiles?.email || 'All Users';
+        const name = n.profiles?.name || email;
+        const date = n.created_at ? new Date(n.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+        return `
+          <tr>
+            <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(n.id || '').slice(0, 8)}…</td>
+            <td style="${TD}">${name}</td>
+            <td style="${TD}">${n.title || '—'}</td>
+            <td style="${TD};font-size:12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.message || '—'}</td>
+            <td style="${TD}">${AdminUI.badge(n.type)}</td>
+            <td style="${TD}">${AdminUI.badge(n.is_read ? 'success' : 'pending')}</td>
+            <td style="${TD};font-size:12px;color:#64748b">${date}</td>
+          </tr>`;
+      }).join('');
+
+      setHTML(container, `
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="${TH}">ID</th>
+              <th style="${TH}">User</th>
+              <th style="${TH}">Title</th>
+              <th style="${TH}">Message</th>
+              <th style="${TH}">Type</th>
+              <th style="${TH}">Status</th>
+              <th style="${TH}">Date</th>
+            </tr>
+          </thead>
+          <tbody>${tbodyHTML}</tbody>
+        </table>`);
+    } catch (err) {
+      setHTML(container, AdminUI.error('Could not load notifications: ' + err.message));
+    }
+  },
+
+  async send() {
+    const target = document.getElementById('notifTarget')?.value || 'all';
+    const title = document.getElementById('notifTitle')?.value.trim();
+    const message = document.getElementById('notifMessage')?.value.trim();
+    const type = document.getElementById('notifType')?.value || 'info';
+    const email = document.getElementById('notifUserEmail')?.value.trim();
+
+    if (!title || !message) {
+      AdminUI.toast('Title and message are required.', 'error');
+      return;
+    }
+
+    if (!sb) { AdminUI.toast('Supabase not ready.', 'error'); return; }
+
+    const btn = document.getElementById('sendNotifBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+    try {
+      let userIds = [];
+      if (target === 'all') {
+        const { data: profiles, error: profErr } = await sb.from('profiles').select('id');
+        if (profErr) throw profErr;
+        userIds = (profiles || []).map(p => p.id);
+      } else {
+        if (!email) throw new Error('Please enter a user email.');
+        const { data: prof, error: profErr } = await sb.from('profiles').select('id').eq('email', email).maybeSingle();
+        if (profErr) throw profErr;
+        if (!prof) throw new Error('User not found with that email.');
+        userIds = [prof.id];
+      }
+
+      if (!userIds.length) throw new Error('No target users found.');
+
+      const rows = userIds.map(uid => ({
+        user_id: uid,
+        title,
+        message,
+        type,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      }));
+
+      const BATCH = 500;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        const { error } = await sb.from('notifications').insert(batch);
+        if (error) throw error;
+      }
+
+      AdminUI.toast(`Notification sent to ${userIds.length} user${userIds.length > 1 ? 's' : ''}.`, 'success');
+      document.getElementById('notifTitle').value = '';
+      document.getElementById('notifMessage').value = '';
+      this.load();
+    } catch (err) {
+      AdminUI.toast('Send failed: ' + err.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📤 Send Notification'; }
+    }
+  }
+};
+
+window.NotificationsModule = NotificationsModule;
+
+/* ══════════════════════════════════════════════════════════════
+   §13  SEARCH / FILTER WIRING
 ══════════════════════════════════════════════════════════════ */
 function initFilters() {
   on('#depositStatusFilter', 'change', e => {
@@ -988,8 +1110,20 @@ function initFilters() {
   });
 }
 
+function initNotificationForm() {
+  on('#notifTarget', 'change', e => {
+    const grp = document.getElementById('notifUserGroup');
+    if (grp) grp.style.display = e.target.value === 'specific' ? '' : 'none';
+  });
+
+  on('#sendNotifBtn', 'click', e => {
+    e.preventDefault();
+    NotificationsModule.send();
+  });
+}
+
 /* ══════════════════════════════════════════════════════════════
-   §13  REALTIME
+   §14  REALTIME
 ══════════════════════════════════════════════════════════════ */
 function initRealtime() {
   if (typeof sb?.channel !== 'function') return;
@@ -1032,7 +1166,7 @@ function initRealtime() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §14  NAVIGATION
+   §15  NAVIGATION
 ══════════════════════════════════════════════════════════════ */
 const _loaded = new Set();
 
@@ -1070,23 +1204,25 @@ async function loadSection(name) {
     case 'users':        await UsersModule.load();        break;
     case 'transactions': await TransactionsModule.load(); break;
     case 'contracts':    await ContractsModule.load();    break;
+    case 'notifications': await NotificationsModule.load(); break;
   }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §15  PANEL BOOT
+   §16  PANEL BOOT
 ══════════════════════════════════════════════════════════════ */
 async function _bootPanel() {
   _loaded.clear();
   initFilters();
   initPriceWidget();
   initRealtime();
+  initNotificationForm();
   AdminUI.activateTab('deposits');
   await loadSection('deposits');
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §16  ENTRY POINT
+   §17  ENTRY POINT
 ══════════════════════════════════════════════════════════════ */
 console.log('[CryptoVault] admin.js loaded.');
 
@@ -1117,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ══════════════════════════════════════════════════════════════
-   §17  PUBLIC EXPORTS
+   §18  PUBLIC EXPORTS
 ══════════════════════════════════════════════════════════════ */
 Object.assign(window, {
   AdminAuth,
@@ -1128,4 +1264,5 @@ Object.assign(window, {
   ContractsModule,
   OverviewModule,
   PriceService,
+  NotificationsModule,
 });
