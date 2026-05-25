@@ -471,7 +471,16 @@ function renderTransactions(filter) {
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
-  const rows = filter === 'all' ? merged : merged.filter(r => normalizeFilter(r.type) === filter);
+  let filtered = merged;
+  const activeFilter = normalizeFilter(filter);
+
+  if (activeFilter !== 'all') {
+    filtered = merged.filter(
+      tx => normalizeTxType(tx.type) === activeFilter
+    );
+  }
+
+  const rows = filtered;
 
   if (!rows.length) {
     tbody.innerHTML = `
