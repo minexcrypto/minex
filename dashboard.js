@@ -65,9 +65,9 @@ function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
 
-  if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposits';
+  if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposit';
 
-  if (['withdrawal', 'withdrawals'].includes(t)) return 'withdrawals';
+  if (['withdrawal', 'withdrawals'].includes(t)) return 'withdrawal';
 
   if (['mining', 'mining_reward', 'reward'].includes(t)) return 'mining';
 
@@ -387,8 +387,8 @@ let _allDeposits     = [];
 function renderTransactions(filter) {
   const normalizeFilter = raw => {
     const f = String(raw || 'all').toLowerCase();
-    if (f === 'deposit' || f === 'deposits') return 'deposits';
-    if (f === 'withdrawal' || f === 'withdrawals') return 'withdrawals';
+    if (f === 'deposit' || f === 'deposits') return 'deposit';
+    if (f === 'withdrawal' || f === 'withdrawals') return 'withdrawal';
     if (f === 'mining') return 'mining';
     if (f === 'purchase' || f === 'purchases') return 'purchase';
     if (f === 'all') return 'all';
@@ -414,7 +414,7 @@ function renderTransactions(filter) {
     const coinLbl = isUSDT ? 'USDT' : 'BTC';
     const decimals = isUSDT ? 2 : 8;
     const amt = Number(tx.amount || 0);
-    const isOut = txType === 'withdrawals' || txType === 'purchase';
+    const isOut = txType === 'withdrawal' || txType === 'purchase';
     const amtStr = (isOut ? '-' : '+') + amt.toFixed(decimals) + ' ' + coinLbl;
 
     let usdVal;
@@ -461,7 +461,7 @@ function renderTransactions(filter) {
         usd:    usdVal,
         status: 'pending',
         date:   _fmtDate(d.created_at),
-        type:   'deposits',
+        type:   'deposit',
         createdAt: d.created_at,
       };
     });
@@ -475,9 +475,20 @@ function renderTransactions(filter) {
   const activeFilter = normalizeFilter(filter);
 
   if (activeFilter !== 'all') {
-    filtered = merged.filter(
-      tx => normalizeTxType(tx.type) === activeFilter
-    );
+
+    filtered = merged.filter(tx => {
+
+      const type = normalizeTxType(tx.type);
+
+      if (activeFilter === 'mining') {
+        return (
+          type === 'mining' ||
+          type === 'purchase'
+        );
+      }
+
+      return type === activeFilter;
+    });
   }
 
   const rows = filtered;
@@ -510,8 +521,8 @@ function renderTransactions(filter) {
     deposits:    'Deposit',
     withdrawal:  'Withdrawal',
     withdrawals: 'Withdrawal',
-    purchase:    'Plan Purchase',
-    purchases:   'Plan Purchase',
+    purchase:    'Mining Plan Purchase',
+    purchases:   'Mining Plan Purchase',
     referral:    'Referral Bonus',
     transfer:    'Transfer',
   };
@@ -571,7 +582,7 @@ function renderRecentActivity() {
     const symbol = isUSDT ? 'USDT' : '₿';
     const decimals = isUSDT ? 2 : 8;
     const amt = Number(tx.amount || 0);
-    const isOut = txType === 'withdrawals' || txType === 'purchase';
+    const isOut = txType === 'withdrawal' || txType === 'purchase';
     return {
       icon:   _txIcon(txType),
       desc:   _txLabel(tx.type),
@@ -631,8 +642,8 @@ function renderRecentActivity() {
     deposits:    '📥',
     withdrawal:  '📤',
     withdrawals: '📤',
-    purchase:    '🛒',
-    purchases:   '🛒',
+    purchase:    '⛏️',
+    purchases:   '⛏️',
     referral:    '👥',
     transfer:    '↔️',
   };
@@ -743,9 +754,9 @@ function renderWalletSummary() {
   /* Aggregate from real transactions */
   const txns = _allTransactions;
 
-  const totalDeposited  = txns.filter(t => normalizeTxType(t.type) === 'deposits')
+  const totalDeposited  = txns.filter(t => normalizeTxType(t.type) === 'deposit')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
-  const totalWithdrawn  = txns.filter(t => normalizeTxType(t.type) === 'withdrawals')
+  const totalWithdrawn  = txns.filter(t => normalizeTxType(t.type) === 'withdrawal')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
   const miningIncome    = txns.filter(t => normalizeTxType(t.type) === 'mining')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -1043,7 +1054,15 @@ async function purchasePlan(planName, priceUsd, hashrate) {
   try {
     Toast.show('Processing…', 'info', 2000);
 
-    /* 1. Create contract row */
+    /* 1. Deduct USDT balance (source of truth) */
+    const newBalance = balance - cost;
+    const { error: balErr } = await _supabase
+      .from('profiles')
+      .update({ usdt_balance: newBalance })
+      .eq('id', user.id);
+    if (balErr) throw balErr;
+
+    /* 2. Create contract row */
     const { error: contractErr } = await _supabase
       .from('contracts')
       .insert({
@@ -1058,7 +1077,7 @@ async function purchasePlan(planName, priceUsd, hashrate) {
       });
     if (contractErr) throw contractErr;
 
-    /* 2. Record transaction (for history only, NOT balance calculation) */
+    /* 3. Record transaction (for history only, NOT balance calculation) */
     const { error: txErr } = await _supabase
       .from('transactions')
       .insert({
@@ -1073,14 +1092,6 @@ async function purchasePlan(planName, priceUsd, hashrate) {
       console.error('Transaction insert failed:', txErr);
       throw txErr;
     }
-
-    /* 3. Deduct USDT balance (source of truth) */
-    const newBalance = balance - cost;
-    const { error: balErr } = await _supabase
-      .from('profiles')
-      .update({ usdt_balance: newBalance })
-      .eq('id', user.id);
-    if (balErr) throw balErr;
 
     Toast.show(`✅ ${planName} Plan activated! ${hashrate} TH/s added.`, 'success', 5000);
 
