@@ -524,17 +524,54 @@ const DepositsModule = {
   async updateStatus(depositId, newStatus) {
     if (!sb || !depositId) return;
 
+    /* Prevent duplicate clicks */
+    if (this._processing && this._processing.has(depositId)) {
+      console.log('[Admin] Duplicate approval prevented for deposit', depositId);
+      return;
+    }
+    if (!this._processing) this._processing = new Set();
+    this._processing.add(depositId);
+
     $$(`[data-actions-cell="${depositId}"] .admin-btn`).forEach(btn => {
       btn.disabled = true;
       btn.textContent = 'Saving…';
     });
 
     try {
-      const { error } = await sb
+      /* Transaction-safe: fetch current status first */
+      const { data: currentRow, error: fetchErr } = await sb
+        .from('deposits')
+        .select('id, status, user_id, amount, coin')
+        .eq('id', depositId)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      if (!currentRow) throw new Error('Deposit not found');
+
+      /* Already approved — do NOT credit again */
+      if (currentRow.status === 'approved') {
+        console.log('[Admin] Deposit already approved:', depositId);
+        AdminUI.toast('Deposit already approved — no balance change.', 'warning');
+        setHTML(`[data-status-cell="${depositId}"]`, AdminUI.badge('approved'));
+        setHTML(`[data-actions-cell="${depositId}"]`, '<span style="font-size:12px;color:#475569">—</span>');
+        this._rows = this._rows.map(r => r.id === depositId ? { ...r, status: 'approved' } : r);
+        this._syncBadges(this._rows);
+        return;
+      }
+
+      /* Only proceed if still pending */
+      if (currentRow.status !== 'pending') {
+        console.log('[Admin] Deposit status is', currentRow.status, '- skipping');
+        AdminUI.toast('Deposit status is ' + currentRow.status + ' — no action taken.', 'info');
+        return;
+      }
+
+      /* Update status to approved */
+      const { error: updErr } = await sb
         .from('deposits')
         .update({ status: newStatus })
-        .eq('id', depositId);
-      if (error) throw error;
+        .eq('id', depositId)
+        .eq('status', 'pending'); /* optimistic lock: only update if still pending */
+      if (updErr) throw updErr;
 
       setHTML(`[data-status-cell="${depositId}"]`, AdminUI.badge(newStatus));
       setHTML(`[data-actions-cell="${depositId}"]`, '<span style="font-size:12px;color:#475569">—</span>');
@@ -542,7 +579,9 @@ const DepositsModule = {
       this._rows = this._rows.map(r => r.id === depositId ? { ...r, status: newStatus } : r);
       this._syncBadges(this._rows);
 
-      if (newStatus === 'approved') await this._creditBalance(depositId);
+      if (newStatus === 'approved') {
+        await this._creditBalance(depositId, currentRow);
+      }
 
       AdminUI.toast(
         `Deposit marked as <strong>${newStatus}</strong>.`,
@@ -558,15 +597,46 @@ const DepositsModule = {
         );
       }
       AdminUI.toast('Update failed: ' + err.message, 'error');
+    } finally {
+      this._processing.delete(depositId);
     }
   },
 
-  async _creditBalance(depositId) {
-    const dep = this._rows.find(r => r.id === depositId);
+  async _creditBalance(depositId, dep) {
     if (!dep?.user_id || !dep?.amount) return;
 
-    const isUSDT    = dep.coin === 'usdt_bep20';
-    const field     = isUSDT ? 'usdt_balance' : 'btc_balance';
+    /* Idempotency check: verify deposit is actually approved before crediting */
+    const { data: verifyRow, error: verifyErr } = await sb
+      .from('deposits')
+      .select('status')
+      .eq('id', depositId)
+      .maybeSingle();
+    if (verifyErr) {
+      console.warn('[Admin] Verification fetch failed for', depositId, verifyErr.message);
+    }
+    if (verifyRow && verifyRow.status !== 'approved') {
+      console.log('[Admin] Deposit not approved — skipping balance credit:', depositId);
+      return;
+    }
+
+    /* Check if transaction record already exists for this deposit to prevent double-credit */
+    const { data: existingTx, error: txCheckErr } = await sb
+      .from('transactions')
+      .select('id')
+      .eq('user_id', dep.user_id)
+      .eq('type', 'deposit')
+      .eq('amount', dep.amount)
+      .gte('created_at', new Date(Date.now() - 60000).toISOString()) /* within last 60s */
+      .maybeSingle();
+    if (txCheckErr) console.warn('[Admin] Transaction check error:', txCheckErr.message);
+    if (existingTx) {
+      console.log('[Admin] Transaction record already exists — balance already credited for deposit', depositId);
+      AdminUI.toast('Deposit already credited — no duplicate balance added.', 'warning');
+      return;
+    }
+
+    const isUSDT = dep.coin === 'usdt_bep20';
+    const field  = isUSDT ? 'usdt_balance' : 'btc_balance';
 
     /* Try RPC first */
     const rpcName = isUSDT ? 'increment_user_usdt_balance' : 'increment_user_balance';
@@ -575,6 +645,7 @@ const DepositsModule = {
       p_amount:  dep.amount,
     });
     if (!rpcErr) {
+      console.log('[Admin] Balance credited once via RPC for deposit', depositId);
       /* Also create a transaction record */
       await sb.from('transactions').insert({
         user_id:    dep.user_id,
@@ -601,6 +672,8 @@ const DepositsModule = {
         .update({ [field]: newBal })
         .eq('id', dep.user_id);
       if (updErr) throw updErr;
+
+      console.log('[Admin] Balance credited once via fallback for deposit', depositId);
 
       /* Create transaction record */
       await sb.from('transactions').insert({
@@ -921,6 +994,18 @@ function initRealtime() {
             const cur   = parseInt(badge?.textContent || '0', 10);
             setText('#sidebarDepositBadge', String(cur + 1));
           }
+          /* Only reload deposits list — do NOT trigger any approval logic */
+          if (_loaded.has('deposits')) {
+            const filter = document.getElementById('depositStatusFilter')?.value || 'all';
+            DepositsModule.load(filter);
+          }
+        }
+      )
+      /* Listen to UPDATE events on deposits only for UI refresh, never for approval logic */
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'deposits' },
+        payload => {
+          /* Just refresh the deposits table UI — no balance or approval logic here */
           if (_loaded.has('deposits')) {
             const filter = document.getElementById('depositStatusFilter')?.value || 'all';
             DepositsModule.load(filter);
@@ -928,7 +1013,7 @@ function initRealtime() {
         }
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
+        { event: 'INSERT', schema: 'public', table: 'transactions' },
         () => { if (_loaded.has('transactions')) TransactionsModule.load(); }
       )
       .subscribe(status => {
