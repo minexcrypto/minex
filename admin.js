@@ -1,32 +1,14 @@
-/* ══════════════════════════════════════════════════════════════════════
-   CRYPTOVAULT — admin.js  (fixed build)
-
-   Auth:      Supabase Auth — email + password
-   SDK:       window.supabase  (CDN global, @supabase/supabase-js v2)
-   Tables:    deposits   (id, user_id, coin, amount, tx_hash, screenshot, status, created_at)
-              profiles   (id, email, name, balance)
-              transactions (id, user_id, type, amount, status)
-              contracts  (id, user_id, plan, hashrate, active)
-
-   Deploy:    Works on Cloudflare Workers / Pages static hosting.
-              Credentials injected via window globals BEFORE this file.
-
-   REQUIRED in HTML before this script:
-     <script>
-       window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
-       window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
-     </script>
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/..."></script>
-     <script src="admin.js"></script>
-══════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   CRYPTOVAULT — admin.js
+   All data is real — read from Supabase tables:
+     deposits · profiles · transactions · contracts
+══════════════════════════════════════════════════════════════ */
 
 'use strict';
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §1  SUPABASE CLIENT
-══════════════════════════════════════════════════════════════════════ */
-
-/** @type {import('@supabase/supabase-js').SupabaseClient | null} */
+══════════════════════════════════════════════════════════════ */
 let sb = null;
 
 function initSupabaseClient() {
@@ -36,25 +18,18 @@ function initSupabaseClient() {
   if (!url || !key) {
     AdminUI.banner(
       '⚠ Supabase credentials missing. ' +
-      'Define window.CRYPTOVAULT_SUPABASE_URL and window.CRYPTOVAULT_SUPABASE_KEY ' +
-      'before admin.js loads.',
+      'Define window.CRYPTOVAULT_SUPABASE_URL and window.CRYPTOVAULT_SUPABASE_KEY before admin.js loads.',
       'error'
     );
     return false;
   }
-
   if (typeof window.supabase?.createClient !== 'function') {
-    AdminUI.banner(
-      '⚠ Supabase SDK not found. ' +
-      'Load the CDN script before admin.js.',
-      'error'
-    );
+    AdminUI.banner('⚠ Supabase SDK not found. Load the CDN script before admin.js.', 'error');
     return false;
   }
-
   try {
     sb = window.supabase.createClient(url, key);
-    console.log('[CryptoVault] SUPABASE INITIALIZED');
+    console.log('[CryptoVault] Supabase client initialized.');
     return true;
   } catch (err) {
     AdminUI.banner('⚠ Supabase init error: ' + err.message, 'error');
@@ -62,41 +37,25 @@ function initSupabaseClient() {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   §2  SAFE DOM HELPERS
-       show/hide use the .hidden class (defined in admin.html <style>)
-       so they never conflict with inline display values set by CSS.
-══════════════════════════════════════════════════════════════════════ */
-
-const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel);      } catch { return null; } };
+/* ══════════════════════════════════════════════════════════════
+   §2  DOM HELPERS
+══════════════════════════════════════════════════════════════ */
+const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel);        } catch { return null; } };
 const $$ = (sel, ctx = document) => { try { return [...ctx.querySelectorAll(sel)]; } catch { return []; } };
 
-function setHTML(sel, html)  { const el = resolve(sel); if (el) el.innerHTML  = html;  }
+function setHTML(sel, html)  { const el = resolve(sel); if (el) el.innerHTML   = html;  }
 function setText(sel, text)  { const el = resolve(sel); if (el) el.textContent = text; }
-
-/** Remove .hidden to reveal an element */
-function show(sel) {
-  const el = resolve(sel);
-  if (el) el.classList.remove('hidden');
-}
-
-/** Add .hidden to conceal an element */
-function hide(sel) {
-  const el = resolve(sel);
-  if (el) el.classList.add('hidden');
-}
-
+function show(sel)           { resolve(sel)?.classList.remove('hidden'); }
+function hide(sel)           { resolve(sel)?.classList.add('hidden'); }
 function on(sel, evt, fn, ctx = document) {
-  const el = typeof sel === 'string' ? $(sel, ctx) : sel;
+  const el = typeof sel === 'string' ? $(sel, ctx) : (sel || null);
   if (el) el.addEventListener(evt, fn);
 }
-
 function resolve(sel) { return typeof sel === 'string' ? $(sel) : (sel || null); }
 
-/* ══════════════════════════════════════════════════════════════════════
-   §3  UI PRIMITIVES  — toast, banner, loaders, badges
-══════════════════════════════════════════════════════════════════════ */
-
+/* ══════════════════════════════════════════════════════════════
+   §3  UI PRIMITIVES
+══════════════════════════════════════════════════════════════ */
 const AdminUI = {
 
   toast(msg, type = 'info', ms = 4000) {
@@ -110,11 +69,9 @@ const AdminUI = {
       });
       document.body.appendChild(wrap);
     }
-
     const palette = { success: '#10b981', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
     const icons   = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
     const border  = palette[type] || palette.info;
-
     const t = document.createElement('div');
     t.style.cssText = [
       'background:#111720', 'border:1px solid #1e2d45',
@@ -124,13 +81,10 @@ const AdminUI = {
       'box-shadow:0 4px 24px rgba(0,0,0,.45)',
       'animation:_cvSlideIn .3s ease',
     ].join(';');
-
     t.innerHTML =
       `<span style="font-size:17px;flex-shrink:0">${icons[type] || '💡'}</span>` +
       `<span style="flex:1;line-height:1.45">${msg}</span>`;
-
     wrap.appendChild(t);
-
     setTimeout(() => {
       Object.assign(t.style, { opacity: '0', transform: 'translateX(16px)', transition: '.3s ease' });
       setTimeout(() => t.remove(), 320);
@@ -140,10 +94,9 @@ const AdminUI = {
   banner(msg, type = 'warning') {
     const colours = { warning: '#f59e0b', error: '#ef4444', success: '#10b981', info: '#3b82f6' };
     const c = colours[type] || colours.warning;
-    const id = '_cvBanner';
-    document.getElementById(id)?.remove();
+    document.getElementById('_cvBanner')?.remove();
     const b = document.createElement('div');
-    b.id = id;
+    b.id = '_cvBanner';
     b.style.cssText =
       `background:${c}18;border-bottom:1px solid ${c}44;` +
       `padding:11px 24px;font-size:13px;font-weight:600;color:${c};text-align:center;`;
@@ -170,16 +123,19 @@ const AdminUI = {
 
   badge(status) {
     const map = {
-      pending:   { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'   },
-      approved:  { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved'  },
-      rejected:  { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected'  },
-      active:    { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Active'    },
-      inactive:  { bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: 'Inactive'  },
-      completed: { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Completed' },
-      mining:    { bg: 'rgba(249,115,22,.15)',  fg: '#f97316', label: 'Mining'    },
-      deposit:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Deposit'   },
-      withdrawal:{ bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Withdrawal'},
-      referral:  { bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Referral'  },
+      pending:   { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'    },
+      approved:  { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved'   },
+      rejected:  { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected'   },
+      success:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Success'    },
+      failed:    { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Failed'     },
+      active:    { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Active'     },
+      inactive:  { bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: 'Inactive'   },
+      completed: { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Completed'  },
+      mining:    { bg: 'rgba(249,115,22,.15)',  fg: '#f97316', label: 'Mining'     },
+      deposit:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Deposit'    },
+      withdrawal:{ bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Withdrawal' },
+      referral:  { bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Referral'   },
+      purchase:  { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Purchase'   },
     };
     const s = map[String(status).toLowerCase()] || {
       bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: status || '—',
@@ -195,13 +151,9 @@ const AdminUI = {
       btn.classList.toggle('active', btn.dataset.adminTab === name)
     );
     $$('[data-admin-section]').forEach(sec => {
-      if (sec.dataset.adminSection === name) {
-        sec.classList.add('active');
-        sec.style.display = '';
-      } else {
-        sec.classList.remove('active');
-        sec.style.display = 'none';
-      }
+      const match = sec.dataset.adminSection === name;
+      sec.classList.toggle('active', match);
+      sec.style.display = match ? '' : 'none';
     });
     const TITLES = {
       overview:     'Dashboard Overview',
@@ -215,7 +167,7 @@ const AdminUI = {
   },
 };
 
-/* inject keyframes once */
+/* inject keyframes */
 (() => {
   if (document.getElementById('_cvKF')) return;
   const s = document.createElement('style');
@@ -223,12 +175,11 @@ const AdminUI = {
   s.textContent = `
     @keyframes _cvSlideIn { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:translateX(0)} }
     @keyframes _cvSpin    { to{transform:rotate(360deg)} }
-    @keyframes _cvFadeUp  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    .hidden { display: none !important; }
     .admin-btn {
       display:inline-flex;align-items:center;justify-content:center;gap:6px;
       padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;
-      cursor:pointer;border:none;transition:all .2s;font-family:inherit;
-      white-space:nowrap;
+      cursor:pointer;border:none;transition:all .2s;font-family:inherit;white-space:nowrap;
     }
     .admin-btn:disabled { opacity:.5;cursor:default; }
     .admin-btn-approve  { background:rgba(16,185,129,.15);color:#10b981; }
@@ -251,47 +202,35 @@ const TH = [
 
 const TD = 'padding:13px 16px;font-size:13px;color:#94a3b8;border-bottom:1px solid rgba(30,45,69,.5);';
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §4  ADMIN AUTH
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 const AdminAuth = {
-  /** @type {import('@supabase/supabase-js').User | null} */
   user: null,
 
   async check() {
     if (!sb) return false;
-    let user;
     try {
       const { data, error } = await sb.auth.getUser();
       if (error || !data?.user) return false;
-      user = data.user;
-    } catch {
-      return false;
-    }
-    if (!(await this._isAdmin(user))) return false;
-    this.user = user;
-    this._fillUI(user);
-    return true;
+      if (!(await this._isAdmin(data.user))) return false;
+      this.user = data.user;
+      this._fillUI(data.user);
+      return true;
+    } catch { return false; }
   },
 
   async login(email, password) {
     if (!sb) throw new Error('Supabase client not ready.');
-
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
-
-    const user = data.user;
-
-    if (!(await this._isAdmin(user))) {
+    if (!(await this._isAdmin(data.user))) {
       await sb.auth.signOut().catch(() => {});
       throw new Error('Access denied — this account does not have admin privileges.');
     }
-
-    this.user = user;
-    this._fillUI(user);
-    console.log('[CryptoVault] AUTH SUCCESS');
-    return user;
+    this.user = data.user;
+    this._fillUI(data.user);
+    return data.user;
   },
 
   async logout() {
@@ -303,29 +242,15 @@ const AdminAuth = {
   },
 
   async _isAdmin(user) {
-    // Strategy 1 — app_metadata
     if (user?.app_metadata?.role === 'admin') return true;
-
-    // Strategy 2 — admins table
     try {
-      const { data, error } = await sb
-        .from('admins')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (!error && data) return true;
+      const { data } = await sb.from('admins').select('id').eq('id', user.id).maybeSingle();
+      if (data) return true;
     } catch { /* skip */ }
-
-    // Strategy 3 — profiles.role
     try {
-      const { data, error } = await sb
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (!error && data?.role === 'admin') return true;
+      const { data } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (data?.role === 'admin') return true;
     } catch { /* skip */ }
-
     return false;
   },
 
@@ -339,17 +264,15 @@ const AdminAuth = {
   },
 };
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §5  LOGIN FORM
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 function initLoginForm() {
   const form   = document.getElementById('adminLoginForm');
   const errEl  = document.getElementById('adminLoginError');
   const btnEl  = document.getElementById('adminLoginBtn');
   const passEl = document.getElementById('adminLoginPassword');
   const eyeEl  = document.getElementById('adminTogglePassword');
-
   if (!form) return;
 
   on(eyeEl, 'click', () => {
@@ -358,25 +281,17 @@ function initLoginForm() {
     if (eyeEl) eyeEl.textContent = passEl.type === 'password' ? '👁' : '🙈';
   });
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
-
     const email    = (document.getElementById('adminLoginEmail')?.value || '').trim();
     const password = passEl?.value || '';
-
-    if (!email || !password) {
-      if (errEl) errEl.textContent = 'Email and password are required.';
-      return;
-    }
-
+    if (!email || !password) { if (errEl) errEl.textContent = 'Email and password are required.'; return; }
     if (errEl) errEl.textContent = '';
     if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Signing in…'; }
-
     try {
       await AdminAuth.login(email, password);
       hide('#adminLoginScreen');
       show('#adminAppShell');
-      console.log('[CryptoVault] APP SHELL SHOWN');
       await _bootPanel();
     } catch (err) {
       if (errEl) errEl.textContent = err.message;
@@ -386,10 +301,9 @@ function initLoginForm() {
   });
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §6  BTC PRICE WIDGET
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 const PriceService = {
   _handlers: [],
   current: null,
@@ -401,15 +315,14 @@ const PriceService = {
       const ctrl  = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 8000);
       const res   = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price' +
-        '?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',
         { signal: ctrl.signal }
       );
       clearTimeout(timer);
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const json   = await res.json();
-      const price  = json?.bitcoin?.usd             ?? null;
-      const change = json?.bitcoin?.usd_24h_change  ?? null;
+      const json  = await res.json();
+      const price  = json?.bitcoin?.usd            ?? null;
+      const change = json?.bitcoin?.usd_24h_change ?? null;
       if (price !== null) {
         this.current = { price, change };
         this._handlers.forEach(fn => fn(this.current));
@@ -422,21 +335,15 @@ const PriceService = {
     return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   },
 
-  start(ms = 30_000) {
-    this.fetch();
-    setInterval(() => this.fetch(), ms);
-  },
+  start(ms = 30_000) { this.fetch(); setInterval(() => this.fetch(), ms); },
 };
 
 function initPriceWidget() {
   PriceService.onChange(({ price, change }) => {
     const priceStr  = PriceService.fmt(price);
     const up        = change != null && change >= 0;
-    const changeStr = change != null
-      ? (up ? '▲ ' : '▼ ') + Math.abs(change).toFixed(2) + '%'
-      : '--';
+    const changeStr = change != null ? ((up ? '▲ ' : '▼ ') + Math.abs(change).toFixed(2) + '%') : '--';
     const colour    = change != null ? (up ? '#10b981' : '#ef4444') : '#64748b';
-
     $$('.admin-btc-price').forEach(el  => { el.textContent = priceStr; });
     $$('.admin-btc-change').forEach(el => { el.textContent = changeStr; el.style.color = colour; });
     setText('#overviewBTCPrice', priceStr);
@@ -444,10 +351,9 @@ function initPriceWidget() {
   PriceService.start();
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   §7  OVERVIEW / DASHBOARD STATS
-══════════════════════════════════════════════════════════════════════ */
-
+/* ══════════════════════════════════════════════════════════════
+   §7  OVERVIEW — real aggregates from Supabase
+══════════════════════════════════════════════════════════════ */
 const OverviewModule = {
 
   async load() {
@@ -461,17 +367,18 @@ const OverviewModule = {
 
   async _depositStats() {
     try {
-      const { data, error } = await sb.from('deposits').select('*');
+      const { data, error } = await sb.from('deposits').select('id, status, amount, coin');
       if (error) throw error;
-
       const rows     = data || [];
       const pending  = rows.filter(r => r.status === 'pending');
       const approved = rows.filter(r => r.status === 'approved');
       const rejected = rows.filter(r => r.status === 'rejected');
-      const volume   = approved.reduce((s, r) => s + Number(r.amount || 0), 0);
-
+      /* volume — BTC deposits only for BTC total */
+      const btcVol  = approved.filter(r => r.coin === 'btc').reduce((s, r) => s + Number(r.amount || 0), 0);
+      const usdtVol = approved.filter(r => r.coin === 'usdt_bep20').reduce((s, r) => s + Number(r.amount || 0), 0);
+      const volStr  = btcVol.toFixed(6) + ' BTC' + (usdtVol > 0 ? ' + ' + usdtVol.toFixed(2) + ' USDT' : '');
       setText('#overviewTotalDeposits',    rows.length);
-      setText('#overviewApprovedVolume',   volume.toFixed(6) + ' BTC');
+      setText('#overviewApprovedVolume',   volStr);
       setText('#overviewPendingDeposits',  pending.length);
       setText('#overviewRejectedDeposits', rejected.length);
       setText('#sidebarDepositBadge',      pending.length > 0 ? pending.length : '');
@@ -479,7 +386,7 @@ const OverviewModule = {
       setText('#depositCountApproved',     approved.length);
       setText('#depositCountRejected',     rejected.length);
     } catch (err) {
-      console.warn('[CryptoVault] deposit stats:', err.message);
+      console.warn('[Admin] deposit stats:', err.message);
     }
   },
 
@@ -490,8 +397,9 @@ const OverviewModule = {
         .select('id', { count: 'exact', head: true });
       if (error) throw error;
       setText('#overviewTotalUsers', count ?? '—');
+      setText('#overviewActiveUsers', count ?? '—');
     } catch (err) {
-      console.warn('[CryptoVault] user stats:', err.message);
+      console.warn('[Admin] user stats:', err.message);
     }
   },
 
@@ -499,15 +407,13 @@ const OverviewModule = {
     try {
       const { data, error } = await sb.from('contracts').select('active, hashrate');
       if (error) throw error;
-
       const rows      = data || [];
       const active    = rows.filter(r => r.active === true);
       const totalHash = active.reduce((s, r) => s + Number(r.hashrate || 0), 0);
-
       setText('#overviewActiveContracts', active.length);
       setText('#overviewTotalHashrate',   totalHash.toFixed(1) + ' TH/s');
     } catch (err) {
-      console.warn('[CryptoVault] contract stats:', err.message);
+      console.warn('[Admin] contract stats:', err.message);
     }
   },
 
@@ -519,15 +425,14 @@ const OverviewModule = {
       if (error) throw error;
       setText('#overviewTotalTxns', count ?? '—');
     } catch (err) {
-      console.warn('[CryptoVault] transaction stats:', err.message);
+      console.warn('[Admin] transaction stats:', err.message);
     }
   },
 };
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §8  DEPOSITS MODULE
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 const DepositsModule = {
   _rows: [],
 
@@ -543,12 +448,10 @@ const DepositsModule = {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(300);
-
       if (statusFilter !== 'all') q = q.eq('status', statusFilter);
 
       const { data, error } = await q;
       if (error) throw error;
-
       this._rows = data || [];
       this._render(container, this._rows);
       this._syncBadges(this._rows);
@@ -561,33 +464,32 @@ const DepositsModule = {
     if (!rows.length) { setHTML(container, AdminUI.empty('No deposit records.')); return; }
 
     const tbodyHTML = rows.map(d => {
-      const email  = d.user_id ? d.user_id.slice(0, 8) + '…' : '—';
-      const name   = 'User ' + (d.user_id ? d.user_id.slice(0, 6) : '—');
-      const amount = Number(d.amount || 0).toFixed(8);
-      const date   = d.created_at
+      const coinLabel = d.coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
+      const decimals  = d.coin === 'usdt_bep20' ? 2 : 8;
+      const amount    = Number(d.amount || 0).toFixed(decimals);
+      const email     = d.user_email || (d.user_id ? d.user_id.slice(0, 8) + '…' : '—');
+      const date      = d.created_at
         ? new Date(d.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
         : '—';
-
+      const screenshotBtn = d.screenshot_url
+        ? `<a href="${d.screenshot_url}" target="_blank" class="admin-btn admin-btn-outline" style="margin-left:6px;">📎</a>`
+        : '';
       const actions = d.status === 'pending'
-        ? `<button class="admin-btn admin-btn-approve"
-              data-action="approve" data-id="${d.id}">✅ Approve</button>
-           <button class="admin-btn admin-btn-reject"
-              style="margin-left:6px"
-              data-action="reject" data-id="${d.id}">❌ Reject</button>`
-        : `<span style="font-size:12px;color:#475569">—</span>`;
+        ? `<button class="admin-btn admin-btn-approve" data-action="approve" data-id="${d.id}">✅ Approve</button>
+           <button class="admin-btn admin-btn-reject"  data-action="reject"  data-id="${d.id}" style="margin-left:6px;">❌ Reject</button>
+           ${screenshotBtn}`
+        : `<span style="font-size:12px;color:#475569">—</span>${screenshotBtn}`;
 
       return `
         <tr data-deposit-row="${d.id}">
-          <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">
-            ${String(d.id || '').slice(0, 8)}…
-          </td>
+          <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(d.id || '').slice(0, 8)}…</td>
           <td style="${TD}">
-            <div style="font-weight:600;color:#f1f5f9;font-size:13px">${name}</div>
-            <div style="font-size:11px;color:#64748b;margin-top:2px">${email}</div>
+            <div style="font-weight:600;color:#f1f5f9;font-size:13px">${email}</div>
           </td>
           <td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">
-            ${amount} <span style="font-size:10px;color:#64748b">BTC</span>
+            ${amount} <span style="font-size:10px;color:#64748b">${coinLabel}</span>
           </td>
+          <td style="${TD};font-size:12px;color:#94a3b8">${d.tx_hash ? d.tx_hash.slice(0, 20) + '…' : '—'}</td>
           <td data-status-cell="${d.id}" style="${TD}">${AdminUI.badge(d.status)}</td>
           <td style="${TD};font-size:12px;color:#64748b">${date}</td>
           <td data-actions-cell="${d.id}" style="${TD}">${actions}</td>
@@ -601,6 +503,7 @@ const DepositsModule = {
             <th style="${TH}">ID</th>
             <th style="${TH}">User</th>
             <th style="${TH}">Amount</th>
+            <th style="${TH}">TXID</th>
             <th style="${TH}">Status</th>
             <th style="${TH}">Date</th>
             <th style="${TH}">Actions</th>
@@ -611,7 +514,7 @@ const DepositsModule = {
 
     setHTML(container, tableHTML);
 
-    on('#depositsBody', 'click', (e) => {
+    on('#depositsBody', 'click', e => {
       const btn = e.target.closest('[data-action][data-id]');
       if (!btn || btn.disabled) return;
       this.updateStatus(btn.dataset.id, btn.dataset.action === 'approve' ? 'approved' : 'rejected');
@@ -631,31 +534,28 @@ const DepositsModule = {
         .from('deposits')
         .update({ status: newStatus })
         .eq('id', depositId);
-
       if (error) throw error;
 
       setHTML(`[data-status-cell="${depositId}"]`, AdminUI.badge(newStatus));
       setHTML(`[data-actions-cell="${depositId}"]`, '<span style="font-size:12px;color:#475569">—</span>');
 
-      this._rows = this._rows.map(r =>
-        r.id === depositId ? { ...r, status: newStatus } : r
-      );
+      this._rows = this._rows.map(r => r.id === depositId ? { ...r, status: newStatus } : r);
       this._syncBadges(this._rows);
 
       if (newStatus === 'approved') await this._creditBalance(depositId);
 
       AdminUI.toast(
-        `Deposit ${depositId.slice(0, 8)}… marked as <strong>${newStatus}</strong>.`,
+        `Deposit marked as <strong>${newStatus}</strong>.`,
         newStatus === 'approved' ? 'success' : 'warning'
       );
     } catch (err) {
-      const row     = document.querySelector(`[data-deposit-row="${depositId}"]`);
-      const actCell = row?.querySelector(`[data-actions-cell="${depositId}"]`);
-      if (actCell) {
-        actCell.innerHTML =
+      /* restore action buttons */
+      const dep = this._rows.find(r => r.id === depositId);
+      if (dep && dep.status === 'pending') {
+        setHTML(`[data-actions-cell="${depositId}"]`,
           `<button class="admin-btn admin-btn-approve" data-action="approve" data-id="${depositId}">✅ Approve</button>
-           <button class="admin-btn admin-btn-reject" style="margin-left:6px"
-             data-action="reject" data-id="${depositId}">❌ Reject</button>`;
+           <button class="admin-btn admin-btn-reject"  data-action="reject"  data-id="${depositId}" style="margin-left:6px;">❌ Reject</button>`
+        );
       }
       AdminUI.toast('Update failed: ' + err.message, 'error');
     }
@@ -665,31 +565,53 @@ const DepositsModule = {
     const dep = this._rows.find(r => r.id === depositId);
     if (!dep?.user_id || !dep?.amount) return;
 
-    const { error: rpcErr } = await sb.rpc('increment_user_balance', {
+    const isUSDT    = dep.coin === 'usdt_bep20';
+    const field     = isUSDT ? 'usdt_balance' : 'btc_balance';
+
+    /* Try RPC first */
+    const rpcName = isUSDT ? 'increment_user_usdt_balance' : 'increment_user_balance';
+    const { error: rpcErr } = await sb.rpc(rpcName, {
       p_user_id: dep.user_id,
       p_amount:  dep.amount,
     });
+    if (!rpcErr) {
+      /* Also create a transaction record */
+      await sb.from('transactions').insert({
+        user_id:    dep.user_id,
+        type:       'deposit',
+        amount:     dep.amount,
+        status:     'success',
+        created_at: new Date().toISOString(),
+      }).catch(console.warn);
+      return;
+    }
 
-    if (!rpcErr) return;
-
+    /* Fallback: manual read-modify-write */
     try {
       const { data: profile, error: fetchErr } = await sb
         .from('profiles')
-        .select('balance')
+        .select(field)
         .eq('id', dep.user_id)
         .maybeSingle();
-
       if (fetchErr || profile == null) throw fetchErr || new Error('Profile not found');
 
-      const newBalance = Number(profile.balance || 0) + Number(dep.amount);
-      const { error: updateErr } = await sb
+      const newBal = Number(profile[field] || 0) + Number(dep.amount);
+      const { error: updErr } = await sb
         .from('profiles')
-        .update({ balance: newBalance })
+        .update({ [field]: newBal })
         .eq('id', dep.user_id);
+      if (updErr) throw updErr;
 
-      if (updateErr) throw updateErr;
+      /* Create transaction record */
+      await sb.from('transactions').insert({
+        user_id:    dep.user_id,
+        type:       'deposit',
+        amount:     dep.amount,
+        status:     'success',
+        created_at: new Date().toISOString(),
+      }).catch(console.warn);
     } catch (err) {
-      console.warn('[CryptoVault] balance credit failed for deposit', depositId, err.message);
+      console.warn('[Admin] balance credit failed for', depositId, err.message);
       AdminUI.toast('⚠ Deposit approved but balance credit failed — check manually.', 'warning', 7000);
     }
   },
@@ -706,28 +628,23 @@ const DepositsModule = {
   },
 };
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §9  USERS MODULE
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 const UsersModule = {
   _rows: [],
 
   async load() {
     const container = document.getElementById('usersTableWrap');
     if (!container || !sb) return;
-
     setHTML(container, AdminUI.loading('Loading users…'));
-
     try {
       const { data, error } = await sb
         .from('profiles')
-        .select('id, email, name, balance, level, is_active, created_at')
+        .select('id, email, name, btc_balance, usdt_balance, level, is_active, ref_code, created_at')
         .order('created_at', { ascending: false })
         .limit(500);
-
       if (error) throw error;
-
       this._rows = data || [];
       this._render(container, this._rows);
       setText('#overviewTotalUsers',  this._rows.length);
@@ -741,30 +658,27 @@ const UsersModule = {
     if (!rows.length) { setHTML(container, AdminUI.empty('No users found.')); return; }
 
     const tbodyHTML = rows.map(u => {
-      const joined  = u.created_at
+      const joined    = u.created_at
         ? new Date(u.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
         : '—';
-      const balance = Number(u.balance || 0).toFixed(8);
-      const active  = u.is_active !== false;
+      const btcBalance = Number(u.btc_balance || 0).toFixed(8);
+      const active     = u.is_active !== false;
 
       return `
         <tr>
-          <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">
-            ${String(u.id || '').slice(0, 8)}…
-          </td>
+          <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(u.id || '').slice(0, 8)}…</td>
           <td style="${TD}">
             <div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name || '—'}</div>
             <div style="font-size:11px;color:#64748b;margin-top:2px">${u.email || '—'}</div>
           </td>
           <td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">
-            ${balance} <span style="font-size:10px;color:#64748b">BTC</span>
+            ${btcBalance} <span style="font-size:10px;color:#64748b">BTC</span>
           </td>
-          <td style="${TD};font-size:12px;color:#94a3b8">${u.level || 'Starter'}</td>
+          <td style="${TD};font-size:12px;color:#94a3b8">${u.level || 'Standard'}</td>
           <td style="${TD}">${AdminUI.badge(active ? 'active' : 'inactive')}</td>
           <td style="${TD};font-size:12px;color:#64748b">${joined}</td>
           <td style="${TD}">
-            <button class="admin-btn admin-btn-outline"
-              onclick="UsersModule.viewUser('${u.id}')">View</button>
+            <button class="admin-btn admin-btn-outline" onclick="UsersModule.viewUser('${u.id}')">View</button>
             <button class="admin-btn ${active ? 'admin-btn-reject' : 'admin-btn-approve'}"
               style="margin-left:6px"
               onclick="UsersModule.toggleActive('${u.id}', ${active})">
@@ -780,7 +694,7 @@ const UsersModule = {
           <tr>
             <th style="${TH}">ID</th>
             <th style="${TH}">User</th>
-            <th style="${TH}">Balance</th>
+            <th style="${TH}">BTC Balance</th>
             <th style="${TH}">Level</th>
             <th style="${TH}">Status</th>
             <th style="${TH}">Joined</th>
@@ -795,9 +709,9 @@ const UsersModule = {
     const u = this._rows.find(r => r.id === userId);
     if (!u) return;
     AdminUI.toast(
-      `<strong>${u.name || u.email}</strong> &mdash; ` +
-      `Balance: ${Number(u.balance || 0).toFixed(8)} BTC &mdash; ` +
-      `Level: ${u.level || 'Starter'}`,
+      `<strong>${u.name || u.email}</strong> — ` +
+      `BTC: ${Number(u.btc_balance || 0).toFixed(8)} · ` +
+      `USDT: ${Number(u.usdt_balance || 0).toFixed(2)}`,
       'info', 6000
     );
   },
@@ -824,38 +738,28 @@ const UsersModule = {
 
 window.UsersModule = UsersModule;
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §10  TRANSACTIONS MODULE
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 const TransactionsModule = {
 
   async load(typeFilter = 'all') {
     const container = document.getElementById('transactionsTableWrap');
     if (!container || !sb) return;
-
     setHTML(container, AdminUI.loading('Loading transactions…'));
-
     try {
       let q = sb
         .from('transactions')
         .select('id, user_id, type, amount, status, created_at, profiles(email, name)')
         .order('created_at', { ascending: false })
         .limit(400);
-
       if (typeFilter !== 'all') q = q.eq('type', typeFilter);
-
       const { data, error } = await q;
       if (error) throw error;
-
       const rows = data || [];
       if (!rows.length) { setHTML(container, AdminUI.empty('No transactions found.')); return; }
 
-      const TYPE_ICON = {
-        mining: '⛏️', deposit: '📥', withdrawal: '📤',
-        referral: '👥', transfer: '↔️',
-      };
-
+      const TYPE_ICON = { mining: '⛏️', deposit: '📥', withdrawal: '📤', referral: '👥', transfer: '↔️', purchase: '🛒' };
       const tbodyHTML = rows.map(tx => {
         const email  = tx.profiles?.email || '—';
         const name   = tx.profiles?.name  || email;
@@ -863,15 +767,12 @@ const TransactionsModule = {
         const date   = tx.created_at
           ? new Date(tx.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
           : '—';
-        const isOut  = tx.type === 'withdrawal';
+        const isOut  = tx.type === 'withdrawal' || tx.type === 'purchase';
         const amtCol = isOut ? '#ef4444' : '#10b981';
         const amtPfx = isOut ? '−' : '+';
-
         return `
           <tr>
-            <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">
-              ${String(tx.id || '').slice(0, 8)}…
-            </td>
+            <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id || '').slice(0, 8)}…</td>
             <td style="${TD}">
               <div style="font-size:13px;font-weight:600;color:#f1f5f9">${name}</div>
               <div style="font-size:11px;color:#64748b;margin-top:2px">${email}</div>
@@ -908,27 +809,22 @@ const TransactionsModule = {
   },
 };
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §11  CONTRACTS MODULE
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 const ContractsModule = {
 
   async load() {
     const container = document.getElementById('contractsTableWrap');
     if (!container || !sb) return;
-
     setHTML(container, AdminUI.loading('Loading contracts…'));
-
     try {
       const { data, error } = await sb
         .from('contracts')
-        .select('id, user_id, plan, hashrate, active, created_at, profiles(email, name)')
+        .select('id, user_id, plan, hashrate, daily_profit, active, days_left, progress, created_at, profiles(email, name)')
         .order('created_at', { ascending: false })
         .limit(300);
-
       if (error) throw error;
-
       const rows = data || [];
       if (!rows.length) { setHTML(container, AdminUI.empty('No contracts found.')); return; }
 
@@ -939,12 +835,10 @@ const ContractsModule = {
           ? new Date(c.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
           : '—';
         const hashrate = Number(c.hashrate || 0).toFixed(1);
-
+        const daily    = c.daily_profit != null ? Number(c.daily_profit).toFixed(8) : '—';
         return `
           <tr>
-            <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">
-              ${String(c.id || '').slice(0, 8)}…
-            </td>
+            <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(c.id || '').slice(0, 8)}…</td>
             <td style="${TD}">
               <div style="font-size:13px;font-weight:600;color:#f1f5f9">${name}</div>
               <div style="font-size:11px;color:#64748b;margin-top:2px">${email}</div>
@@ -953,6 +847,7 @@ const ContractsModule = {
             <td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">
               ${hashrate} <span style="font-size:10px;color:#64748b">TH/s</span>
             </td>
+            <td style="${TD};font-family:monospace;color:#10b981;font-size:12px">${daily}</td>
             <td style="${TD}">${AdminUI.badge(c.active ? 'active' : 'inactive')}</td>
             <td style="${TD};font-size:12px;color:#64748b">${date}</td>
           </tr>`;
@@ -966,6 +861,7 @@ const ContractsModule = {
               <th style="${TH}">User</th>
               <th style="${TH}">Plan</th>
               <th style="${TH}">Hashrate</th>
+              <th style="${TH}">Daily Profit</th>
               <th style="${TH}">Status</th>
               <th style="${TH}">Started</th>
             </tr>
@@ -978,10 +874,9 @@ const ContractsModule = {
   },
 };
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §12  SEARCH / FILTER WIRING
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 function initFilters() {
   on('#depositStatusFilter', 'change', e => {
     _loaded.delete('deposits');
@@ -1010,13 +905,11 @@ function initFilters() {
   });
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §13  REALTIME
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 function initRealtime() {
   if (typeof sb?.channel !== 'function') return;
-
   try {
     sb.channel('admin-realtime')
       .on('postgres_changes',
@@ -1035,23 +928,20 @@ function initRealtime() {
         }
       )
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'transactions' },
-        () => {
-          if (_loaded.has('transactions')) TransactionsModule.load();
-        }
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => { if (_loaded.has('transactions')) TransactionsModule.load(); }
       )
       .subscribe(status => {
-        if (status === 'SUBSCRIBED') console.info('[CryptoVault] Realtime subscribed.');
+        if (status === 'SUBSCRIBED') console.info('[Admin] Realtime subscribed.');
       });
   } catch (err) {
-    console.warn('[CryptoVault] Realtime unavailable:', err.message);
+    console.warn('[Admin] Realtime unavailable:', err.message);
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §14  NAVIGATION
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 const _loaded = new Set();
 
 function initNavigation() {
@@ -1082,7 +972,6 @@ function initNavigation() {
 async function loadSection(name) {
   if (_loaded.has(name)) return;
   _loaded.add(name);
-
   switch (name) {
     case 'overview':     await OverviewModule.load();     break;
     case 'deposits':     await DepositsModule.load();     break;
@@ -1092,79 +981,52 @@ async function loadSection(name) {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §15  PANEL BOOT
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 async function _bootPanel() {
   _loaded.clear();
   initFilters();
   initPriceWidget();
   initRealtime();
-
   AdminUI.activateTab('deposits');
   await loadSection('deposits');
 }
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §16  ENTRY POINT
-       KEY FIX: show/hide now toggle .hidden class, not display style.
-       This means admin.html can use class="hidden" safely and the
-       CSS rule  .hidden { display:none !important }  stays in charge.
-══════════════════════════════════════════════════════════════════════ */
-
-console.log('[CryptoVault] ADMIN JS LOADED');
+══════════════════════════════════════════════════════════════ */
+console.log('[CryptoVault] admin.js loaded.');
 
 document.addEventListener('DOMContentLoaded', async () => {
-
-  // Wire nav + login form first (works regardless of auth state)
   initNavigation();
   initLoginForm();
 
-  // Ensure .hidden class is defined even if admin.css loads slowly
-  if (!document.getElementById('_cvHidden')) {
-    const s = document.createElement('style');
-    s.id = '_cvHidden';
-    s.textContent = '.hidden { display: none !important; }';
-    document.head.appendChild(s);
-  }
-
-  // Supabase init
   if (!initSupabaseClient()) {
-    // Banner already shown; keep login screen visible
     show('#adminLoginScreen');
     hide('#adminAppShell');
     return;
   }
 
-  // Check for persisted session
   let alreadyLoggedIn = false;
-  try {
-    alreadyLoggedIn = await AdminAuth.check();
-  } catch (err) {
-    console.warn('[CryptoVault] Session check error:', err.message);
+  try { alreadyLoggedIn = await AdminAuth.check(); } catch (err) {
+    console.warn('[Admin] Session check error:', err.message);
   }
 
   if (alreadyLoggedIn) {
     hide('#adminLoginScreen');
     show('#adminAppShell');
-    console.log('[CryptoVault] APP SHELL SHOWN');
-    try {
-      await _bootPanel();
-    } catch (err) {
-      console.error('[CryptoVault] Boot error:', err.message);
-      AdminUI.banner('⚠ Panel boot error: ' + err.message, 'error');
-    }
+    try { await _bootPanel(); }
+    catch (err) { AdminUI.banner('⚠ Panel boot error: ' + err.message, 'error'); }
   } else {
     show('#adminLoginScreen');
     hide('#adminAppShell');
   }
 });
 
-/* ══════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    §17  PUBLIC EXPORTS
-══════════════════════════════════════════════════════════════════════ */
-
+══════════════════════════════════════════════════════════════ */
 Object.assign(window, {
   AdminAuth,
   AdminUI,
