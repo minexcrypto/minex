@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>About CryptoVault</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  :root{--bg:#080b10;--card:#0f141d;--text:#e5e7eb;--muted:#94a3b8;--gold:#f59e0b;--border:#1f2937;--line:#132033}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(circle at 10% 0%,#1a2335 0,#080b10 40%),var(--bg);color:var(--text);font-family:Arial,sans-serif;line-height:1.7}
+  .nav{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border);background:#0b1119cc;backdrop-filter:blur(8px);position:sticky;top:0;z-index:10}
+  .brand{font-weight:700;color:var(--text);text-decoration:none}.brand span{color:var(--gold)}
+  .nav-links{display:flex;gap:14px;flex-wrap:wrap}
+  .nav a{color:var(--muted);text-decoration:none;transition:.25s}.nav a:hover{color:var(--gold)}
+  .wrap{max-width:1140px;margin:0 auto;padding:28px 24px}
+  .card{background:linear-gradient(180deg,#111726,#0d131d);border:1px solid var(--line);border-radius:16px;padding:24px;transition:transform .25s ease,box-shadow .3s ease,border-color .3s ease}
+  .glow:hover{transform:translateY(-3px) scale(1.01);border-color:rgba(245,158,11,.55);box-shadow:0 0 0 1px rgba(245,158,11,.12),0 10px 26px rgba(245,158,11,.16)}
+  h1{font-size:40px;line-height:1.15;margin:0 0 10px}h2{font-size:26px;margin:0 0 12px;color:var(--gold)}h3{font-size:18px;margin:0 0 6px}
+  p{margin:0;color:var(--muted)}
+  .hero{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch;margin-bottom:18px}
+  .hero-img,.img{position:relative;overflow:hidden;border-radius:12px}
+  .hero-img img,.img img{width:100%;height:100%;object-fit:cover;display:block}
+  .hero-img:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#0d131d 12%,transparent 68%)}
+  .story{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin-bottom:16px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .stat{padding:18px;text-align:center}
+  .stat b{display:block;font-size:26px;color:var(--gold);line-height:1.2}
+  .timeline{display:grid;gap:10px}
+  .step{display:grid;grid-template-columns:88px 1fr;gap:12px;align-items:start;padding:12px;border:1px solid var(--line);border-radius:12px;background:#0f1727}
+  .year{font-weight:700;color:var(--gold)}
+  .gallery{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .gallery .img{height:150px;border:1px solid var(--line)}
+  .cta{text-align:center;padding:30px}
+  .btn{display:inline-block;padding:12px 18px;border-radius:10px;background:linear-gradient(90deg,#f59e0b,#ffb22d);color:#111827;font-weight:700;text-decoration:none;transition:.25s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(245,158,11,.35)}
+  footer{max-width:1140px;margin:16px auto 0;padding:0 24px 24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
+  .footer-links a{color:#cbd5e1;text-decoration:none;transition:all .3s ease;cursor:pointer}
+  .footer-links a:hover{color:var(--gold);text-decoration:underline;text-shadow:0 0 10px rgba(245,158,11,.45)}
+  @media (max-width:980px){.hero,.story,.grid-2{grid-template-columns:1fr}.grid-3{grid-template-columns:1fr 1fr}.gallery{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:680px){h1{font-size:30px}.grid-3,.gallery{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">Crypto<span>Vault</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="support.html">Support</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="card glow">
+      <h1>About CryptoVault</h1>
+      <p>Professional cloud mining infrastructure since 2012.</p>
+    </div>
+    <div class="hero-img card glow">
+      <img src="https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&w=1400&q=80" alt="Crypto mining data center">
+    </div>
+  </section>
+
+  <section class="story">
+    <div class="card glow">
+      <h2>Company Story</h2>
+      <p>CryptoVault was established in Malaysia in 2012 as a focused Bitcoin mining operation with a small fleet of early ASIC systems. As blockchain adoption accelerated, we expanded mining farms across multiple regions and transitioned to a global cloud mining model. Today, our platform runs enterprise-grade infrastructure backed by renewable-energy mining facilities, resilient networking, and strict operational controls to provide a secure cloud mining ecosystem for users worldwide.</p>
+    </div>
+    <div class="img card glow">
+      <img src="https://images.unsplash.com/photo-1518186285589-2f7649de83e0?auto=format&fit=crop&w=1200&q=80" alt="Server and mining operations">
+    </div>
+  </section>
+
+  <section class="card glow" style="margin-bottom:16px;">
+    <h2>Company Stats</h2>
+    <div class="grid-3">
+      <div class="stat card glow"><b>840,000+</b><span>Active Users</span></div>
+      <div class="stat card glow"><b>642 EH/s</b><span>Network Power</span></div>
+      <div class="stat card glow"><b>99.9%</b><span>Uptime</span></div>
+      <div class="stat card glow"><b>24/7</b><span>Global Support</span></div>
+      <div class="stat card glow"><b>$2.8B+</b><span>Payouts</span></div>
+      <div class="stat card glow"><b>100+</b><span>Countries Served</span></div>
+    </div>
+  </section>
+
+  <section class="grid-2" style="margin-bottom:16px;">
+    <div class="card glow">
+      <h2>Our Mission</h2>
+      <p>We are building the most trusted mining platform through transparency, secure mining architecture, and global accessibility. Our mission is to scale sustainable infrastructure, deliver measurable reliability, and drive innovation in blockchain mining for long-term ecosystem growth.</p>
+    </div>
+    <div class="card glow">
+      <h2>Security Commitment</h2>
+      <p>Our security stack includes cold wallet architecture, encrypted infrastructure, fraud prevention controls, real-time monitoring, and multi-layer protection across accounts, systems, and transaction workflows.</p>
+    </div>
+  </section>
+
+  <section class="card glow" style="margin-bottom:16px;">
+    <h2>Mining Facility Gallery</h2>
+    <div class="gallery">
+      <div class="img"><img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1000&q=80" alt="ASIC miners"></div>
+      <div class="img"><img src="https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=1000&q=80" alt="GPU mining racks"></div>
+      <div class="img"><img src="https://images.unsplash.com/photo-1621847468516-1d835d1f1580?auto=format&fit=crop&w=1000&q=80" alt="Data center interior"></div>
+      <div class="img"><img src="https://images.unsplash.com/photo-1597852074816-d933c7d2b988?auto=format&fit=crop&w=1000&q=80" alt="Cooling systems"></div>
+      <div class="img"><img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=80" alt="Server room operations"></div>
+    </div>
+  </section>
+
+  <section class="card glow" style="margin-bottom:16px;">
+    <h2>Timeline</h2>
+    <div class="timeline">
+      <div class="step"><div class="year">2012</div><div>Company founded in Malaysia with early BTC mining operations.</div></div>
+      <div class="step"><div class="year">2015</div><div>Expanded mining farms with larger ASIC deployments.</div></div>
+      <div class="step"><div class="year">2018</div><div>Cloud mining platform officially launched for global users.</div></div>
+      <div class="step"><div class="year">2021</div><div>Scaled internationally with multi-region infrastructure.</div></div>
+      <div class="step"><div class="year">2024</div><div>Introduced AI-powered optimization for fleet performance.</div></div>
+      <div class="step"><div class="year">2026</div><div>Reached 840k+ active miners on the platform.</div></div>
+    </div>
+  </section>
+
+  <section class="card cta glow">
+    <h2 style="margin-bottom:8px;">Start Mining Today</h2>
+    <p style="margin-bottom:16px;">Join our global cloud mining network and launch your first contract in minutes.</p>
+    <a class="btn" href="login.html#register">Create Account</a>
+  </section>
+</main>
+
+<footer>
+  <div style="color:#64748b;">© 2026 CryptoVault. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+    <a href="support.html">Support</a>
+    <a href="about.html">About</a>
+    <a href="login.html">Login</a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+</footer>
+</body>
+</html>
