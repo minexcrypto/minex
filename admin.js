@@ -13,7 +13,7 @@
 
    REQUIRED in HTML before this script:
      <script>
-       window.CRYPTOVAULT_SUPABASE_URL = "https://...supabase.co";
+       window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
        window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
      </script>
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/..."></script>
