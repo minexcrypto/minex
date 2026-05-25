@@ -62,6 +62,20 @@ const Toast = (() => {
 function $(id)            { return document.getElementById(id); }
 function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
 
+function normalizeTxType(raw) {
+  const t = String(raw || '').trim().toLowerCase();
+
+  if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposits';
+
+  if (['withdrawal', 'withdrawals'].includes(t)) return 'withdrawals';
+
+  if (['mining', 'mining_reward', 'reward'].includes(t)) return 'mining';
+
+  if (['purchase', 'purchases', 'plan_purchase'].includes(t)) return 'purchase';
+
+  return t || 'other';
+}
+
 /* ─── COPY UTILITY ───────────────────────────────────────── */
 function copyToClipboard(text, msg = 'Copied!') {
   if (navigator.clipboard?.writeText) {
@@ -351,10 +365,12 @@ async function populateDashboardStats(contracts) {
   if (user && _supabase) {
     const { data: miningTxns } = await _supabase
       .from('transactions')
-      .select('amount')
+      .select('amount,type')
       .eq('user_id', user.id)
-      .eq('type', 'mining');
-    const totalMined = (miningTxns || []).reduce((s, t) => s + Number(t.amount || 0), 0);
+      .in('type', ['mining', 'mining_reward', 'reward']);
+    const totalMined = (miningTxns || [])
+      .filter(t => normalizeTxType(t.type) === 'mining')
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
     setText('totalMinedEl', '₿ ' + totalMined.toFixed(8));
   } else {
     setText('totalMinedEl', '₿ 0.00000000');
@@ -377,14 +393,6 @@ function renderTransactions(filter) {
     if (f === 'purchase' || f === 'purchases') return 'purchase';
     if (f === 'all') return 'all';
     return f;
-  };
-  const normalizeTxType = raw => {
-    const t = String(raw || '').toLowerCase();
-    if (t === 'deposit' || t === 'deposits') return 'deposits';
-    if (t === 'withdrawal' || t === 'withdrawals') return 'withdrawals';
-    if (t === 'mining') return 'mining';
-    if (t === 'purchase' || t === 'purchases') return 'purchase';
-    return t || 'other';
   };
 
   filter = normalizeFilter(filter);
@@ -548,15 +556,6 @@ function renderRecentActivity() {
     Approved deposits are already in _allTransactions (type='deposit', status='approved').
     Do NOT merge approved deposits from _allDeposits — causes duplicates.
   */
-  const normalizeTxType = raw => {
-    const t = String(raw || '').toLowerCase();
-    if (t === 'deposit' || t === 'deposits') return 'deposits';
-    if (t === 'withdrawal' || t === 'withdrawals') return 'withdrawals';
-    if (t === 'mining') return 'mining';
-    if (t === 'purchase' || t === 'purchases') return 'purchase';
-    return t || 'other';
-  };
-
   const txRows = _allTransactions.map(tx => {
     const txType = normalizeTxType(tx.type);
     const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
@@ -735,11 +734,11 @@ function renderWalletSummary() {
   /* Aggregate from real transactions */
   const txns = _allTransactions;
 
-  const totalDeposited  = txns.filter(t => t.type === 'deposit')
+  const totalDeposited  = txns.filter(t => normalizeTxType(t.type) === 'deposits')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
-  const totalWithdrawn  = txns.filter(t => t.type === 'withdrawal')
+  const totalWithdrawn  = txns.filter(t => normalizeTxType(t.type) === 'withdrawals')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
-  const miningIncome    = txns.filter(t => t.type === 'mining')
+  const miningIncome    = txns.filter(t => normalizeTxType(t.type) === 'mining')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
   const referralBonuses = txns.filter(t => t.type === 'referral')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -778,7 +777,7 @@ function initEarningsChart(transactions) {
   }
 
   transactions
-    .filter(t => t.type === 'mining')
+    .filter(t => normalizeTxType(t.type) === 'mining')
     .forEach(t => {
       const key = t.created_at?.slice(0, 10);
       if (key && key in buckets) {
