@@ -274,11 +274,11 @@ function populateUserUI() {
   const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
 
   const btcStr = '₿ ' + btcBalance.toFixed(8);
-  const walletBigDisplay = usdtBalance > 0
+  const walletDisplay = usdtBalance > 0
     ? ('$' + usdtBalance.toFixed(2) + ' USDT')
     : btcStr;
-  setText('walletBalanceCounter', btcStr);
-  setText('walletBigBalance',     walletBigDisplay);
+  setText('walletBalanceCounter', walletDisplay);
+  setText('walletBigBalance',     walletDisplay);
   setText('walletBigUSD',         '≈ — USD');
   setText('walletItemUSD',        '—');
   setText('portfolioBTCusd',      '—');
@@ -369,7 +369,25 @@ let _allTransactions = [];
 let _allDeposits     = [];
 
 function renderTransactions(filter) {
-  filter = filter || 'all';
+  const normalizeFilter = raw => {
+    const f = String(raw || 'all').toLowerCase();
+    if (f === 'deposit' || f === 'deposits') return 'deposits';
+    if (f === 'withdrawal' || f === 'withdrawals') return 'withdrawals';
+    if (f === 'mining') return 'mining';
+    if (f === 'purchase' || f === 'purchases') return 'purchase';
+    if (f === 'all') return 'all';
+    return f;
+  };
+  const normalizeTxType = raw => {
+    const t = String(raw || '').toLowerCase();
+    if (t === 'deposit' || t === 'deposits') return 'deposits';
+    if (t === 'withdrawal' || t === 'withdrawals') return 'withdrawals';
+    if (t === 'mining') return 'mining';
+    if (t === 'purchase' || t === 'purchases') return 'purchase';
+    return t || 'other';
+  };
+
+  filter = normalizeFilter(filter);
   _currentTxFilter = filter;
   const tbody = $('txTableBody');
   if (!tbody) return;
@@ -383,11 +401,12 @@ function renderTransactions(filter) {
 
   /* 1. Build rows from transactions table (includes approved deposits) */
   const txRows = _allTransactions.map(tx => {
+    const txType = normalizeTxType(tx.type);
     const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
     const coinLbl = isUSDT ? 'USDT' : 'BTC';
     const decimals = isUSDT ? 2 : 8;
     const amt = Number(tx.amount || 0);
-    const isOut = tx.type === 'withdrawal' || tx.type === 'purchase';
+    const isOut = txType === 'withdrawals' || txType === 'purchase';
     const amtStr = (isOut ? '-' : '+') + amt.toFixed(decimals) + ' ' + coinLbl;
 
     let usdVal;
@@ -407,7 +426,7 @@ function renderTransactions(filter) {
       usd:    usdVal,
       status: tx.status || 'success',
       date:   _fmtDate(tx.created_at),
-      type:   tx.type,
+      type:   txType,
       createdAt: tx.created_at,
     };
   });
@@ -444,7 +463,7 @@ function renderTransactions(filter) {
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
-  const rows = filter === 'all' ? merged : merged.filter(r => r.type === filter);
+  const rows = filter === 'all' ? merged : merged.filter(r => normalizeFilter(r.type) === filter);
 
   if (!rows.length) {
     tbody.innerHTML = `
@@ -467,14 +486,19 @@ function renderTransactions(filter) {
     </tr>
   `).join('');
 }function _txLabel(type) {
+  const t = String(type || '').toLowerCase();
   const map = {
-    mining:     'Mining Reward',
-    deposit:    'Deposit',
-    withdrawal: 'Withdrawal',
-    referral:   'Referral Bonus',
-    transfer:   'Transfer',
+    mining:      'Mining Reward',
+    deposit:     'Deposit',
+    deposits:    'Deposit',
+    withdrawal:  'Withdrawal',
+    withdrawals: 'Withdrawal',
+    purchase:    'Plan Purchase',
+    purchases:   'Plan Purchase',
+    referral:    'Referral Bonus',
+    transfer:    'Transfer',
   };
-  return map[type] || type || '—';
+  return map[t] || type || '—';
 }
 
 function _usdStr(amount, type) {
@@ -524,14 +548,24 @@ function renderRecentActivity() {
     Approved deposits are already in _allTransactions (type='deposit', status='approved').
     Do NOT merge approved deposits from _allDeposits — causes duplicates.
   */
+  const normalizeTxType = raw => {
+    const t = String(raw || '').toLowerCase();
+    if (t === 'deposit' || t === 'deposits') return 'deposits';
+    if (t === 'withdrawal' || t === 'withdrawals') return 'withdrawals';
+    if (t === 'mining') return 'mining';
+    if (t === 'purchase' || t === 'purchases') return 'purchase';
+    return t || 'other';
+  };
+
   const txRows = _allTransactions.map(tx => {
+    const txType = normalizeTxType(tx.type);
     const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
     const symbol = isUSDT ? 'USDT' : '₿';
     const decimals = isUSDT ? 2 : 8;
     const amt = Number(tx.amount || 0);
-    const isOut = tx.type === 'withdrawal' || tx.type === 'purchase';
+    const isOut = txType === 'withdrawals' || txType === 'purchase';
     return {
-      icon:   _txIcon(tx.type),
+      icon:   _txIcon(txType),
       desc:   _txLabel(tx.type),
       date:   _fmtDate(tx.created_at),
       amount: (isOut ? '-' : '+') + symbol + amt.toFixed(decimals),
@@ -582,8 +616,19 @@ function renderRecentActivity() {
     </div>
   `).join('');
 }function _txIcon(type) {
-  const map = { mining: '⛏️', deposit: '📥', withdrawal: '📤', referral: '👥', transfer: '↔️' };
-  return map[type] || '💱';
+  const t = String(type || '').toLowerCase();
+  const map = {
+    mining:      '⛏️',
+    deposit:     '📥',
+    deposits:    '📥',
+    withdrawal:  '📤',
+    withdrawals: '📤',
+    purchase:    '🛒',
+    purchases:   '🛒',
+    referral:    '👥',
+    transfer:    '↔️',
+  };
+  return map[t] || '💱';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -990,15 +1035,7 @@ async function purchasePlan(planName, priceUsd, hashrate) {
   try {
     Toast.show('Processing…', 'info', 2000);
 
-    /* 1. Deduct USDT balance (source of truth) */
-    const newBalance = balance - cost;
-    const { error: balErr } = await _supabase
-      .from('profiles')
-      .update({ usdt_balance: newBalance })
-      .eq('id', user.id);
-    if (balErr) throw balErr;
-
-    /* 2. Create contract row */
+    /* 1. Create contract row */
     const { error: contractErr } = await _supabase
       .from('contracts')
       .insert({
@@ -1013,7 +1050,7 @@ async function purchasePlan(planName, priceUsd, hashrate) {
       });
     if (contractErr) throw contractErr;
 
-    /* 3. Record transaction (for history only, NOT balance calculation) */
+    /* 2. Record transaction (for history only, NOT balance calculation) */
     await _supabase.from('transactions').insert({
       user_id:    user.id,
       type:       'purchase',
@@ -1022,6 +1059,14 @@ async function purchasePlan(planName, priceUsd, hashrate) {
       status:     'success',
       created_at: new Date().toISOString(),
     });
+
+    /* 3. Deduct USDT balance (source of truth) */
+    const newBalance = balance - cost;
+    const { error: balErr } = await _supabase
+      .from('profiles')
+      .update({ usdt_balance: newBalance })
+      .eq('id', user.id);
+    if (balErr) throw balErr;
 
     Toast.show(`✅ ${planName} Plan activated! ${hashrate} TH/s added.`, 'success', 5000);
 
