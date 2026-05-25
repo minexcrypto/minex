@@ -620,7 +620,7 @@ const DepositsModule = {
       .eq('user_id', dep.user_id)
       .eq('type', 'deposit')
       .eq('amount', dep.amount)
-      .eq('status', 'approved')
+      .eq('status', 'success')
       .gte('created_at', new Date(Date.now() - 300000).toISOString()) /* within last 5 min */
       .maybeSingle();
     if (txCheckErr) console.warn('[Admin] Transaction check error:', txCheckErr.message);
@@ -640,7 +640,7 @@ const DepositsModule = {
         type:       'deposit',
         amount:     dep.amount,
         coin:       dep.coin || (isUSDT ? 'usdt_bep20' : 'btc'),
-        status:     'approved',
+        status:     'success',
         created_at: new Date().toISOString(),
       });
       if (txErr) throw new Error('Transaction insert failed: ' + txErr.message);
@@ -820,7 +820,19 @@ const TransactionsModule = {
         .select('id, user_id, type, amount, status, created_at, profiles(email, name)')
         .order('created_at', { ascending: false })
         .limit(400);
-      if (typeFilter !== 'all') q = q.eq('type', typeFilter);
+      if (typeFilter !== 'all') {
+
+        const typeMap = {
+          deposits: ['deposit'],
+          mining: ['mining', 'mining_reward', 'reward'],
+          withdrawals: ['withdrawal'],
+          purchase: ['purchase', 'plan_purchase']
+        };
+
+        const allowedTypes = typeMap[typeFilter] || [typeFilter];
+
+        q = q.in('type', allowedTypes);
+      }
       const { data, error } = await q;
       if (error) throw error;
       const rows = data || [];
