@@ -1,9 +1,8 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — dashboard.js
    All data comes from Supabase. Zero hardcoded / fake values.
-   Tables used: profiles · deposits · contracts · transactions
+   Tables: profiles · deposits · contracts · transactions · notifications
 ══════════════════════════════════════════════════════════════ */
-
 'use strict';
 
 /* ─── SUPABASE INIT ─────────────────────────────────────── */
@@ -74,15 +73,10 @@ function escapeHtml(text) {
 
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
-
   if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposit';
-
   if (['withdrawal', 'withdrawals'].includes(t)) return 'withdrawal';
-
   if (['mining', 'mining_reward', 'reward'].includes(t)) return 'mining';
-
   if (['purchase', 'purchases', 'plan_purchase'].includes(t)) return 'purchase';
-
   return t || 'other';
 }
 
@@ -123,7 +117,6 @@ const Auth = (() => {
       if (!session) { window.location.href = 'login.html'; return false; }
       _session = session;
 
-      /* fetch or create profile */
       const { data: prof, error } = await _supabase
         .from('profiles')
         .select('*')
@@ -236,10 +229,8 @@ const BTCPrice = (() => {
 })();
 
 /* ══════════════════════════════════════════════════════════════
-   DATA LOADERS — read-only from Supabase
+   DATA LOADERS
 ══════════════════════════════════════════════════════════════ */
-
-/* Load all transactions for the current user */
 async function loadTransactions() {
   const user = Auth.getUser();
   if (!user || !_supabase) return [];
@@ -252,7 +243,6 @@ async function loadTransactions() {
   return data || [];
 }
 
-/* Load all deposits for the current user */
 async function loadDeposits() {
   const user = Auth.getUser();
   if (!user || !_supabase) return [];
@@ -265,7 +255,6 @@ async function loadDeposits() {
   return data || [];
 }
 
-/* Load all active contracts for the current user */
 async function loadContracts() {
   const user = Auth.getUser();
   if (!user || !_supabase) return [];
@@ -288,12 +277,10 @@ function populateUserUI() {
   const name    = profile.name || email.split('@')[0] || 'User';
   const initial = name.charAt(0).toUpperCase();
 
-  /* Avatars & name */
   document.querySelectorAll('.user-avatar-display').forEach(el => { el.textContent = initial; });
   document.querySelectorAll('.user-name-display').forEach(el  => { el.textContent = name; });
   document.querySelectorAll('.user-email-display').forEach(el => { el.textContent = email; });
 
-  /* Real balance — zero until deposits are approved */
   const btcBalance  = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0;
   const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
 
@@ -308,7 +295,6 @@ function populateUserUI() {
   setText('portfolioBTCusd',      '—');
   setText('usdtBalanceEl',        usdtBalance.toFixed(2) + ' USDT');
 
-  /* Update USD values when BTC price is known */
   BTCPrice.onChange(({ price, change }) => {
     const btcUsd = (btcBalance * price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const pctStr = change != null
@@ -320,7 +306,6 @@ function populateUserUI() {
     setText('walletItemUSD',  '$' + btcUsd);
     setText('portfolioBTCusd','$' + btcUsd);
 
-    /* live BTC ticker in navbar */
     const tickerPrice  = $('tickerPrice');
     const tickerChange = document.querySelector('.ticker-change');
     if (tickerPrice)  tickerPrice.textContent  = BTCPrice.fmt(price);
@@ -330,7 +315,6 @@ function populateUserUI() {
     }
   });
 
-  /* Referral */
   const refCode = profile.ref_code || '';
   const refLink = refCode ? 'https://cryptovault.io/ref/' + refCode : '—';
   setText('refLinkDisplay', refLink);
@@ -342,7 +326,6 @@ function populateUserUI() {
   setText('refEarningsEl', '₿ ' + (profile.ref_earnings || 0).toFixed(8));
   setText('activeRefEl',   profile.ref_count    || 0);
 
-  /* Settings form */
   const sName  = $('settingName');
   const sEmail = $('settingEmail');
   if (sName)  sName.value  = profile.name  || '';
@@ -350,27 +333,22 @@ function populateUserUI() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   UI — DASHBOARD STATS (zero-safe)
+   UI — DASHBOARD STATS
 ══════════════════════════════════════════════════════════════ */
 async function populateDashboardStats(contracts) {
   const activeContracts = contracts.filter(c => c.active === true);
-
-  /* --- Hashrate --- */
   const totalHashrate = activeContracts.reduce((s, c) => s + Number(c.hashrate || 0), 0);
   setText('liveHashrate',  totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('liveHashrate2', totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
 
-  /* --- Daily profit sum --- */
   const dailyProfit = activeContracts.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
   setText('dailyProfitEl', '₿ ' + dailyProfit.toFixed(8));
 
-  /* --- Stat card changes --- */
   const statChangeHashrate = document.getElementById('statChangeHashrate');
   const statChangeContracts = document.getElementById('statChangeContracts');
   if (statChangeHashrate)  statChangeHashrate.textContent  = activeContracts.length + ' active contract' + (activeContracts.length !== 1 ? 's' : '');
   if (statChangeContracts) statChangeContracts.textContent = activeContracts.length + ' active';
 
-  /* --- Total mined = sum of all mining transactions --- */
   const user = Auth.getUser();
   if (user && _supabase) {
     const { data: miningTxns } = await _supabase
@@ -410,14 +388,6 @@ function renderTransactions(filter) {
   const tbody = $('txTableBody');
   if (!tbody) return;
 
-  /*
-    ARCHITECTURE:
-    - transactions table = SOURCE OF TRUTH for approved financial history
-    - deposits table     = ONLY for pending requests (not yet approved)
-    - Never merge approved deposits from both tables — causes duplicates
-  */
-
-  /* 1. Build rows from transactions table (includes approved deposits) */
   const txRows = _allTransactions.map(tx => {
     const txType = normalizeTxType(tx.type);
     const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
@@ -449,7 +419,6 @@ function renderTransactions(filter) {
     };
   });
 
-  /* 2. Build rows from pending deposits ONLY (not approved) */
   const pendingDepRows = _allDeposits
     .filter(d => d.status === 'pending')
     .map(d => {
@@ -476,7 +445,6 @@ function renderTransactions(filter) {
       };
     });
 
-  /* 3. Merge & sort newest first */
   const merged = [...txRows, ...pendingDepRows].sort(
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
@@ -485,18 +453,11 @@ function renderTransactions(filter) {
   const activeFilter = normalizeFilter(filter);
 
   if (activeFilter !== 'all') {
-
     filtered = merged.filter(tx => {
-
       const type = normalizeTxType(tx.type);
-
       if (activeFilter === 'mining') {
-        return (
-          type === 'mining' ||
-          type === 'purchase'
-        );
+        return (type === 'mining' || type === 'purchase');
       }
-
       return type === activeFilter;
     });
   }
@@ -523,7 +484,9 @@ function renderTransactions(filter) {
       <td style="color:#94a3b8;">${tx.date}</td>
     </tr>
   `).join('');
-}function _txLabel(type) {
+}
+
+function _txLabel(type) {
   const t = String(type || '').toLowerCase();
   const map = {
     mining:      'Mining Reward',
@@ -575,17 +538,12 @@ function wireTransactionFilters() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   UI — RECENT ACTIVITY (dashboard tab)
+   UI — RECENT ACTIVITY
 ══════════════════════════════════════════════════════════════ */
 function renderRecentActivity() {
   const container = $('recentActivityList');
   if (!container) return;
 
-  /*
-    SOURCE OF TRUTH: transactions table only.
-    Approved deposits are already in _allTransactions (type='deposit', status='approved').
-    Do NOT merge approved deposits from _allDeposits — causes duplicates.
-  */
   const txRows = _allTransactions.map(tx => {
     const txType = normalizeTxType(tx.type);
     const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
@@ -603,7 +561,6 @@ function renderRecentActivity() {
     };
   });
 
-  /* Only show pending deposits as "pending" items */
   const pendingDepRows = _allDeposits
     .filter(d => d.status === 'pending')
     .map(d => {
@@ -644,7 +601,9 @@ function renderRecentActivity() {
       </div>
     </div>
   `).join('');
-}function _txIcon(type) {
+}
+
+function _txIcon(type) {
   const t = String(type || '').toLowerCase();
   const map = {
     mining:      '⛏️',
@@ -719,7 +678,6 @@ function renderMiningStats(contracts) {
   setText('miningDailyRevenue',   '₿ ' + dailyProfit.toFixed(8));
   setText('miningMonthlyProj',    '₿ ' + monthlyProj.toFixed(8));
 
-  /* contract progress bars */
   renderContractProgress(active);
 }
 
@@ -761,7 +719,6 @@ function renderWalletSummary() {
   const user = Auth.getUser();
   if (!user || !_supabase) return;
 
-  /* Aggregate from real transactions */
   const txns = _allTransactions;
 
   const totalDeposited  = txns.filter(t => normalizeTxType(t.type) === 'deposit')
@@ -778,24 +735,21 @@ function renderWalletSummary() {
   setText('walletMiningIncome',    '₿ ' + miningIncome.toFixed(8));
   setText('walletReferralBonuses', '₿ ' + referralBonuses.toFixed(8));
 
-  /* Portfolio BTC amount from profile */
   const profile    = Auth.getProfile();
   const btcBalance = typeof profile.btc_balance === 'number' ? profile.btc_balance : 0;
   setText('walletBTCAmount', btcBalance.toFixed(8) + ' BTC');
 
-  /* also update the big portfolio display */
   const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
   setText('walletUSDTAmount', usdtBalance.toFixed(2) + ' USDT');
 }
 
 /* ══════════════════════════════════════════════════════════════
-   UI — EARNINGS CHART (real data from transactions)
+   UI — EARNINGS CHART
 ══════════════════════════════════════════════════════════════ */
 function initEarningsChart(transactions) {
   const canvas = $('earningsChart');
   if (!canvas) return;
 
-  /* group mining transactions by day for last 12 days */
   const now    = new Date();
   const days   = 12;
   const buckets = {};
@@ -819,7 +773,6 @@ function initEarningsChart(transactions) {
   const data   = Object.values(buckets);
   const hasData = data.some(v => v > 0);
 
-  /* update summary below chart */
   const total12d = data.reduce((s, v) => s + v, 0);
   const avgDaily = total12d / days;
   const bestDay  = Math.max(...data);
@@ -828,7 +781,6 @@ function initEarningsChart(transactions) {
   setText('chartBestDay',  hasData ? '₿ ' + bestDay.toFixed(8)  : '₿ 0.00000000');
 
   if (!hasData) {
-    /* draw empty-state chart */
     _drawEmptyChart(canvas, 'No mining earnings yet');
     return;
   }
@@ -849,8 +801,6 @@ function initHashrateChart(contracts) {
     return;
   }
 
-  /* For a real app, hashrate history would come from a DB table.
-     Here we show current hashrate as a flat line — honest and real. */
   const totalHash = active.reduce((s, c) => s + Number(c.hashrate || 0), 0);
   const flatData  = Array(24).fill(totalHash);
 
@@ -878,7 +828,6 @@ function initDonut(profile) {
   const total  = btcUsd + usdt;
 
   if (total <= 0) {
-    /* empty ring */
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.arc(cx, cy, r - rw, 0, Math.PI * 2, true);
@@ -906,7 +855,6 @@ function initDonut(profile) {
     start += angle + 0.03;
   });
 
-  /* BTC % label */
   const btcPct = total > 0 ? ((btcUsd / total) * 100).toFixed(0) : '0';
   ctx.fillStyle = '#f1f5f9'; ctx.font = 'bold 13px Arial';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1020,12 +968,10 @@ function switchTab(name) {
   };
   setText('pageTitle', titles[name] || name);
 
-  /* Auto-read transaction notifications when opening Transactions */
   if (name === 'transactions') {
     Notifications.markRead(null, ['deposit','withdrawal','mining','purchase','referral']);
   }
 
-  /* close mobile sidebar */
   $('sidebar')?.classList.remove('open');
   $('sidebarOverlay')?.classList.remove('open');
 }
@@ -1043,13 +989,10 @@ function openWithdrawModal() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PURCHASE PLAN (UI only — real purchase flow wired to balance)
+   PURCHASE PLAN
 ══════════════════════════════════════════════════════════════ */
 async function purchasePlan(planName, priceUsd, hashrate) {
-  /* Force latest profile before balance check (avoid stale local state) */
   const latestProfile = await Auth.refreshProfile();
-
-  /* ── SOURCE OF TRUTH: profiles.usdt_balance ── */
   const balance = typeof latestProfile?.usdt_balance === 'number' ? latestProfile.usdt_balance : 0;
   const cost    = parseFloat(priceUsd);
 
@@ -1069,7 +1012,6 @@ async function purchasePlan(planName, priceUsd, hashrate) {
   try {
     Toast.show('Processing…', 'info', 2000);
 
-    /* 1. Deduct USDT balance (source of truth) */
     const newBalance = balance - cost;
     const { error: balErr } = await _supabase
       .from('profiles')
@@ -1077,7 +1019,6 @@ async function purchasePlan(planName, priceUsd, hashrate) {
       .eq('id', user.id);
     if (balErr) throw balErr;
 
-    /* 2. Create contract row */
     const { error: contractErr } = await _supabase
       .from('contracts')
       .insert({
@@ -1085,14 +1026,13 @@ async function purchasePlan(planName, priceUsd, hashrate) {
         plan:         planName,
         hashrate:     Number(hashrate),
         active:       true,
-        daily_profit: Number(hashrate) * 0.0000032,  /* platform rate per TH/s */
+        daily_profit: Number(hashrate) * 0.0000032,
         progress:     0,
         days_left:    _planDays(planName),
         created_at:   new Date().toISOString(),
       });
     if (contractErr) throw contractErr;
 
-    /* 3. Record transaction (for history only, NOT balance calculation) */
     const { error: txErr } = await _supabase
       .from('transactions')
       .insert({
@@ -1110,7 +1050,6 @@ async function purchasePlan(planName, priceUsd, hashrate) {
 
     Toast.show(`✅ ${planName} Plan activated! ${hashrate} TH/s added.`, 'success', 5000);
 
-    /* 4. Refresh profile/UI from latest DB state */
     await Auth.refreshProfile();
     populateUserUI();
     await refreshAll();
@@ -1125,11 +1064,6 @@ function _planDays(name) {
   return map[name] || 30;
 }
 
-/*
-  ADMIN HELPER:
-  Approves a pending deposit, credits profile balance, and ALWAYS writes a
-  history row to transactions so history/recent activity stay in sync.
-*/
 async function approveDeposit(deposit) {
   if (!_supabase || !deposit?.id || !deposit?.user_id) {
     throw new Error('Invalid approveDeposit payload.');
@@ -1139,14 +1073,12 @@ async function approveDeposit(deposit) {
   const amount = Number(deposit.amount || 0);
   if (amount <= 0) throw new Error('Invalid deposit amount.');
 
-  /* 1) Mark deposit approved */
   const { error: depErr } = await _supabase
     .from('deposits')
     .update({ status: 'approved', approved_at: new Date().toISOString() })
     .eq('id', deposit.id);
   if (depErr) throw depErr;
 
-  /* 2) Credit user profile balance */
   const { data: prof, error: profErr } = await _supabase
     .from('profiles')
     .select('btc_balance, usdt_balance')
@@ -1166,7 +1098,6 @@ async function approveDeposit(deposit) {
     .eq('id', deposit.user_id);
   if (balErr) throw balErr;
 
-  /* 3) ALWAYS write history row */
   const { error: txErr } = await _supabase
     .from('transactions')
     .insert({
@@ -1185,7 +1116,6 @@ async function approveDeposit(deposit) {
   }
   console.log('Deposit transaction saved');
 
-  /* 4) Refresh local UI if current viewer is same user */
   if (Auth.getUser()?.id === deposit.user_id) {
     await Auth.refreshProfile();
     await refreshAll();
@@ -1275,7 +1205,6 @@ function wireModals() {
     });
   });
 
-  /* withdraw form */
   $('withdrawForm')?.addEventListener('submit', e => {
     e.preventDefault();
     $('withdrawModal').style.display = 'none';
@@ -1295,7 +1224,7 @@ function wireWithdrawButtons() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   DEPOSIT FORM (Supabase Storage + deposits table)
+   DEPOSIT FORM
 ══════════════════════════════════════════════════════════════ */
 function initDepositForm() {
   const form        = $('depositForm');
@@ -1313,7 +1242,6 @@ function initDepositForm() {
 
   if (!form) return;
 
-  /* coin select → update label */
   coinSelect?.addEventListener('change', () => {
     const val = coinSelect.value;
     if (val === 'usdt_bep20') {
@@ -1327,7 +1255,6 @@ function initDepositForm() {
     }
   });
 
-  /* file upload */
   if (uploadArea && fileInput) {
     uploadArea.addEventListener('click', e => {
       if (!e.target.closest('.preview-remove')) fileInput.click();
@@ -1377,7 +1304,6 @@ function initDepositForm() {
     if (uploadArea)     uploadArea.classList.remove('has-file');
   }
 
-  /* form submit */
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const coin    = coinSelect?.value || '';
@@ -1428,7 +1354,6 @@ function initDepositForm() {
       .single();
 
     if (insertErr) {
-      /* cleanup orphan screenshot */
       await _supabase.storage.from('deposit-screenshots').remove([filePath]).catch(() => {});
       Toast.show('Failed to save deposit: ' + insertErr.message, 'error', 5000);
       return;
@@ -1437,11 +1362,9 @@ function initDepositForm() {
     const coinLabel = coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
     Toast.show(`✅ Deposit submitted! ${amount} ${coinLabel} — pending review.`, 'success', 5000);
 
-    /* add to local list and re-render immediately */
     if (dep) _allDeposits.unshift(dep);
     renderTransactions(_currentTxFilter);
 
-    /* reset form */
     form.reset();
     _resetFileInput();
     if (amountSuffix) amountSuffix.textContent = '—';
@@ -1470,7 +1393,6 @@ async function refreshAll() {
   updatePortfolioValue();
   populateDashboardStats(contracts);
 
-  /* Refresh notifications */
   await Notifications.load();
 
   setTimeout(() => {
@@ -1479,7 +1401,6 @@ async function refreshAll() {
     initDonut(Auth.getProfile());
   }, 120);
 }
-
 
 /* ══════════════════════════════════════════════════════════════
    NOTIFICATIONS MODULE
@@ -1701,17 +1622,69 @@ function initNotificationRealtime() {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   REALTIME SYNC FOR ADMIN CHANGES
+   Ensures dashboard updates instantly when admin modifies data
+══════════════════════════════════════════════════════════════ */
+function initAdminChangeRealtime() {
+  if (!_supabase || typeof _supabase.channel !== 'function') return;
+  const userId = Auth.getUser()?.id;
+  if (!userId) return;
+
+  try {
+    const channel = _supabase.channel('dashboard-admin-sync');
+
+    channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, payload => {
+      if (payload.new) {
+        console.log('[Dashboard] Profile updated via realtime');
+        Auth.refreshProfile().then(() => {
+          populateUserUI();
+          updatePortfolioValue();
+          renderWalletSummary();
+        });
+      }
+    });
+
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'contracts', filter: `user_id=eq.${userId}` }, () => {
+      console.log('[Dashboard] Contracts updated via realtime');
+      loadContracts().then(contracts => {
+        renderContracts(contracts);
+        renderMiningStats(contracts);
+        populateDashboardStats(contracts);
+        initHashrateChart(contracts);
+      });
+    });
+
+    channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, () => {
+      console.log('[Dashboard] New transaction via realtime');
+      refreshTransactions();
+    });
+
+    channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'deposits', filter: `user_id=eq.${userId}` }, () => {
+      console.log('[Dashboard] Deposit updated via realtime');
+      loadDeposits().then(deps => {
+        _allDeposits = deps;
+        renderTransactions(_currentTxFilter);
+        renderRecentActivity();
+      });
+    });
+
+    channel.subscribe(status => {
+      if (status === 'SUBSCRIBED') console.log('[Dashboard] Admin-sync realtime subscribed.');
+    });
+  } catch (err) {
+    console.warn('[Dashboard] Admin-sync realtime error:', err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
    MAIN INIT
 ══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
-  /* 1. Auth guard */
   const ok = await Auth.init();
   if (!ok) return;
 
-  /* 2. Populate UI with real profile data */
   populateUserUI();
 
-  /* 3. Wire all interactions */
   wireLogout();
   wireMobileMenu();
   wireDropdowns();
@@ -1721,19 +1694,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireWithdrawButtons();
   wireNotificationBell();
   initNotificationRealtime();
+  initAdminChangeRealtime();
 
   initDepositForm();
 
-  /* 4. Load all real data and render */
   await refreshAll();
 
-  /* 5. BTC price drives USD displays */
   BTCPrice.onChange(() => {
     updatePortfolioValue();
-    renderTransactions(_currentTxFilter); /* refresh USD column */
+    renderTransactions(_currentTxFilter);
   });
 
-  /* 6. Expose globals needed by inline HTML onclick= attributes */
   window.switchTab          = switchTab;
   window.purchasePlan       = purchasePlan;
   window.saveSettings       = saveSettings;
