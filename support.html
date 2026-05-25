@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Support Center - CryptoVault</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  :root{--bg:#080b10;--card:#0f141d;--text:#e5e7eb;--muted:#94a3b8;--gold:#f59e0b;--border:#1f2937;--line:#132033}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(circle at 15% 0%,#1b2232 0,#080b10 40%),var(--bg);color:var(--text);font-family:Arial,sans-serif;line-height:1.7}
+  .nav{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border);background:#0b1119cc;backdrop-filter:blur(8px);position:sticky;top:0;z-index:9}
+  .brand{font-weight:700;color:var(--text);text-decoration:none}
+  .brand span{color:var(--gold)}
+  .nav-links{display:flex;gap:14px;flex-wrap:wrap}
+  .nav a{color:var(--muted);text-decoration:none;transition:.25s}
+  .nav a:hover{color:var(--gold)}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 24px}
+  .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;align-items:stretch;margin-bottom:24px}
+  .card{background:linear-gradient(180deg,#111726,#0d131d);border:1px solid var(--line);border-radius:16px;padding:24px;transition:transform .25s ease,box-shadow .3s ease,border-color .3s ease}
+  .glow:hover{transform:translateY(-3px) scale(1.01);border-color:rgba(245,158,11,.55);box-shadow:0 0 0 1px rgba(245,158,11,.12),0 10px 26px rgba(245,158,11,.16)}
+  h1{font-size:36px;line-height:1.2;margin:0 0 10px}
+  h2{font-size:24px;margin:0 0 14px;color:var(--gold)}
+  h3{margin:0 0 8px;font-size:18px}
+  p{margin:0;color:var(--muted)}
+  .hero-art{position:relative;overflow:hidden}
+  .hero-art img{width:100%;height:100%;object-fit:cover;border-radius:12px;opacity:.78}
+  .hero-art:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#0d131d 8%,transparent 70%)}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .lang{font-size:28px;line-height:1}
+  .feature{display:flex;gap:12px;align-items:flex-start}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);margin-top:9px;box-shadow:0 0 14px rgba(245,158,11,.7)}
+  .contact a{color:var(--gold);text-decoration:none}
+  .contact a:hover{text-decoration:underline}
+  .faq .qa{padding:14px 0;border-bottom:1px solid var(--line)}
+  .faq .qa:last-child{border-bottom:none}
+  footer{max-width:1120px;margin:16px auto 0;padding:0 24px 24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
+  .footer-links a{color:#cbd5e1;text-decoration:none;transition:all .3s ease;cursor:pointer}
+  .footer-links a:hover{color:var(--gold);text-decoration:underline;text-shadow:0 0 10px rgba(245,158,11,.45)}
+  @media (max-width:930px){.hero{grid-template-columns:1fr}.grid-3{grid-template-columns:1fr 1fr}}
+  @media (max-width:700px){h1{font-size:28px}.grid-3,.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">Crypto<span>Vault</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="card glow">
+      <h1>24/7 Global Support</h1>
+      <p>Our support team is available around the clock to assist miners worldwide.</p>
+    </div>
+    <div class="card hero-art glow">
+      <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80" alt="Mining support center operations">
+    </div>
+  </section>
+
+  <section class="card glow" style="margin-bottom:16px;">
+    <h2>Language Support</h2>
+    <div class="grid-3">
+      <div class="card glow"><div class="lang">🇺🇸</div><h3>English Support</h3><p>Global international support</p></div>
+      <div class="card glow"><div class="lang">🇮🇳</div><h3>Gujarati Support</h3><p>Regional assistance for Indian users</p></div>
+      <div class="card glow"><div class="lang">🇦🇪</div><h3>Arabic Support</h3><p>Middle East customer support</p></div>
+    </div>
+  </section>
+
+  <section class="card glow" style="margin-bottom:16px;">
+    <h2>Support Features</h2>
+    <div class="grid-2">
+      <div class="feature"><span class="dot"></span><div><h3>24/7 Live Support</h3><p>Always available through monitored channels.</p></div></div>
+      <div class="feature"><span class="dot"></span><div><h3>Fast Response Time</h3><p>Priority handling for urgent mining and wallet issues.</p></div></div>
+      <div class="feature"><span class="dot"></span><div><h3>Deposit Assistance</h3><p>Guidance for submission, confirmation, and review steps.</p></div></div>
+      <div class="feature"><span class="dot"></span><div><h3>Withdrawal Help</h3><p>Support for withdrawal status, address checks, and safety.</p></div></div>
+      <div class="feature"><span class="dot"></span><div><h3>Mining Contract Support</h3><p>Help with plan activation, earnings tracking, and upgrades.</p></div></div>
+      <div class="feature"><span class="dot"></span><div><h3>Security & Account Recovery</h3><p>Assistance with account protection and recovery workflows.</p></div></div>
+    </div>
+  </section>
+
+  <section class="card contact glow" style="margin-bottom:16px;">
+    <h2>Contact</h2>
+    <p>Support Email:</p>
+    <p><a href="mailto:minexcrypto@protonmail.com">minexcrypto@protonmail.com</a></p>
+    <p style="margin-top:10px;">Response time: under 24 hours.</p>
+    <p>All communications are handled through secure channels and verified support procedures.</p>
+  </section>
+
+  <section class="card faq glow">
+    <h2>Frequently Asked Questions</h2>
+    <div class="qa"><h3>How long do deposits take?</h3><p>Most deposits are reviewed and credited after network confirmation and verification.</p></div>
+    <div class="qa"><h3>How do mining payouts work?</h3><p>Payouts are calculated from active contract hashrate and distributed on the scheduled cycle.</p></div>
+    <div class="qa"><h3>Can I withdraw anytime?</h3><p>You can request withdrawals at any time, subject to security checks and processing windows.</p></div>
+    <div class="qa"><h3>How do I recover account?</h3><p>Contact support with your registered email to begin secure identity and recovery steps.</p></div>
+    <div class="qa"><h3>Is cloud mining automatic?</h3><p>Yes. Once your plan is active, mining operations and earnings calculations run automatically.</p></div>
+  </section>
+</main>
+
+<footer>
+  <div style="color:#64748b;">© 2026 CryptoVault. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+    <a href="support.html">Support</a>
+    <a href="about.html">About</a>
+    <a href="login.html">Login</a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+</footer>
+</body>
+</html>
