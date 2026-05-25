@@ -1527,16 +1527,27 @@ const Notifications = (() => {
       const isUnread = !n.is_read;
       const color = typeColors[n.type] || typeColors.info;
       const icon = icons[n.type] || '🔔';
+      const preview = escapeHtml(String(n.message || '').replace(/\n/g, ' ').slice(0, 60));
+      const showEllipsis = String(n.message || '').length > 60;
       return `
         <div class="notification-item ${isUnread ? 'unread' : ''}" data-notif-id="${n.id}">
           <div class="notification-dot" style="background:${color};box-shadow:0 0 8px ${color}66;"></div>
           <div class="notification-content">
             <div class="notification-title">${icon} ${escapeHtml(n.title) || 'Notification'}</div>
-            <div class="notification-message">${escapeHtml(n.message)}</div>
+            <div class="notification-preview">${preview}${showEllipsis ? '…' : ''}</div>
             <div class="notification-time">${_fmtDate(n.created_at)}</div>
           </div>
         </div>`;
     }).join('');
+
+    list.querySelectorAll('.notification-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.notifId;
+        const notif = _notifications.find(n => n.id === id);
+        if (notif) openNotificationModal(notif);
+        if (id) markRead(id);
+      });
+    });
   }
 
   function updateBadge() {
@@ -1601,6 +1612,57 @@ const Notifications = (() => {
   return { load, render, updateBadge, markRead, getUnread: () => _notifications.filter(n => !n.is_read).length };
 })();
 
+function openNotificationModal(notification) {
+  const old = document.getElementById('notifModal');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'notifModal';
+  modal.className = 'notif-modal';
+  modal.innerHTML = `
+    <div class="notif-modal-overlay">
+      <div class="notif-modal-box">
+        <div class="notif-modal-header">
+          <div class="notif-modal-meta">
+            <span class="notif-modal-icon">${notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : notification.type === 'warning' ? '⚠️' : notification.type === 'deposit' ? '📥' : notification.type === 'withdrawal' ? '📤' : notification.type === 'mining' ? '⛏️' : notification.type === 'purchase' ? '🛒' : notification.type === 'announcement' ? '📢' : notification.type === 'referral' ? '👥' : '🔔'}</span>
+            <h3>${escapeHtml(notification.title) || 'Notification'}</h3>
+          </div>
+          <button class="notif-modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="notif-modal-body">
+          <div class="notif-modal-message">${escapeHtml(notification.message)}</div>
+          <div class="notif-modal-date">${new Date(notification.created_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  requestAnimationFrame(() => {
+    modal.querySelector('.notif-modal-overlay').classList.add('show');
+    modal.querySelector('.notif-modal-box').classList.add('show');
+  });
+
+  const closeModal = () => {
+    const overlay = modal.querySelector('.notif-modal-overlay');
+    const box = modal.querySelector('.notif-modal-box');
+    overlay.classList.remove('show');
+    box.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+  };
+
+  modal.querySelector('.notif-modal-close').addEventListener('click', closeModal);
+  modal.querySelector('.notif-modal-overlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', escHandler);
+    }
+  });
+}
+
 function wireNotificationBell() {
   const bell = $('notificationBell');
   if (!bell) return;
@@ -1613,16 +1675,6 @@ function wireNotificationBell() {
       }
     });
   });
-
-  const list = $('notificationList');
-  if (list) {
-    list.addEventListener('click', e => {
-      const item = e.target.closest('.notification-item');
-      if (!item) return;
-      const id = item.dataset.notifId;
-      if (id) Notifications.markRead(id);
-    });
-  }
 }
 
 function initNotificationRealtime() {
