@@ -1,4 +1,3 @@
-```javascript
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — admin.js
    All data is real — read from Supabase tables:
@@ -72,16 +71,28 @@ const AdminUI = {
     }
     const palette = { success: '#10b981', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
     const icons   = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
-    const border  = palette[type] || palette.info;
+
+    /* FIX: renamed 'border' → 'borderColor' to avoid identifier conflict */
+    const borderColor = palette[type] || palette.info;
+
     const t = document.createElement('div');
-    t.style.cssText = [
-      'background:#111720', 'border:1px solid #1e2d45',
-      `border-left:3px solid ${border}`, 'border-radius:12px',
-      'padding:14px 18px', 'display:flex', 'align-items:center', 'gap:12px',
-      'font-size:13px', 'color:#94a3b8', 'min-width:280px', 'max-width:400px',
-      'box-shadow:0 4px 24px rgba(0,0,0,.45)',
-      'animation:_cvSlideIn .3s ease',
-    ].join(';');
+    /* FIX: rewrote cssText as a clean string instead of array.join to eliminate the syntax error */
+    t.style.cssText =
+      'background:#111720;' +
+      'border:1px solid #1e2d45;' +
+      'border-left:3px solid ' + borderColor + ';' +
+      'border-radius:12px;' +
+      'padding:14px 18px;' +
+      'display:flex;' +
+      'align-items:center;' +
+      'gap:12px;' +
+      'font-size:13px;' +
+      'color:#94a3b8;' +
+      'min-width:280px;' +
+      'max-width:400px;' +
+      'box-shadow:0 4px 24px rgba(0,0,0,.45);' +
+      'animation:_cvSlideIn .3s ease;';
+
     t.innerHTML =
       `<span style="font-size:17px;flex-shrink:0">${icons[type] || '💡'}</span>` +
       `<span style="flex:1;line-height:1.45">${msg}</span>`;
@@ -124,19 +135,19 @@ const AdminUI = {
 
   badge(status) {
     const map = {
-      pending:   { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'    },
-      approved:  { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved'   },
-      rejected:  { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected'   },
-      success:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Success'    },
-      failed:    { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Failed'     },
-      active:    { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Active'     },
-      inactive:  { bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: 'Inactive'   },
-      completed: { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Completed'  },
-      mining:    { bg: 'rgba(249,115,22,.15)',  fg: '#f97316', label: 'Mining'     },
-      deposit:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Deposit'    },
-      withdrawal:{ bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Withdrawal' },
-      referral:  { bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Referral'   },
-      purchase:  { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Purchase'   },
+      pending:    { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'    },
+      approved:   { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved'   },
+      rejected:   { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected'   },
+      success:    { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Success'    },
+      failed:     { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Failed'     },
+      active:     { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Active'     },
+      inactive:   { bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: 'Inactive'   },
+      completed:  { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Completed'  },
+      mining:     { bg: 'rgba(249,115,22,.15)',  fg: '#f97316', label: 'Mining'     },
+      deposit:    { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Deposit'    },
+      withdrawal: { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Withdrawal' },
+      referral:   { bg: 'rgba(139,92,246,.15)',  fg: '#8b5cf6', label: 'Referral'   },
+      purchase:   { bg: 'rgba(59,130,246,.15)',  fg: '#3b82f6', label: 'Purchase'   },
     };
     const s = map[String(status).toLowerCase()] || {
       bg: 'rgba(100,116,139,.15)', fg: '#64748b', label: status || '—',
@@ -325,7 +336,7 @@ const PriceService = {
       );
       clearTimeout(timer);
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const json  = await res.json();
+      const json   = await res.json();
       const price  = json?.bitcoin?.usd            ?? null;
       const change = json?.bitcoin?.usd_24h_change ?? null;
       if (price !== null) {
@@ -378,7 +389,6 @@ const OverviewModule = {
       const pending  = rows.filter(r => r.status === 'pending');
       const approved = rows.filter(r => r.status === 'approved');
       const rejected = rows.filter(r => r.status === 'rejected');
-      /* volume — BTC deposits only for BTC total */
       const btcVol  = approved.filter(r => r.coin === 'btc').reduce((s, r) => s + Number(r.amount || 0), 0);
       const usdtVol = approved.filter(r => r.coin === 'usdt_bep20').reduce((s, r) => s + Number(r.amount || 0), 0);
       const volStr  = btcVol.toFixed(6) + ' BTC' + (usdtVol > 0 ? ' + ' + usdtVol.toFixed(2) + ' USDT' : '');
@@ -529,7 +539,6 @@ const DepositsModule = {
   async updateStatus(depositId, newStatus) {
     if (!sb || !depositId) return;
 
-    /* Prevent duplicate clicks */
     if (this._processing && this._processing.has(depositId)) {
       console.log('[Admin] Duplicate approval prevented for deposit', depositId);
       return;
@@ -543,7 +552,6 @@ const DepositsModule = {
     });
 
     try {
-      /* Transaction-safe: fetch current status first */
       const { data: currentRow, error: fetchErr } = await sb
         .from('deposits')
         .select('id, status, user_id, amount, coin')
@@ -552,7 +560,6 @@ const DepositsModule = {
       if (fetchErr) throw fetchErr;
       if (!currentRow) throw new Error('Deposit not found');
 
-      /* Already approved — do NOT credit again */
       if (currentRow.status === 'approved') {
         console.log('[Admin] Deposit already approved:', depositId);
         AdminUI.toast('Deposit already approved — no balance change.', 'warning');
@@ -563,19 +570,17 @@ const DepositsModule = {
         return;
       }
 
-      /* Only proceed if still pending */
       if (currentRow.status !== 'pending') {
         console.log('[Admin] Deposit status is', currentRow.status, '- skipping');
         AdminUI.toast('Deposit status is ' + currentRow.status + ' — no action taken.', 'info');
         return;
       }
 
-      /* Update status to approved */
       const { error: updErr } = await sb
         .from('deposits')
         .update({ status: newStatus })
         .eq('id', depositId)
-        .eq('status', 'pending'); /* optimistic lock: only update if still pending */
+        .eq('status', 'pending');
       if (updErr) throw updErr;
 
       setHTML(`[data-status-cell="${depositId}"]`, AdminUI.badge(newStatus));
@@ -593,7 +598,6 @@ const DepositsModule = {
         newStatus === 'approved' ? 'success' : 'warning'
       );
     } catch (err) {
-      /* restore action buttons */
       const dep = this._rows.find(r => r.id === depositId);
       if (dep && dep.status === 'pending') {
         setHTML(`[data-actions-cell="${depositId}"]`,
@@ -610,15 +614,6 @@ const DepositsModule = {
   async _creditBalance(depositId, dep) {
     if (!dep?.user_id || !dep?.amount) return;
 
-    /*
-      CRITICAL: updateStatus() already verified the deposit was pending
-      and successfully updated it to approved BEFORE calling this function.
-      Do NOT re-fetch the deposit row here — that would see status=approved
-      and incorrectly skip the balance credit.
-      The dep object passed in is the pending row fetched by updateStatus().
-    */
-
-    /* ── Idempotency: transaction already exists for this deposit? ── */
     const { data: existingTx, error: txCheckErr } = await sb
       .from('transactions')
       .select('id')
@@ -626,7 +621,7 @@ const DepositsModule = {
       .eq('type', 'deposit')
       .eq('amount', dep.amount)
       .eq('status', 'success')
-      .gte('created_at', new Date(Date.now() - 300000).toISOString()) /* within last 5 min */
+      .gte('created_at', new Date(Date.now() - 300000).toISOString())
       .maybeSingle();
     if (txCheckErr) console.warn('[Admin] Transaction check error:', txCheckErr.message);
     if (existingTx) {
@@ -638,7 +633,6 @@ const DepositsModule = {
     const isUSDT = dep.coin === 'usdt_bep20';
     const field  = isUSDT ? 'usdt_balance' : 'btc_balance';
 
-    /* ── Helper: create transaction row ── */
     const _createTx = async () => {
       const { error: txErr } = await sb.from('transactions').insert({
         user_id: dep.user_id,
@@ -651,21 +645,12 @@ const DepositsModule = {
 
       if (txErr) {
         console.error('[Admin] Deposit transaction insert failed:', txErr);
-
-        alert(
-          'Deposit transaction insert failed:\n' +
-          txErr.message
-        );
-
+        alert('Deposit transaction insert failed:\n' + txErr.message);
         throw txErr;
       }
-
-      console.log(
-        '[Admin] Deposit transaction saved successfully'
-      );
+      console.log('[Admin] Deposit transaction saved successfully');
     };
 
-    /* ── Try RPC first ── */
     const rpcName = isUSDT ? 'increment_user_usdt_balance' : 'increment_user_balance';
     const { error: rpcErr } = await sb.rpc(rpcName, {
       p_user_id: dep.user_id,
@@ -677,7 +662,6 @@ const DepositsModule = {
       return;
     }
 
-    /* ── Fallback: manual read-modify-write ── */
     try {
       const { data: profile, error: fetchErr } = await sb
         .from('profiles')
@@ -743,7 +727,7 @@ const UsersModule = {
     if (!rows.length) { setHTML(container, AdminUI.empty('No users found.')); return; }
 
     const tbodyHTML = rows.map(u => {
-      const joined    = u.created_at
+      const joined     = u.created_at
         ? new Date(u.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
         : '—';
       const btcBalance = Number(u.btc_balance || 0).toFixed(8);
@@ -839,33 +823,18 @@ const TransactionsModule = {
         .order('created_at', { ascending: false })
         .limit(400);
       if (typeFilter !== 'all') {
-
-        const normalizedFilter = String(typeFilter || '')
-          .trim()
-          .toLowerCase();
-
+        const normalizedFilter = String(typeFilter || '').trim().toLowerCase();
         const typeMap = {
-          deposit: ['deposit'],
-          deposits: ['deposit'],
-
-          mining: ['mining', 'mining_reward', 'reward'],
-
-          withdrawal: ['withdrawal'],
+          deposit:     ['deposit'],
+          deposits:    ['deposit'],
+          mining:      ['mining', 'mining_reward', 'reward'],
+          withdrawal:  ['withdrawal'],
           withdrawals: ['withdrawal'],
-
-          purchase: ['purchase', 'plan_purchase'],
-          purchases: ['purchase', 'plan_purchase']
+          purchase:    ['purchase', 'plan_purchase'],
+          purchases:   ['purchase', 'plan_purchase'],
         };
-
-        const allowedTypes =
-          typeMap[normalizedFilter] || [normalizedFilter];
-
-        console.log(
-          '[Admin] Transaction filter:',
-          normalizedFilter,
-          allowedTypes
-        );
-
+        const allowedTypes = typeMap[normalizedFilter] || [normalizedFilter];
+        console.log('[Admin] Transaction filter:', normalizedFilter, allowedTypes);
         q = q.in('type', allowedTypes);
       }
       const { data, error } = await q;
@@ -1035,18 +1004,15 @@ function initRealtime() {
             const cur   = parseInt(badge?.textContent || '0', 10);
             setText('#sidebarDepositBadge', String(cur + 1));
           }
-          /* Only reload deposits list — do NOT trigger any approval logic */
           if (_loaded.has('deposits')) {
             const filter = document.getElementById('depositStatusFilter')?.value || 'all';
             DepositsModule.load(filter);
           }
         }
       )
-      /* Listen to UPDATE events on deposits only for UI refresh, never for approval logic */
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'deposits' },
-        payload => {
-          /* Just refresh the deposits table UI — no balance or approval logic here */
+        () => {
           if (_loaded.has('deposits')) {
             const filter = document.getElementById('depositStatusFilter')?.value || 'all';
             DepositsModule.load(filter);
@@ -1163,4 +1129,3 @@ Object.assign(window, {
   OverviewModule,
   PriceService,
 });
-```
