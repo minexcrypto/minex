@@ -371,44 +371,73 @@ function renderTransactions(filter) {
   const tbody = $('txTableBody');
   if (!tbody) return;
 
-  /* build unified list: real transactions + pending deposits */
-  const txRows = _allTransactions.map(tx => ({
-    desc:   _txLabel(tx.type),
-    coin:   'BTC',
-    amount: (tx.type === 'withdrawal' ? '-' : '+') + Number(tx.amount || 0).toFixed(8),
-    usd:    _usdStr(tx.amount, tx.type),
-    status: tx.status || 'success',
-    date:   _fmtDate(tx.created_at),
-    type:   tx.type,
-    createdAt: tx.created_at,
-  }));
+  /*
+    ARCHITECTURE:
+    - transactions table = SOURCE OF TRUTH for approved financial history
+    - deposits table     = ONLY for pending requests (not yet approved)
+    - Never merge approved deposits from both tables — causes duplicates
+  */
 
-  const depRows = _allDeposits.map(d => {
-    const isUSDT  = d.coin === 'usdt_bep20';
+  /* 1. Build rows from transactions table (includes approved deposits) */
+  const txRows = _allTransactions.map(tx => {
+    const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
     const coinLbl = isUSDT ? 'USDT' : 'BTC';
-    const amt     = Number(d.amount || 0);
-    const amtStr  = '+' + amt.toFixed(isUSDT ? 2 : 8) + ' ' + coinLbl;
+    const decimals = isUSDT ? 2 : 8;
+    const amt = Number(tx.amount || 0);
+    const isOut = tx.type === 'withdrawal' || tx.type === 'purchase';
+    const amtStr = (isOut ? '-' : '+') + amt.toFixed(decimals) + ' ' + coinLbl;
+
     let usdVal;
     if (isUSDT) {
-      usdVal = '+$' + amt.toFixed(2);
+      usdVal = (isOut ? '-' : '+') + '$' + amt.toFixed(2);
     } else {
       const price = BTCPrice.get();
-      usdVal = price != null ? '+$' + (amt * price).toFixed(2) : '—';
+      usdVal = price != null
+        ? (isOut ? '-' : '+') + '$' + (amt * price).toFixed(2)
+        : '—';
     }
+
     return {
-      desc:   'Deposit',
+      desc:   _txLabel(tx.type),
       coin:   coinLbl,
       amount: amtStr,
       usd:    usdVal,
-      status: d.status || 'pending',
-      date:   _fmtDate(d.created_at),
-      type:   'deposits',
-      createdAt: d.created_at,
+      status: tx.status || 'success',
+      date:   _fmtDate(tx.created_at),
+      type:   tx.type,
+      createdAt: tx.created_at,
     };
   });
 
-  /* merge & sort newest first */
-  const merged = [...txRows, ...depRows].sort(
+  /* 2. Build rows from pending deposits ONLY (not approved) */
+  const pendingDepRows = _allDeposits
+    .filter(d => d.status === 'pending')
+    .map(d => {
+      const isUSDT  = d.coin === 'usdt_bep20';
+      const coinLbl = isUSDT ? 'USDT' : 'BTC';
+      const amt     = Number(d.amount || 0);
+      const amtStr  = '+' + amt.toFixed(isUSDT ? 2 : 8) + ' ' + coinLbl;
+      let usdVal;
+      if (isUSDT) {
+        usdVal = '+$' + amt.toFixed(2);
+      } else {
+        const price = BTCPrice.get();
+        usdVal = price != null ? '+$' + (amt * price).toFixed(2) : '—';
+      }
+      return {
+        desc:   'Deposit (Pending)',
+        coin:   coinLbl,
+        amount: amtStr,
+        usd:    usdVal,
+        status: 'pending',
+        date:   _fmtDate(d.created_at),
+        type:   'deposits',
+        createdAt: d.created_at,
+      };
+    });
+
+  /* 3. Merge & sort newest first */
+  const merged = [...txRows, ...pendingDepRows].sort(
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
@@ -434,9 +463,7 @@ function renderTransactions(filter) {
       <td style="color:#94a3b8;">${tx.date}</td>
     </tr>
   `).join('');
-}
-
-function _txLabel(type) {
+}function _txLabel(type) {
   const map = {
     mining:     'Mining Reward',
     deposit:    'Deposit',
@@ -489,26 +516,45 @@ function renderRecentActivity() {
   const container = $('recentActivityList');
   if (!container) return;
 
-  /* combine transactions + deposits, newest first, limit 5 */
-  const txRows = _allTransactions.map(tx => ({
-    icon:   _txIcon(tx.type),
-    desc:   _txLabel(tx.type),
-    date:   _fmtDate(tx.created_at),
-    amount: (tx.type === 'withdrawal' ? '-' : '+') + '₿' + Number(tx.amount || 0).toFixed(8),
-    isOut:  tx.type === 'withdrawal',
-    createdAt: tx.created_at,
-  }));
+  /*
+    SOURCE OF TRUTH: transactions table only.
+    Approved deposits are already in _allTransactions (type='deposit', status='approved').
+    Do NOT merge approved deposits from _allDeposits — causes duplicates.
+  */
+  const txRows = _allTransactions.map(tx => {
+    const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
+    const symbol = isUSDT ? 'USDT' : '₿';
+    const decimals = isUSDT ? 2 : 8;
+    const amt = Number(tx.amount || 0);
+    const isOut = tx.type === 'withdrawal' || tx.type === 'purchase';
+    return {
+      icon:   _txIcon(tx.type),
+      desc:   _txLabel(tx.type),
+      date:   _fmtDate(tx.created_at),
+      amount: (isOut ? '-' : '+') + symbol + amt.toFixed(decimals),
+      isOut:  isOut,
+      createdAt: tx.created_at,
+    };
+  });
 
-  const depRows = _allDeposits.filter(d => d.status === 'approved').map(d => ({
-    icon:   '📥',
-    desc:   'Deposit',
-    date:   _fmtDate(d.created_at),
-    amount: '+₿' + Number(d.amount || 0).toFixed(8),
-    isOut:  false,
-    createdAt: d.created_at,
-  }));
+  /* Only show pending deposits as "pending" items */
+  const pendingDepRows = _allDeposits
+    .filter(d => d.status === 'pending')
+    .map(d => {
+      const isUSDT = d.coin === 'usdt_bep20';
+      const symbol = isUSDT ? 'USDT' : '₿';
+      const decimals = isUSDT ? 2 : 8;
+      return {
+        icon:   '⏳',
+        desc:   'Deposit (Pending)',
+        date:   _fmtDate(d.created_at),
+        amount: '+' + symbol + Number(d.amount || 0).toFixed(decimals),
+        isOut:  false,
+        createdAt: d.created_at,
+      };
+    });
 
-  const merged = [...txRows, ...depRows]
+  const merged = [...txRows, ...pendingDepRows]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 5);
 
@@ -528,13 +574,11 @@ function renderRecentActivity() {
         <div class="rig-specs">${item.date}</div>
       </div>
       <div class="rig-metrics">
-        <div class="rig-hash" style="color:${item.isOut ? 'var(--red)' : 'var(--green)'};">${item.amount}</div>
+        <div class="rig-hash" style="color:${item.isOut ? 'var(--red)' : 'var(--green)'}">${item.amount}</div>
       </div>
     </div>
   `).join('');
-}
-
-function _txIcon(type) {
+}function _txIcon(type) {
   const map = { mining: '⛏️', deposit: '📥', withdrawal: '📤', referral: '👥', transfer: '↔️' };
   return map[type] || '💱';
 }
@@ -921,19 +965,14 @@ function openWithdrawModal() {
 ══════════════════════════════════════════════════════════════ */
 async function purchasePlan(planName, priceUsd, hashrate) {
   const profile = Auth.getProfile();
-  const price   = BTCPrice.get();
 
-  if (!price) {
-    Toast.show('BTC price unavailable. Please try again.', 'error');
-    return;
-  }
+  /* ── SOURCE OF TRUTH: profiles.usdt_balance ── */
+  const balance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+  const cost    = parseFloat(priceUsd);
 
-  const costBTC = parseFloat(priceUsd) / price;
-  const balance = typeof profile.btc_balance === 'number' ? profile.btc_balance : 0;
-
-  if (balance < costBTC) {
+  if (balance < cost) {
     Toast.show(
-      `Insufficient balance. You need ₿${costBTC.toFixed(8)} but have ₿${balance.toFixed(8)}.`,
+      `Insufficient USDT balance. You need $${cost.toFixed(2)} but have $${balance.toFixed(2)}.`,
       'error', 5000
     );
     return;
@@ -947,11 +986,11 @@ async function purchasePlan(planName, priceUsd, hashrate) {
   try {
     Toast.show('Processing…', 'info', 2000);
 
-    /* 1. Deduct balance */
-    const newBalance = balance - costBTC;
+    /* 1. Deduct USDT balance (source of truth) */
+    const newBalance = balance - cost;
     const { error: balErr } = await _supabase
       .from('profiles')
-      .update({ btc_balance: newBalance })
+      .update({ usdt_balance: newBalance })
       .eq('id', user.id);
     if (balErr) throw balErr;
 
@@ -970,11 +1009,12 @@ async function purchasePlan(planName, priceUsd, hashrate) {
       });
     if (contractErr) throw contractErr;
 
-    /* 3. Record transaction */
+    /* 3. Record transaction (for history only, NOT balance calculation) */
     await _supabase.from('transactions').insert({
       user_id:    user.id,
       type:       'purchase',
-      amount:     costBTC,
+      amount:     cost,
+      coin:       'usdt',
       status:     'success',
       created_at: new Date().toISOString(),
     });
