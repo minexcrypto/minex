@@ -27,6 +27,9 @@
   .hero-art img{width:100%;height:100%;object-fit:cover;border-radius:12px;opacity:.78}
   .hero-art:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#0d131d 8%,transparent 70%)}
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .language-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .language-card{transition:all .3s ease;border:1px solid var(--line)}
+  .language-card:hover{transform:translateY(-4px);box-shadow:0 0 25px rgba(245,158,11,.25);border-color:rgba(245,158,11,.45)}
   .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
   .lang{font-size:28px;line-height:1}
   .feature{display:flex;gap:12px;align-items:flex-start}
@@ -67,10 +70,22 @@
 
   <section class="card glow" style="margin-bottom:16px;">
     <h2>Language Support</h2>
-    <div class="grid-3">
-      <div class="card glow"><div class="lang">🇺🇸</div><h3>English Support</h3><p>Global international support</p></div>
-      <div class="card glow"><div class="lang">🇮🇳</div><h3>Gujarati Support</h3><p>Regional assistance for Indian users</p></div>
-      <div class="card glow"><div class="lang">🇦🇪</div><h3>Arabic Support</h3><p>Middle East customer support</p></div>
+    <div class="language-grid">
+      <div class="card language-card"><div class="lang">🇺🇸</div><h3>English Support</h3><p>Global international support</p></div>
+      <div class="card language-card"><div class="lang">🇮🇳</div><h3>Gujarati Support</h3><p>Regional assistance for Indian users</p></div>
+      <div class="card language-card"><div class="lang">🇦🇪</div><h3>Arabic Support</h3><p>Middle East customer support</p></div>
+      <div class="card language-card"><div class="lang">🇪🇸</div><h3>Spanish Support</h3><p>Support for Latin America & Europe</p></div>
+      <div class="card language-card"><div class="lang">🇫🇷</div><h3>French Support</h3><p>European multilingual assistance</p></div>
+      <div class="card language-card"><div class="lang">🇩🇪</div><h3>German Support</h3><p>Technical support for EU clients</p></div>
+      <div class="card language-card"><div class="lang">🇷🇺</div><h3>Russian Support</h3><p>Eastern Europe mining support</p></div>
+      <div class="card language-card"><div class="lang">🇨🇳</div><h3>Chinese Support</h3><p>Asia-Pacific customer service</p></div>
+      <div class="card language-card"><div class="lang">🇯🇵</div><h3>Japanese Support</h3><p>Japan region account assistance</p></div>
+      <div class="card language-card"><div class="lang">🇰🇷</div><h3>Korean Support</h3><p>Korean miner support center</p></div>
+      <div class="card language-card"><div class="lang">🇹🇷</div><h3>Turkish Support</h3><p>Regional blockchain assistance</p></div>
+      <div class="card language-card"><div class="lang">🇵🇹</div><h3>Portuguese Support</h3><p>Brazil & Portugal support services</p></div>
+      <div class="card language-card"><div class="lang">🇮🇹</div><h3>Italian Support</h3><p>EU account and wallet support</p></div>
+      <div class="card language-card"><div class="lang">🇮🇩</div><h3>Indonesian Support</h3><p>Southeast Asia mining assistance</p></div>
+      <div class="card language-card"><div class="lang">🇵🇰</div><h3>Urdu/Hindi Support</h3><p>South Asian multilingual support</p></div>
     </div>
   </section>
 
