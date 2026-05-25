@@ -636,15 +636,28 @@ const DepositsModule = {
     /* ── Helper: create transaction row ── */
     const _createTx = async () => {
       const { error: txErr } = await sb.from('transactions').insert({
-        user_id:    dep.user_id,
-        type:       'deposit',
-        amount:     dep.amount,
-        coin:       dep.coin || (isUSDT ? 'usdt_bep20' : 'btc'),
-        status:     'success',
+        user_id: dep.user_id,
+        type: 'deposit',
+        amount: Number(dep.amount || 0),
+        coin: dep.coin || (isUSDT ? 'usdt_bep20' : 'btc'),
+        status: 'success',
         created_at: new Date().toISOString(),
       });
-      if (txErr) throw new Error('Transaction insert failed: ' + txErr.message);
-      console.log('[Admin] Transaction row created for deposit', depositId);
+
+      if (txErr) {
+        console.error('[Admin] Deposit transaction insert failed:', txErr);
+
+        alert(
+          'Deposit transaction insert failed:\n' +
+          txErr.message
+        );
+
+        throw txErr;
+      }
+
+      console.log(
+        '[Admin] Deposit transaction saved successfully'
+      );
     };
 
     /* ── Try RPC first ── */
@@ -655,7 +668,7 @@ const DepositsModule = {
     });
     if (!rpcErr) {
       console.log('[Admin] Balance credited via RPC for deposit', depositId);
-      try { await _createTx(); } catch (txErr) { console.warn(txErr.message); }
+      await _createTx();
       return;
     }
 
@@ -822,14 +835,31 @@ const TransactionsModule = {
         .limit(400);
       if (typeFilter !== 'all') {
 
+        const normalizedFilter = String(typeFilter || '')
+          .trim()
+          .toLowerCase();
+
         const typeMap = {
+          deposit: ['deposit'],
           deposits: ['deposit'],
+
           mining: ['mining', 'mining_reward', 'reward'],
+
+          withdrawal: ['withdrawal'],
           withdrawals: ['withdrawal'],
-          purchase: ['purchase', 'plan_purchase']
+
+          purchase: ['purchase', 'plan_purchase'],
+          purchases: ['purchase', 'plan_purchase']
         };
 
-        const allowedTypes = typeMap[typeFilter] || [typeFilter];
+        const allowedTypes =
+          typeMap[normalizedFilter] || [normalizedFilter];
+
+        console.log(
+          '[Admin] Transaction filter:',
+          normalizedFilter,
+          allowedTypes
+        );
 
         q = q.in('type', allowedTypes);
       }
