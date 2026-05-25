@@ -1,108 +1,46 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — app.js
-   Shared utilities: auth, BTC price, sidebar, toast, modals
+   Shared utilities: BTC price, sidebar, toast, modals
+   NOTE: Auth is handled entirely in dashboard.js via Supabase.
+         This file provides UI utilities only.
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
 
-/* ─── AUTH ──────────────────────────────────────────────── */
-const Auth = {
-  key: 'cv_user',
-  sessKey: 'cv_session',
-
-  register(name, email, password) {
-    const users = JSON.parse(localStorage.getItem('cv_users') || '[]');
-    if (users.find(u => u.email === email)) return { ok: false, msg: 'Email already registered.' };
-    const user = {
-      id: 'usr_' + Date.now(),
-      name, email,
-      password: btoa(password),
-      createdAt: new Date().toISOString(),
-      level: 'Starter',
-      balance: 0.00042,
-      totalMined: 0.00217,
-      refCode: 'CV' + Math.random().toString(36).substring(2,8).toUpperCase(),
-      refEarnings: 0,
-      refCount: 0,
-      contracts: [
-        { id: 1, name: 'Starter Plan', hashrate: 10, dailyProfit: 0.000032, duration: 30, daysLeft: 22, active: true }
-      ]
-    };
-    users.push(user);
-    localStorage.setItem('cv_users', JSON.stringify(users));
-    this.setSession(user);
-    return { ok: true, user };
-  },
-
-  login(email, password) {
-    const users = JSON.parse(localStorage.getItem('cv_users') || '[]');
-    const user = users.find(u => u.email === email && u.password === btoa(password));
-    if (!user) return { ok: false, msg: 'Invalid email or password.' };
-    this.setSession(user);
-    return { ok: true, user };
-  },
-
-  setSession(user) {
-    sessionStorage.setItem(this.sessKey, JSON.stringify(user));
-  },
-
-  getSession() {
-    const s = sessionStorage.getItem(this.sessKey);
-    return s ? JSON.parse(s) : null;
-  },
-
-  updateSession(updates) {
-    const user = this.getSession();
-    if (!user) return;
-    const updated = { ...user, ...updates };
-    this.setSession(updated);
-    // persist to users array
-    const users = JSON.parse(localStorage.getItem('cv_users') || '[]');
-    const idx = users.findIndex(u => u.id === updated.id);
-    if (idx !== -1) { users[idx] = updated; localStorage.setItem('cv_users', JSON.stringify(users)); }
-    return updated;
-  },
-
-  logout() {
-    sessionStorage.removeItem(this.sessKey);
-    window.location.href = 'login.html';
-  },
-
-  requireAuth() {
-    if (!this.getSession()) window.location.href = 'login.html';
-  }
-};
-
 /* ─── BTC PRICE ─────────────────────────────────────────── */
 const BTCPrice = {
-  current: 67842,
-  prev: 67100,
+  current: null,
   handlers: [],
 
   async fetch() {
     try {
-      const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+      const res = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      this.prev = this.current;
-      this.current = parseFloat(data.data.amount);
-      this.handlers.forEach(fn => fn(this.current, this.prev));
+      const price  = data.bitcoin?.usd           ?? null;
+      const change = data.bitcoin?.usd_24h_change ?? null;
+      if (price !== null) {
+        this.current = { price, change };
+        this.handlers.forEach(fn => fn(this.current));
+      }
     } catch {
-      // simulate fluctuation if API fails
-      this.prev = this.current;
-      this.current += (Math.random() - 0.49) * 120;
-      this.handlers.forEach(fn => fn(this.current, this.prev));
+      /* silent — keep stale value */
     }
   },
 
   onChange(fn) { this.handlers.push(fn); },
 
-  start() {
+  start(ms = 60_000) {
     this.fetch();
-    setInterval(() => this.fetch(), 15000);
+    setInterval(() => this.fetch(), ms);
   },
 
-  format(n) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
-  pctChange() { return ((this.current - this.prev) / this.prev * 100).toFixed(2); }
+  format(n) {
+    if (n == null) return '—';
+    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  },
 };
 
 /* ─── TOAST ─────────────────────────────────────────────── */
@@ -112,22 +50,36 @@ const Toast = {
     if (!container) {
       container = document.createElement('div');
       container.id = 'toast-container';
+      Object.assign(container.style, {
+        position: 'fixed', bottom: '24px', right: '24px',
+        zIndex: '9999', display: 'flex', flexDirection: 'column', gap: '10px',
+      });
       document.body.appendChild(container);
     }
 
     const icons = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
+    const colours = { success: '#10b981', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
+    const border = colours[type] || colours.info;
+
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<span class="toast-icon">${icons[type] || '💡'}</span><span>${msg}</span>`;
+    toast.style.cssText = [
+      'background:#111720', 'border:1px solid #1e2d45',
+      `border-left:3px solid ${border}`, 'border-radius:12px',
+      'padding:14px 18px', 'display:flex', 'align-items:center', 'gap:12px',
+      'font-size:13px', 'color:#94a3b8', 'min-width:260px', 'max-width:380px',
+      'box-shadow:0 4px 24px rgba(0,0,0,.45)',
+      'animation:_cvSlideIn .3s ease',
+    ].join(';');
+    toast.innerHTML =
+      `<span style="font-size:17px;flex-shrink:0">${icons[type] || '💡'}</span>` +
+      `<span style="flex:1;line-height:1.45">${msg}</span>`;
     container.appendChild(toast);
 
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateX(20px)';
-      toast.style.transition = '0.3s ease';
-      setTimeout(() => toast.remove(), 300);
+      Object.assign(toast.style, { opacity: '0', transform: 'translateX(16px)', transition: '.3s ease' });
+      setTimeout(() => toast.remove(), 320);
     }, duration);
-  }
+  },
 };
 
 /* ─── SIDEBAR ───────────────────────────────────────────── */
@@ -135,86 +87,45 @@ function initSidebar() {
   const sidebar = document.getElementById('sidebar');
   const toggle  = document.getElementById('menuToggle');
   const overlay = document.getElementById('sidebarOverlay');
-
   if (!sidebar) return;
 
   toggle?.addEventListener('click', () => {
     sidebar.classList.toggle('open');
-    overlay.classList.toggle('open');
+    overlay?.classList.toggle('open');
   });
-
   overlay?.addEventListener('click', () => {
     sidebar.classList.remove('open');
-    overlay.classList.remove('open');
+    overlay?.classList.remove('open');
   });
 
-  // active nav item
   const path = window.location.pathname.split('/').pop() || 'index.html';
   document.querySelectorAll('.nav-item').forEach(a => {
     if (a.getAttribute('href') === path) a.classList.add('active');
   });
 }
 
-/* ─── BTC TICKER WIDGET ─────────────────────────────────── */
-function initTickerWidget() {
-  const widgets = document.querySelectorAll('.btc-ticker');
-  if (!widgets.length) return;
-
-  BTCPrice.onChange((price, prev) => {
-    const up = price >= prev;
-    const pct = BTCPrice.pctChange();
-    widgets.forEach(w => {
-      const priceEl = w.querySelector('.ticker-price');
-      const changeEl = w.querySelector('.ticker-change');
-      if (priceEl) priceEl.textContent = BTCPrice.format(price);
-      if (changeEl) {
-        changeEl.textContent = (up ? '▲' : '▼') + ' ' + Math.abs(pct) + '%';
-        changeEl.className = 'ticker-change ' + (up ? 'ticker-up' : 'ticker-down');
-      }
-    });
-  });
-
-  BTCPrice.start();
-}
-
 /* ─── MODAL ─────────────────────────────────────────────── */
 function openModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.add('open');
+  if (el) el.style.display = 'flex';
 }
 
 function closeModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.remove('open');
+  if (el) el.style.display = 'none';
 }
 
 function initModals() {
   document.querySelectorAll('[data-modal]').forEach(btn => {
     btn.addEventListener('click', () => openModal(btn.dataset.modal));
   });
-
   document.querySelectorAll('[data-close-modal]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
   });
-
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', e => {
-      if (e.target === overlay) overlay.classList.remove('open');
+      if (e.target === overlay) overlay.style.display = 'none';
     });
-  });
-}
-
-/* ─── USER MENU ─────────────────────────────────────────── */
-function initUserMenu() {
-  const user = Auth.getSession();
-  if (!user) return;
-
-  document.querySelectorAll('.user-name-display').forEach(el => el.textContent = user.name);
-  document.querySelectorAll('.user-level-display').forEach(el => el.textContent = user.level);
-  document.querySelectorAll('.user-avatar-display').forEach(el => el.textContent = user.name[0].toUpperCase());
-
-  document.querySelectorAll('[data-logout]').forEach(el => {
-    el.addEventListener('click', () => Auth.logout());
   });
 }
 
@@ -227,43 +138,49 @@ function initDropdowns() {
       menu?.classList.toggle('open');
     });
   });
-
   document.addEventListener('click', () => {
     document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
   });
 }
 
 /* ─── COPY UTILITY ──────────────────────────────────────── */
-function copyToClipboard(text, msg = 'Copied to clipboard!') {
-  navigator.clipboard.writeText(text).then(() => Toast.show(msg, 'success'));
-}
-
-document.querySelectorAll('[data-copy]').forEach(btn => {
-  btn.addEventListener('click', () => copyToClipboard(btn.dataset.copy));
-});
-
-/* ─── NUMBER COUNTER ANIMATION ──────────────────────────── */
-function animateCounter(el, target, decimals = 0, prefix = '', suffix = '') {
-  const start = 0;
-  const duration = 1800;
-  const startTime = performance.now();
-
-  function update(now) {
-    const elapsed = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const value = start + (target - start) * eased;
-    el.textContent = prefix + value.toFixed(decimals) + suffix;
-    if (progress < 1) requestAnimationFrame(update);
+function copyToClipboard(text, msg = 'Copied!') {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => Toast.show(msg, 'success'))
+      .catch(() => _fallbackCopy(text, msg));
+  } else {
+    _fallbackCopy(text, msg);
   }
-  requestAnimationFrame(update);
 }
+
+function _fallbackCopy(text, msg) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    Object.assign(ta.style, { position: 'fixed', opacity: '0' });
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    Toast.show(msg, 'success');
+  } catch {
+    Toast.show('Copy failed. Please copy manually.', 'error');
+  }
+}
+
+/* inject keyframe once */
+(() => {
+  if (document.getElementById('_cvAppKF')) return;
+  const s = document.createElement('style');
+  s.id = '_cvAppKF';
+  s.textContent = `@keyframes _cvSlideIn { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:translateX(0)} }`;
+  document.head.appendChild(s);
+})();
 
 /* ─── INIT ──────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   initSidebar();
-  initTickerWidget();
   initModals();
-  initUserMenu();
   initDropdowns();
 });
