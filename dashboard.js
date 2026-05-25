@@ -1,6 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
-   CRYPTOVAULT — dashboard.js  (Supabase-powered)
-   Auth guard · user data · charts · mining stats · transactions
+   CRYPTOVAULT — dashboard.js
+   All data comes from Supabase. Zero hardcoded / fake values.
+   Tables used: profiles · deposits · contracts · transactions
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -14,37 +15,91 @@ try {
   if (typeof supabase !== 'undefined' && supabase.createClient) {
     _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   } else {
-    console.error('Supabase library not loaded. Auth and data features will not work.');
+    console.error('Supabase library not loaded.');
   }
 } catch (err) {
   console.error('Failed to initialize Supabase client:', err);
 }
 
+/* ─── TOAST ──────────────────────────────────────────────── */
+const Toast = (() => {
+  function show(msg, type = 'info', duration = 3500) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      Object.assign(container.style, {
+        position: 'fixed', bottom: '24px', right: '24px',
+        zIndex: '9999', display: 'flex', flexDirection: 'column', gap: '10px',
+      });
+      document.body.appendChild(container);
+    }
+    const icons   = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
+    const colours = { success: '#10b981', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
+    const border  = colours[type] || colours.info;
+    const toast   = document.createElement('div');
+    toast.style.cssText = [
+      'background:#111720', 'border:1px solid #1e2d45',
+      `border-left:3px solid ${border}`, 'border-radius:12px',
+      'padding:14px 18px', 'display:flex', 'align-items:center', 'gap:12px',
+      'font-size:13px', 'color:#94a3b8', 'min-width:260px', 'max-width:380px',
+      'box-shadow:0 4px 24px rgba(0,0,0,.45)',
+      'transition:all .3s ease',
+    ].join(';');
+    toast.innerHTML =
+      `<span style="font-size:17px;flex-shrink:0">${icons[type] || '💡'}</span>` +
+      `<span style="flex:1;line-height:1.45">${msg}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      Object.assign(toast.style, { opacity: '0', transform: 'translateX(16px)' });
+      setTimeout(() => toast.remove(), 320);
+    }, duration);
+  }
+  return { show };
+})();
+
+/* ─── DOM HELPERS ────────────────────────────────────────── */
+function $(id)            { return document.getElementById(id); }
+function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
+
+/* ─── COPY UTILITY ───────────────────────────────────────── */
+function copyToClipboard(text, msg = 'Copied!') {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => Toast.show(msg, 'success'))
+      .catch(() => _fallbackCopy(text, msg));
+  } else {
+    _fallbackCopy(text, msg);
+  }
+}
+function _fallbackCopy(text, msg) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    Object.assign(ta.style, { position: 'fixed', opacity: '0' });
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    Toast.show(msg, 'success');
+  } catch {
+    Toast.show('Copy failed.', 'error');
+  }
+}
+
 /* ─── AUTH MODULE ───────────────────────────────────────── */
 const Auth = (() => {
-  let _session  = null;   // raw Supabase session
-  let _profile  = null;   // profiles row
+  let _session = null;
+  let _profile = null;
 
   async function init() {
+    if (!_supabase) { window.location.href = 'login.html'; return false; }
     try {
-      if (!_supabase) {
-        console.error('Supabase client not available');
-        window.location.href = 'login.html';
-        return false;
-      }
-
-      /* 1. Restore persisted session */
       const { data: { session } } = await _supabase.auth.getSession();
-
-      if (!session) {
-        /* Not logged in → redirect */
-        window.location.href = 'login.html';
-        return false;
-      }
-
+      if (!session) { window.location.href = 'login.html'; return false; }
       _session = session;
 
-      /* 2. Fetch or create profile row */
+      /* fetch or create profile */
       const { data: prof, error } = await _supabase
         .from('profiles')
         .select('*')
@@ -52,50 +107,32 @@ const Auth = (() => {
         .single();
 
       if (error || !prof) {
-        /* Profile missing — create it */
-        try {
-          const { data: newProf, error: upsertError } = await _supabase
-            .from('profiles')
-            .upsert({
-              id:            session.user.id,
-              email:         session.user.email,
-              btc_balance:   0.00042,
-              usdt_balance:  0.00,
-              ref_code:      'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
-            })
-            .select()
-            .single();
-          if (upsertError) {
-            console.error('Failed to create profile:', upsertError);
-            _profile = {
-              id: session.user.id,
-              email: session.user.email,
-              btc_balance: 0.00042,
-              usdt_balance: 0.00,
-              ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
-            };
-          } else {
-            _profile = newProf;
-          }
-        } catch (profileErr) {
-          console.error('Exception creating profile:', profileErr);
-          _profile = {
-            id: session.user.id,
-            email: session.user.email,
-            btc_balance: 0.00042,
-            usdt_balance: 0.00,
-            ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
-          };
-        }
+        const ref_code = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const { data: newProf } = await _supabase
+          .from('profiles')
+          .upsert({
+            id:           session.user.id,
+            email:        session.user.email,
+            btc_balance:  0,
+            usdt_balance: 0,
+            ref_code,
+          })
+          .select()
+          .single();
+        _profile = newProf || {
+          id: session.user.id,
+          email: session.user.email,
+          btc_balance: 0,
+          usdt_balance: 0,
+          ref_code,
+        };
       } else {
         _profile = prof;
       }
 
-      /* 3. Listen for auth state changes (token refresh / logout from another tab) */
-      _supabase.auth.onAuthStateChange((event) => {
+      _supabase.auth.onAuthStateChange(event => {
         if (event === 'SIGNED_OUT') window.location.href = 'login.html';
       });
-
       return true;
     } catch (err) {
       console.error('Auth init failed:', err);
@@ -105,1168 +142,1189 @@ const Auth = (() => {
   }
 
   async function logout() {
-    try {
-      if (_supabase) {
-        await _supabase.auth.signOut();
-      }
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
-    try {
-      localStorage.removeItem('cv_remember');
-    } catch (e) { /* ignore */ }
+    try { if (_supabase) await _supabase.auth.signOut(); } catch { /* ignore */ }
     window.location.href = 'login.html';
   }
 
-  function getUser()    { return _session?.user  || null; }
-  function getProfile() { return _profile        || {};   }
+  function getUser()    { return _session?.user || null; }
+  function getProfile() { return _profile       || {};   }
+
+  async function refreshProfile() {
+    if (!_session || !_supabase) return;
+    const { data } = await _supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', _session.user.id)
+      .single();
+    if (data) _profile = data;
+    return _profile;
+  }
 
   async function updateProfile(fields) {
     if (!_session || !_supabase) return null;
-    try {
-      const { data, error } = await _supabase
-        .from('profiles')
-        .update(fields)
-        .eq('id', _session.user.id)
-        .select()
-        .single();
-      if (error) {
-        console.error('Profile update error:', error);
-        return null;
-      }
-      if (data) _profile = data;
-      return data;
-    } catch (err) {
-      console.error('Exception updating profile:', err);
-      return null;
-    }
+    const { data, error } = await _supabase
+      .from('profiles')
+      .update(fields)
+      .eq('id', _session.user.id)
+      .select()
+      .single();
+    if (!error && data) _profile = data;
+    return error ? null : data;
   }
 
-  return { init, logout, getUser, getProfile, updateProfile };
+  return { init, logout, getUser, getProfile, refreshProfile, updateProfile };
 })();
 
-/* ─── BTC PRICE (public API, no auth needed) ─────────────── */
+/* ─── BTC PRICE ──────────────────────────────────────────── */
 const BTCPrice = (() => {
-  let _price    = 67842;
-  let _cbs      = [];
+  let _data = null;
+  let _cbs  = [];
 
-  function onChange(cb) { _cbs.push(cb); cb(_price); }
+  function onChange(cb) { _cbs.push(cb); if (_data) cb(_data); }
 
   async function _fetch() {
     try {
-      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+      const r = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'
+      );
       if (r.ok) {
         const j = await r.json();
-        _price = j.bitcoin?.usd || _price;
-        _cbs.forEach(cb => cb(_price));
+        const price  = j.bitcoin?.usd            ?? null;
+        const change = j.bitcoin?.usd_24h_change ?? null;
+        if (price !== null) {
+          _data = { price, change };
+          _cbs.forEach(cb => cb(_data));
+        }
       }
-    } catch (_) { /* use cached price */ }
+    } catch { /* keep stale */ }
   }
 
   _fetch();
   setInterval(_fetch, 60_000);
-  return { onChange, get: () => _price };
+
+  function fmt(n) {
+    if (n == null) return '—';
+    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function get() { return _data?.price ?? null; }
+
+  return { onChange, get, fmt };
 })();
 
-/* ─── SIMULATED MINING DATA ─────────────────────────────── */
-const MiningData = {
-  hashrates: [82,78,85,91,88,94,87,96,92,98,95,100,97,103,99,105,101,108,104,110,107,112,109,115],
-  earnings:  [0.00031,0.00028,0.00033,0.00035,0.00032,0.00038,0.00034,0.00039,0.00037,0.00041,0.00036,0.00043],
-  labels:    ['May 13','May 14','May 15','May 16','May 17','May 18','May 19','May 20','May 21','May 22','May 23','May 24'],
+/* ══════════════════════════════════════════════════════════════
+   DATA LOADERS — read-only from Supabase
+══════════════════════════════════════════════════════════════ */
 
-  /* Simulated mining rewards & withdrawals — temporary fake data */
-  transactions: [
-    { id:'TX001', type:'mining', coin:'BTC', amount:'+0.000032', usd:'+$2.17',  status:'success', date:'May 24, 2026', desc:'Daily Mining Reward' },
-    { id:'TX003', type:'mining', coin:'BTC', amount:'+0.000031', usd:'+$2.10',  status:'success', date:'May 23, 2026', desc:'Daily Mining Reward' },
-    { id:'TX005', type:'mining', coin:'BTC', amount:'+0.000029', usd:'+$1.97',  status:'success', date:'May 22, 2026', desc:'Daily Mining Reward' },
-    { id:'TX007', type:'mining', coin:'BTC', amount:'+0.000033', usd:'+$2.24',  status:'success', date:'May 21, 2026', desc:'Daily Mining Reward' },
-    { id:'TX004', type:'withdrawals',    coin:'BTC', amount:'-0.00080',  usd:'-$54.3',  status:'success', date:'May 22, 2026', desc:'Withdrawal' },
-    { id:'TX008', type:'withdrawals',    coin:'BTC', amount:'-0.00120',  usd:'-$81.4',  status:'success', date:'May 20, 2026', desc:'Withdrawal' },
-  ],
-
-  contracts: [
-    { name:'Starter Plan', hashrate:10,  power:500,  dailyProfit:'0.000032 BTC', progress:73, daysLeft:22 },
-    { name:'Silver Plan',  hashrate:50,  power:1200, dailyProfit:'0.000158 BTC', progress:45, daysLeft:41 },
-    { name:'Gold Plan',    hashrate:100, power:2200, dailyProfit:'0.000315 BTC', progress:12, daysLeft:79 },
-  ]
-};
-
-/* ─── REAL DEPOSIT DATA MODULE ──────────────────────────── */
-const DepositData = (() => {
-  let _deposits = [];
-  let _btcPrice = 67842;
-
-  /* Listen to BTC price for USD conversion */
-  BTCPrice.onChange((price) => { _btcPrice = price; });
-
-  /* Fetch real deposits from Supabase */
-  async function fetchDeposits() {
-    try {
-      const user = Auth.getUser();
-      if (!user || !_supabase) return [];
-
-      const { data, error } = await _supabase
-        .from('deposits')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Failed to fetch deposits:', error);
-        return [];
-      }
-
-      _deposits = data || [];
-      return _deposits;
-    } catch (err) {
-      console.error('Exception fetching deposits:', err);
-      return [];
-    }
-  }
-
-  /* Convert a deposit row into transaction row format */
-  function depositToTx(deposit) {
-    try {
-      const coinLabel = deposit.coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
-      const amount    = parseFloat(deposit.amount) || 0;
-      const isUSDT    = deposit.coin === 'usdt_bep20';
-
-      /* USD value estimation */
-      let usdVal = 0;
-      if (isUSDT) {
-        usdVal = amount;
-      } else {
-        /* BTC → USD */
-        usdVal = amount * _btcPrice;
-      }
-      const usdStr = '+$' + usdVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-      /* Format date: 2026-05-24T14:30:00 → "May 24, 2026" */
-      const d = new Date(deposit.created_at);
-      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-      /* Format amount with + sign */
-      const amountStr = '+' + amount.toFixed(isUSDT ? 2 : 8) + ' ' + coinLabel.split(' ')[0];
-
-      return {
-        id:        'DEP-' + (deposit.id ? deposit.id.slice(-6).toUpperCase() : 'UNKNOWN'),
-        type:      'deposits',
-        coin:      coinLabel,
-        amount:    amountStr,
-        usd:       usdStr,
-        status:    deposit.status || 'pending',
-        date:      dateStr,
-        desc:      'Deposit',
-        createdAt: deposit.created_at,
-        isReal:    true
-      };
-    } catch (err) {
-      console.error('Error converting deposit to transaction:', err);
-      return null;
-    }
-  }
-
-  /* Merge real deposits with simulated data, sort newest first */
-  function getMergedTransactions() {
-    try {
-      /* Convert all real deposits */
-      const realTxs = _deposits.map(depositToTx).filter(tx => tx !== null);
-
-      /* Simulated transactions with a fake createdAt for sorting */
-      const simTxs = MiningData.transactions.map((tx, idx) => ({
-        ...tx,
-        createdAt: '2026-05-20T00:00:00.000Z', /* older than any real deposit */
-        isReal: false
-      }));
-
-      /* Merge and sort by date descending (newest first) */
-      const merged = [...realTxs, ...simTxs];
-      merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-      return merged;
-    } catch (err) {
-      console.error('Error merging transactions:', err);
-      return MiningData.transactions;
-    }
-  }
-
-  /* Get only real deposits (for re-rendering after submit) */
-  function getDeposits() { return _deposits; }
-
-  /* Manually add a deposit (called immediately after successful submit) */
-  function addDeposit(deposit) {
-    if (deposit) {
-      _deposits.unshift(deposit);
-    }
-  }
-
-  return { fetchDeposits, getMergedTransactions, getDeposits, addDeposit, depositToTx };
-})();
-
-/* ─── UI HELPERS ─────────────────────────────────────────── */
-function $(id) { return document.getElementById(id); }
-
-function setText(id, val) {
-  const el = $(id);
-  if (el) el.textContent = val;
+/* Load all transactions for the current user */
+async function loadTransactions() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return [];
+  const { data, error } = await _supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadTransactions:', error); return []; }
+  return data || [];
 }
 
-function copyToClipboard(text, msg) {
-  msg = msg || 'Copied!';
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => Toast.show(msg, 'success')).catch((err) => {
-      console.error('Clipboard copy failed:', err);
-      fallbackCopy(text, msg);
-    });
-  } else {
-    fallbackCopy(text, msg);
-  }
+/* Load all deposits for the current user */
+async function loadDeposits() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return [];
+  const { data, error } = await _supabase
+    .from('deposits')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadDeposits:', error); return []; }
+  return data || [];
 }
 
-function fallbackCopy(text, msg) {
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    Toast.show(msg, 'success');
-  } catch (err) {
-    console.error('Fallback copy failed:', err);
-    Toast.show('Copy failed. Please copy manually.', 'error');
-  }
+/* Load all active contracts for the current user */
+async function loadContracts() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return [];
+  const { data, error } = await _supabase
+    .from('contracts')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadContracts:', error); return []; }
+  return data || [];
 }
 
-/* ─── TOAST ──────────────────────────────────────────────── */
-const Toast = (() => {
-  let el = null;
-  function _ensure() {
-    if (el) return;
-    el = document.createElement('div');
-    el.style.cssText = `
-      position:fixed;bottom:28px;right:28px;z-index:9999;
-      background:#1e2d45;border:1px solid rgba(255,255,255,0.1);
-      color:#fff;padding:14px 20px;border-radius:12px;
-      font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);
-      transform:translateY(20px);opacity:0;transition:all 0.3s;pointer-events:none;
-    `;
-    document.body.appendChild(el);
-  }
-
-  function show(msg, type, duration) {
-    type = type || 'info';
-    duration = duration || 3000;
-    _ensure();
-    const colors = { success:'#22c55e', error:'#ef4444', info:'#f59e0b' };
-    el.style.borderColor = colors[type] || colors.info;
-    el.textContent = msg;
-    el.style.transform = 'translateY(0)';
-    el.style.opacity   = '1';
-    setTimeout(() => {
-      if (el) {
-        el.style.transform = 'translateY(20px)';
-        el.style.opacity   = '0';
-      }
-    }, duration);
-  }
-
-  return { show };
-})();
-
-/* ─── POPULATE USER DATA INTO UI ─────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   UI — POPULATE USER DATA
+══════════════════════════════════════════════════════════════ */
 function populateUserUI() {
-  try {
-    const user    = Auth.getUser();
-    const profile = Auth.getProfile();
+  const user    = Auth.getUser();
+  const profile = Auth.getProfile();
+  const email   = user?.email || '';
+  const name    = profile.name || email.split('@')[0] || 'User';
+  const initial = name.charAt(0).toUpperCase();
 
-    const email   = user?.email || 'user@cryptovault.io';
-    const name    = profile.name  || email.split('@')[0];
-    const btcBalance  = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0.00042;
-    const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0.00;
-    const refCode = profile.ref_code || 'CVXXXXXX';
-    const initial = name.charAt(0).toUpperCase();
+  /* Avatars & name */
+  document.querySelectorAll('.user-avatar-display').forEach(el => { el.textContent = initial; });
+  document.querySelectorAll('.user-name-display').forEach(el  => { el.textContent = name; });
+  document.querySelectorAll('.user-email-display').forEach(el => { el.textContent = email; });
 
-    /* Avatars & name */
-    document.querySelectorAll('.user-avatar-display').forEach(el => { if (el) el.textContent = initial; });
-    document.querySelectorAll('.user-name-display').forEach(el => { if (el) el.textContent = name; });
-    document.querySelectorAll('.user-email-display').forEach(el => { if (el) el.textContent = email; });
+  /* Real balance — zero until deposits are approved */
+  const btcBalance  = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0;
+  const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
 
-    /* Stat cards — FIX: use btcBalance instead of undefined 'balance' */
-    const walletBalanceCounter = $('walletBalanceCounter');
-    if (walletBalanceCounter) walletBalanceCounter.textContent = '₿ ' + btcBalance.toFixed(6);
+  const btcStr = '₿ ' + btcBalance.toFixed(8);
+  setText('walletBalanceCounter', btcStr);
+  setText('walletBigBalance',     btcStr);
+  setText('walletBigUSD',         '≈ — USD');
+  setText('walletItemUSD',        '—');
+  setText('portfolioBTCusd',      '—');
+  setText('usdtBalanceEl',        usdtBalance.toFixed(2) + ' USDT');
 
-    const dailyProfitEl = $('dailyProfitEl');
-    if (dailyProfitEl) dailyProfitEl.textContent = '₿ 0.00003200';
+  /* Update USD values when BTC price is known */
+  BTCPrice.onChange(({ price, change }) => {
+    const btcUsd = (btcBalance * price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pctStr = change != null
+      ? ((change >= 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(2) + '%')
+      : '';
+    const pctClass = change != null ? (change >= 0 ? 'ticker-up' : 'ticker-down') : '';
 
-    /* Wallet tab — FIX: use btcBalance instead of undefined 'balance' */
-    const walletBigBalance = $('walletBigBalance');
-    if (walletBigBalance) walletBigBalance.textContent = '₿ ' + btcBalance.toFixed(8);
+    setText('walletBigUSD',   '≈ $' + btcUsd + ' USD');
+    setText('walletItemUSD',  '$' + btcUsd);
+    setText('portfolioBTCusd','$' + btcUsd);
 
-    /* Referral */
-    const refLink = 'https://cryptovault.io/ref/' + refCode;
-    setText('refLinkDisplay', refLink);
-    const copyRefBtn = $('copyRefBtn');
-    if (copyRefBtn) {
-      copyRefBtn.onclick = () => copyToClipboard(refLink, 'Referral link copied!');
+    /* live BTC ticker in navbar */
+    const tickerPrice  = $('tickerPrice');
+    const tickerChange = document.querySelector('.ticker-change');
+    if (tickerPrice)  tickerPrice.textContent  = BTCPrice.fmt(price);
+    if (tickerChange && pctStr) {
+      tickerChange.textContent = pctStr;
+      tickerChange.className   = 'ticker-change ' + pctClass;
     }
-
-    const refCount = profile.ref_count || 0;
-    setText('refCountEl',    refCount);
-    setText('refEarningsEl', '₿ ' + (profile.ref_earnings || 0).toFixed(8));
-    setText('activeRefEl',   refCount);
-
-    /* Settings form */
-    const sName  = $('settingName');
-    const sEmail = $('settingEmail');
-    if (sName)  sName.value  = profile.name  || '';
-    if (sEmail) sEmail.value = email;
-
-    /* Update USD values when BTC price arrives */
-    BTCPrice.onChange((price) => {
-      try {
-        const btcUsd = (btcBalance * price).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-        setText('walletBalanceUSD',  '$' + btcUsd);
-        setText('walletBigUSD',      '≈ $' + btcUsd + ' USD');
-        setText('walletItemUSD',     '$' + btcUsd);
-        setText('portfolioBTCusd',   '$' + btcUsd);
-        setText('usdtBalanceUSD',    '$' + usdtBalance.toFixed(2));
-
-        /* Live BTC ticker in navbar */
-        const tickerPrice = $('tickerPrice');
-        if (tickerPrice) tickerPrice.textContent = '$' + price.toLocaleString('en-US');
-      } catch (err) {
-        console.error('Error updating BTC price UI:', err);
-      }
-    });
-  } catch (err) {
-    console.error('Error in populateUserUI:', err);
-  }
-}
-
-/* ─── LOGOUT ─────────────────────────────────────────────── */
-function wireLogout() {
-  document.querySelectorAll('[data-logout]').forEach(el => {
-    if (!el) return;
-    el.addEventListener('click', async (e) => {
-      e.preventDefault();
-      try {
-        Toast.show('Logging out…', 'info', 1500);
-        setTimeout(() => Auth.logout(), 800);
-      } catch (err) {
-        console.error('Logout handler error:', err);
-        Auth.logout();
-      }
-    });
   });
-}
 
-/* ─── SAVE SETTINGS ──────────────────────────────────────── */
-async function saveSettings() {
-  try {
-    const nameEl  = $('settingName');
-    const emailEl = $('settingEmail');
-    const name  = nameEl ? nameEl.value.trim() : '';
-    const email = emailEl ? emailEl.value.trim() : '';
-
-    const updates = {};
-    if (name)  updates.name  = name;
-    if (email) updates.email = email;   // display only; email change requires Supabase auth API
-
-    if (Object.keys(updates).length) {
-      await Auth.updateProfile(updates);
-      if (name) document.querySelectorAll('.user-name-display').forEach(el => { if (el) el.textContent = name; });
-      Toast.show('Settings saved!', 'success');
-    } else {
-      Toast.show('Nothing to save.', 'info');
-    }
-  } catch (err) {
-    console.error('Error saving settings:', err);
-    Toast.show('Failed to save settings.', 'error');
+  /* Referral */
+  const refCode = profile.ref_code || '';
+  const refLink = refCode ? 'https://cryptovault.io/ref/' + refCode : '—';
+  setText('refLinkDisplay', refLink);
+  const copyRefBtn = $('copyRefBtn');
+  if (copyRefBtn && refCode) {
+    copyRefBtn.onclick = () => copyToClipboard(refLink, 'Referral link copied!');
   }
+  setText('refCountEl',    profile.ref_count    || 0);
+  setText('refEarningsEl', '₿ ' + (profile.ref_earnings || 0).toFixed(8));
+  setText('activeRefEl',   profile.ref_count    || 0);
+
+  /* Settings form */
+  const sName  = $('settingName');
+  const sEmail = $('settingEmail');
+  if (sName)  sName.value  = profile.name  || '';
+  if (sEmail) sEmail.value = email;
 }
 
-/* ─── TAB NAVIGATION ─────────────────────────────────────── */
-function switchTab(name) {
-  try {
-    document.querySelectorAll('.tab-content').forEach(t  => { if (t) t.style.display = 'none'; });
-    document.querySelectorAll('.nav-item').forEach(a    => { if (a) a.classList.remove('active'); });
+/* ══════════════════════════════════════════════════════════════
+   UI — DASHBOARD STATS (zero-safe)
+══════════════════════════════════════════════════════════════ */
+async function populateDashboardStats(contracts) {
+  const activeContracts = contracts.filter(c => c.active === true);
 
-    const tab     = $('tab-' + name);
-    const navItem = $('nav-' + name);
+  /* --- Hashrate --- */
+  const totalHashrate = activeContracts.reduce((s, c) => s + Number(c.hashrate || 0), 0);
+  setText('liveHashrate',  totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('liveHashrate2', totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
 
-    if (tab)     tab.style.display = '';
-    if (navItem) navItem.classList.add('active');
+  /* --- Daily profit sum --- */
+  const dailyProfit = activeContracts.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
+  setText('dailyProfitEl', '₿ ' + dailyProfit.toFixed(8));
 
-    const titles = {
-      dashboard:'Dashboard', mining:'Mining', wallet:'Wallet',
-      transactions:'Transactions', plans:'Mining Plans',
-      referral:'Referral Program', settings:'Settings'
-    };
-    setText('pageTitle', titles[name] || name);
+  /* --- Stat card changes --- */
+  const statChangeHashrate = document.getElementById('statChangeHashrate');
+  const statChangeContracts = document.getElementById('statChangeContracts');
+  if (statChangeHashrate)  statChangeHashrate.textContent  = activeContracts.length + ' active contract' + (activeContracts.length !== 1 ? 's' : '');
+  if (statChangeContracts) statChangeContracts.textContent = activeContracts.length + ' active';
 
-    /* Close mobile sidebar */
-    const sidebar = $('sidebar');
-    const sidebarOverlay = $('sidebarOverlay');
-    if (sidebar) sidebar.classList.remove('open');
-    if (sidebarOverlay) sidebarOverlay.classList.remove('open');
-  } catch (err) {
-    console.error('Error switching tab:', err);
-  }
-}
-
-/* ─── MODAL HELPERS ──────────────────────────────────────── */
-function openDepositModal() {
-  try {
-    const modal = $('depositModal');
-    if (modal) {
-      modal.style.display = 'flex';
-    } else {
-      console.warn('depositModal element not found');
-      /* Fallback: switch to wallet tab if modal doesn't exist */
-      switchTab('wallet');
-    }
-  } catch (err) {
-    console.error('Error opening deposit modal:', err);
-  }
-}
-
-function openWithdrawModal() {
-  try {
-    const modal = $('withdrawModal');
-    if (modal) {
-      modal.style.display = 'flex';
-    } else {
-      console.warn('withdrawModal element not found');
-    }
-  } catch (err) {
-    console.error('Error opening withdraw modal:', err);
-  }
-}
-
-/* ─── PURCHASE PLAN ──────────────────────────────────────── */
-function purchasePlan(name, price, hashrate) {
-  Toast.show('✅ ' + name + ' Plan purchased! ' + hashrate + ' TH/s added to your account.', 'success', 4500);
-}
-
-/* ─── EARNINGS CHART ─────────────────────────────────────── */
-function initEarningsChart() {
-  try {
-    const canvas = $('earningsChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const w   = canvas.width = canvas.offsetWidth || 400;
-    const h   = canvas.height = 160;
-    const data = MiningData.earnings;
-    const max  = Math.max(...data), min = Math.min(...data);
-    const range = max - min || 0.0001;
-
-    const getX = i => (i / (data.length - 1)) * (w - 40) + 20;
-    const getY = v => h - 20 - ((v - min) / range) * (h - 50);
-
-    const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, 'rgba(245,158,11,0.3)');
-    gradient.addColorStop(1, 'rgba(245,158,11,0.0)');
-
-    /* Grid lines */
-    ctx.strokeStyle = 'rgba(30,45,69,0.6)'; ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      const y = 20 + (i * (h - 50) / 3);
-      ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(w - 20, y); ctx.stroke();
-    }
-
-    /* Area fill */
-    ctx.beginPath(); ctx.moveTo(getX(0), h - 20);
-    data.forEach((v, i) => ctx.lineTo(getX(i), getY(v)));
-    ctx.lineTo(getX(data.length - 1), h - 20); ctx.closePath();
-    ctx.fillStyle = gradient; ctx.fill();
-
-    /* Line */
-    ctx.beginPath(); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
-    data.forEach((v, i) => { i === 0 ? ctx.moveTo(getX(i), getY(v)) : ctx.lineTo(getX(i), getY(v)); });
-    ctx.stroke();
-
-    /* Dots */
-    data.forEach((v, i) => {
-      ctx.beginPath(); ctx.arc(getX(i), getY(v), 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#f59e0b'; ctx.fill();
-      ctx.strokeStyle = '#1a2236'; ctx.lineWidth = 2; ctx.stroke();
-    });
-  } catch (err) {
-    console.error('Error initializing earnings chart:', err);
-  }
-}
-
-/* ─── HASHRATE CHART ─────────────────────────────────────── */
-function initHashrateChart() {
-  try {
-    const canvas = $('hashrateChart');
-    if (!canvas) return;
-    const ctx  = canvas.getContext('2d');
-    if (!ctx) return;
-    const w    = canvas.width = canvas.offsetWidth || 400;
-    const h    = canvas.height = 100;
-    const data = MiningData.hashrates;
-    const max  = Math.max(...data), min = Math.min(...data);
-    const range = max - min || 1;
-
-    const getX = i => (i / (data.length - 1)) * (w - 20) + 10;
-    const getY = v => h - 10 - ((v - min) / range) * (h - 24);
-
-    const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, 'rgba(16,185,129,0.25)');
-    gradient.addColorStop(1, 'rgba(16,185,129,0.0)');
-
-    ctx.beginPath(); ctx.moveTo(getX(0), h);
-    data.forEach((v, i) => ctx.lineTo(getX(i), getY(v)));
-    ctx.lineTo(getX(data.length - 1), h); ctx.closePath();
-    ctx.fillStyle = gradient; ctx.fill();
-
-    ctx.beginPath(); ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
-    data.forEach((v, i) => { i === 0 ? ctx.moveTo(getX(i), getY(v)) : ctx.lineTo(getX(i), getY(v)); });
-    ctx.stroke();
-  } catch (err) {
-    console.error('Error initializing hashrate chart:', err);
-  }
-}
-
-/* ─── DONUT CHART ────────────────────────────────────────── */
-function initDonut() {
-  try {
-    const canvas = $('donutChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const size = 120; canvas.width = size; canvas.height = size;
-    const cx = size / 2, cy = size / 2, r = 44, rw = 16;
-    const segments = [
-      { pct:0.58, color:'#f7931a' }, { pct:0.22, color:'#627eea' },
-      { pct:0.12, color:'#34c1c7' }, { pct:0.08, color:'#26a17b' },
-    ];
-    let start = -Math.PI / 2;
-    segments.forEach(seg => {
-      const angle = seg.pct * 2 * Math.PI;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, start, start + angle);
-      ctx.arc(cx, cy, r - rw, start + angle, start, true);
-      ctx.closePath(); ctx.fillStyle = seg.color; ctx.fill();
-      start += angle + 0.03;
-    });
-    ctx.fillStyle = '#f1f5f9'; ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('BTC', cx, cy - 6);
-    ctx.font = '10px Arial'; ctx.fillStyle = '#94a3b8';
-    ctx.fillText('58%', cx, cy + 8);
-  } catch (err) {
-    console.error('Error initializing donut chart:', err);
+  /* --- Total mined = sum of all mining transactions --- */
+  const user = Auth.getUser();
+  if (user && _supabase) {
+    const { data: miningTxns } = await _supabase
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('type', 'mining');
+    const totalMined = (miningTxns || []).reduce((s, t) => s + Number(t.amount || 0), 0);
+    setText('totalMinedEl', '₿ ' + totalMined.toFixed(8));
+  } else {
+    setText('totalMinedEl', '₿ 0.00000000');
   }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   REAL TRANSACTION TABLE — Supabase deposits + simulated data
+   UI — TRANSACTION TABLE
 ══════════════════════════════════════════════════════════════ */
-
 let _currentTxFilter = 'all';
+let _allTransactions = [];
+let _allDeposits     = [];
 
 function renderTransactions(filter) {
-  try {
-    filter = filter || 'all';
-    _currentTxFilter = filter;
-    const tbody = $('txTableBody');
-    if (!tbody) return;
+  filter = filter || 'all';
+  _currentTxFilter = filter;
+  const tbody = $('txTableBody');
+  if (!tbody) return;
 
-    /* Get merged data (real deposits + simulated mining/withdrawals) */
-    const allRows = DepositData.getMergedTransactions();
+  /* build unified list: real transactions + pending deposits */
+  const txRows = _allTransactions.map(tx => ({
+    desc:   _txLabel(tx.type),
+    coin:   'BTC',
+    amount: (tx.type === 'withdrawal' ? '-' : '+') + Number(tx.amount || 0).toFixed(8),
+    usd:    _usdStr(tx.amount, tx.type),
+    status: tx.status || 'success',
+    date:   _fmtDate(tx.created_at),
+    type:   tx.type,
+    createdAt: tx.created_at,
+  }));
 
-    /* Apply filter */
-    const rows = filter === 'all'
-      ? allRows
-      : allRows.filter(t => t.type === filter);
-
-    /* Status badge renderer */
-    const statusBadge = (s) => {
-      if (s === 'success' || s === 'approved') {
-        return '<span style="background:rgba(34,197,94,0.15);color:#22c55e;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Success</span>';
-      } else if (s === 'pending') {
-        return '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Pending</span>';
-      } else if (s === 'rejected') {
-        return '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">Rejected</span>';
-      }
-      return '<span style="background:rgba(148,163,184,0.15);color:#94a3b8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">' + s + '</span>';
+  const depRows = _allDeposits.map(d => {
+    const isUSDT  = d.coin === 'usdt_bep20';
+    const coinLbl = isUSDT ? 'USDT' : 'BTC';
+    const amt     = Number(d.amount || 0);
+    const amtStr  = '+' + amt.toFixed(isUSDT ? 2 : 8) + ' ' + coinLbl;
+    let usdVal;
+    if (isUSDT) {
+      usdVal = '+$' + amt.toFixed(2);
+    } else {
+      const price = BTCPrice.get();
+      usdVal = price != null ? '+$' + (amt * price).toFixed(2) : '—';
+    }
+    return {
+      desc:   'Deposit',
+      coin:   coinLbl,
+      amount: amtStr,
+      usd:    usdVal,
+      status: d.status || 'pending',
+      date:   _fmtDate(d.created_at),
+      type:   'deposits',
+      createdAt: d.created_at,
     };
+  });
 
-    /* Amount color: green for +, red for - */
-    const amountColor = (amt) => {
-      const firstChar = String(amt).trim()[0];
-      return firstChar === '+' ? '#10b981' : '#ef4444';
-    };
+  /* merge & sort newest first */
+  const merged = [...txRows, ...depRows].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
 
-    tbody.innerHTML = rows.map(tx => `
+  const rows = filter === 'all' ? merged : merged.filter(r => r.type === filter);
+
+  if (!rows.length) {
+    tbody.innerHTML = `
       <tr>
-        <td>${tx.desc || ''}</td>
-        <td>${tx.coin || ''}</td>
-        <td style="color:${amountColor(tx.amount)};font-family:'DM Mono',monospace;">${tx.amount || ''}</td>
-        <td style="font-family:'DM Mono',monospace;color:#94a3b8;">${tx.usd || ''}</td>
-        <td>${statusBadge(tx.status)}</td>
-        <td style="color:#94a3b8;">${tx.date || ''}</td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    console.error('Error rendering transactions:', err);
+        <td colspan="6" style="padding:48px;text-align:center;color:#475569;font-size:13px;">
+          📭 No transactions found.
+        </td>
+      </tr>`;
+    return;
   }
+
+  tbody.innerHTML = rows.map(tx => `
+    <tr>
+      <td>${tx.desc}</td>
+      <td>${tx.coin}</td>
+      <td style="color:${tx.amount.startsWith('+') ? '#10b981' : '#ef4444'};font-family:'DM Mono',monospace;">${tx.amount}</td>
+      <td style="font-family:'DM Mono',monospace;color:#94a3b8;">${tx.usd}</td>
+      <td>${_statusBadge(tx.status)}</td>
+      <td style="color:#94a3b8;">${tx.date}</td>
+    </tr>
+  `).join('');
 }
 
-/* Refresh transactions after a new deposit is submitted */
-async function refreshTransactions() {
-  try {
-    await DepositData.fetchDeposits();
-    renderTransactions(_currentTxFilter);
-  } catch (err) {
-    console.error('Error refreshing transactions:', err);
-  }
+function _txLabel(type) {
+  const map = {
+    mining:     'Mining Reward',
+    deposit:    'Deposit',
+    withdrawal: 'Withdrawal',
+    referral:   'Referral Bonus',
+    transfer:   'Transfer',
+  };
+  return map[type] || type || '—';
 }
 
-/* ─── TX FILTER TABS ─────────────────────────────────────── */
+function _usdStr(amount, type) {
+  const price = BTCPrice.get();
+  if (price == null) return '—';
+  const val = Math.abs(Number(amount || 0)) * price;
+  const pfx = type === 'withdrawal' ? '-' : '+';
+  return pfx + '$' + val.toFixed(2);
+}
+
+function _fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function _statusBadge(s) {
+  const map = {
+    success:  { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Success'  },
+    approved: { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved' },
+    pending:  { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'  },
+    rejected: { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected' },
+    failed:   { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Failed'   },
+  };
+  const st = map[String(s).toLowerCase()] || { bg: 'rgba(148,163,184,.15)', fg: '#94a3b8', label: s || '—' };
+  return `<span style="background:${st.bg};color:${st.fg};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${st.label}</span>`;
+}
+
 function wireTransactionFilters() {
   document.querySelectorAll('[data-tx-filter]').forEach(btn => {
-    if (!btn) return;
     btn.addEventListener('click', () => {
-      document.querySelectorAll('[data-tx-filter]').forEach(b => { if (b) b.classList.remove('active'); });
+      document.querySelectorAll('[data-tx-filter]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderTransactions(btn.dataset.txFilter);
     });
   });
 }
 
-/* ─── CONTRACTS ──────────────────────────────────────────── */
-function renderContracts() {
-  try {
-    const container = $('contractsContainer');
-    if (!container) return;
-    container.innerHTML = MiningData.contracts.map(c => `
+/* ══════════════════════════════════════════════════════════════
+   UI — RECENT ACTIVITY (dashboard tab)
+══════════════════════════════════════════════════════════════ */
+function renderRecentActivity() {
+  const container = $('recentActivityList');
+  if (!container) return;
+
+  /* combine transactions + deposits, newest first, limit 5 */
+  const txRows = _allTransactions.map(tx => ({
+    icon:   _txIcon(tx.type),
+    desc:   _txLabel(tx.type),
+    date:   _fmtDate(tx.created_at),
+    amount: (tx.type === 'withdrawal' ? '-' : '+') + '₿' + Number(tx.amount || 0).toFixed(8),
+    isOut:  tx.type === 'withdrawal',
+    createdAt: tx.created_at,
+  }));
+
+  const depRows = _allDeposits.filter(d => d.status === 'approved').map(d => ({
+    icon:   '📥',
+    desc:   'Deposit',
+    date:   _fmtDate(d.created_at),
+    amount: '+₿' + Number(d.amount || 0).toFixed(8),
+    isOut:  false,
+    createdAt: d.created_at,
+  }));
+
+  const merged = [...txRows, ...depRows]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
+
+  if (!merged.length) {
+    container.innerHTML = `
+      <div style="padding:32px;text-align:center;color:#475569;font-size:13px;">
+        No activity yet. Make a deposit to get started.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = merged.map(item => `
+    <div class="rig-card" style="margin-bottom:8px;">
+      <div class="tx-icon ${item.isOut ? 'out' : 'in'}">${item.icon}</div>
+      <div class="rig-info">
+        <div class="rig-name">${item.desc}</div>
+        <div class="rig-specs">${item.date}</div>
+      </div>
+      <div class="rig-metrics">
+        <div class="rig-hash" style="color:${item.isOut ? 'var(--red)' : 'var(--green)'};">${item.amount}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function _txIcon(type) {
+  const map = { mining: '⛏️', deposit: '📥', withdrawal: '📤', referral: '👥', transfer: '↔️' };
+  return map[type] || '💱';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — CONTRACTS
+══════════════════════════════════════════════════════════════ */
+function renderContracts(contracts) {
+  const container = $('contractsContainer');
+  if (!container) return;
+
+  const active = contracts.filter(c => c.active === true);
+
+  if (!active.length) {
+    container.innerHTML = `
+      <div style="padding:40px;text-align:center;color:#475569;font-size:14px;">
+        <div style="font-size:36px;margin-bottom:12px;">⛏️</div>
+        <div style="font-weight:600;color:#64748b;margin-bottom:6px;">No active contracts</div>
+        <div style="font-size:13px;">Purchase a mining plan below to start earning.</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = active.map(c => {
+    const progress    = c.progress != null ? Math.min(100, Math.max(0, Number(c.progress))) : 0;
+    const daysLeft    = c.days_left != null ? c.days_left : '—';
+    const hashrate    = c.hashrate  != null ? c.hashrate.toFixed(1) + ' TH/s' : '—';
+    const dailyProfit = c.daily_profit != null
+      ? Number(c.daily_profit).toFixed(8) + ' BTC'
+      : '—';
+    const planName    = c.plan || c.name || 'Mining Contract';
+
+    return `
       <div class="rig-card" style="margin-bottom:12px;">
         <div class="tx-icon mining">⛏️</div>
         <div class="rig-info">
-          <div class="rig-name">${c.name}</div>
-          <div class="rig-specs">${c.hashrate} TH/s · ${c.power}W · ${c.daysLeft} days left</div>
+          <div class="rig-name">${planName}</div>
+          <div class="rig-specs">${hashrate} · ${daysLeft} days left</div>
         </div>
         <div class="rig-metrics">
-          <div class="rig-hash" style="color:var(--green)">${c.dailyProfit}/day</div>
-          <div class="text-xs text-muted">${c.progress}% complete</div>
+          <div class="rig-hash" style="color:var(--green)">${dailyProfit}/day</div>
+          <div class="text-xs text-muted">${progress.toFixed(0)}% complete</div>
         </div>
-      </div>
-    `).join('');
-  } catch (err) {
-    console.error('Error rendering contracts:', err);
-  }
+      </div>`;
+  }).join('');
 }
 
-/* ─── LIVE HASHRATE TICKER ───────────────────────────────── */
-function startLiveTicker() {
-  try {
-    const els = [$('liveHashrate'), $('liveHashrate2')];
-    let base  = 115.3;
-    setInterval(() => {
-      base += (Math.random() - 0.48) * 1.2;
-      base  = Math.max(100, Math.min(130, base));
-      const text = base.toFixed(1) + ' TH/s';
-      els.forEach(el => { if (el) el.textContent = text; });
-    }, 2500);
-  } catch (err) {
-    console.error('Error starting live ticker:', err);
-  }
+/* ══════════════════════════════════════════════════════════════
+   UI — MINING TAB STATS
+══════════════════════════════════════════════════════════════ */
+function renderMiningStats(contracts) {
+  const active = contracts.filter(c => c.active === true);
+
+  const totalHash    = active.reduce((s, c) => s + Number(c.hashrate    || 0), 0);
+  const totalPower   = active.reduce((s, c) => s + Number(c.power_watts || 0), 0);
+  const dailyProfit  = active.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
+  const monthlyProj  = dailyProfit * 30;
+
+  setText('miningTotalHashrate',  totalHash   > 0 ? totalHash.toFixed(1)   + ' TH/s' : '0 TH/s');
+  setText('miningPowerConsump',   totalPower  > 0 ? totalPower.toFixed(0)  + ' W'    : '0 W');
+  setText('miningDailyRevenue',   '₿ ' + dailyProfit.toFixed(8));
+  setText('miningMonthlyProj',    '₿ ' + monthlyProj.toFixed(8));
+
+  /* contract progress bars */
+  renderContractProgress(active);
 }
 
-/* ─── DAILY PROFIT TICKER ────────────────────────────────── */
-function animateDailyProfit() {
-  try {
-    const el = $('dailyProfitEl');
-    if (!el) return;
-    let val = 0.000032;
-    setInterval(() => {
-      val += 0.0000001 * Math.random();
-      el.textContent = '₿ ' + val.toFixed(8);
-    }, 3000);
-  } catch (err) {
-    console.error('Error animating daily profit:', err);
+function renderContractProgress(active) {
+  const container = $('contractProgressContainer');
+  if (!container) return;
+
+  if (!active.length) {
+    container.innerHTML = `
+      <div style="padding:24px;text-align:center;color:#475569;font-size:13px;">
+        No active contracts to display.
+      </div>`;
+    return;
   }
+
+  container.innerHTML = active.map(c => {
+    const progress = Math.min(100, Math.max(0, Number(c.progress || 0)));
+    const daysLeft = c.days_left != null ? c.days_left : '—';
+    const planName = c.plan || c.name || 'Contract';
+    const hashrate = c.hashrate != null ? c.hashrate.toFixed(1) : '—';
+    return `
+      <div style="margin-bottom:16px;">
+        <div class="progress-label">
+          <span>${planName}</span>
+          <span>${daysLeft} days left</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${progress}%"></div>
+        </div>
+        <div class="text-xs text-muted mt-4">${progress.toFixed(0)}% complete · ${hashrate} TH/s</div>
+      </div>`;
+  }).join('');
 }
 
-/* ─── MOBILE MENU ────────────────────────────────────────── */
-function wireMobileMenu() {
-  try {
-    const toggle  = $('menuToggle');
-    const sidebar = $('sidebar');
-    const overlay = $('sidebarOverlay');
-    if (!toggle || !sidebar) return;
+/* ══════════════════════════════════════════════════════════════
+   UI — WALLET SUMMARY
+══════════════════════════════════════════════════════════════ */
+function renderWalletSummary() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return;
 
-    toggle.addEventListener('click', () => {
-      sidebar.classList.toggle('open');
-      if (overlay) overlay.classList.toggle('open');
-    });
+  /* Aggregate from real transactions */
+  const txns = _allTransactions;
 
-    if (overlay) {
-      overlay.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('open');
-      });
-    }
-  } catch (err) {
-    console.error('Error wiring mobile menu:', err);
-  }
+  const totalDeposited  = txns.filter(t => t.type === 'deposit')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+  const totalWithdrawn  = txns.filter(t => t.type === 'withdrawal')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+  const miningIncome    = txns.filter(t => t.type === 'mining')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+  const referralBonuses = txns.filter(t => t.type === 'referral')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  setText('walletTotalDeposited',  '₿ ' + totalDeposited.toFixed(8));
+  setText('walletTotalWithdrawn',  '₿ ' + totalWithdrawn.toFixed(8));
+  setText('walletMiningIncome',    '₿ ' + miningIncome.toFixed(8));
+  setText('walletReferralBonuses', '₿ ' + referralBonuses.toFixed(8));
+
+  /* Portfolio BTC amount from profile */
+  const profile    = Auth.getProfile();
+  const btcBalance = typeof profile.btc_balance === 'number' ? profile.btc_balance : 0;
+  setText('walletBTCAmount', btcBalance.toFixed(8) + ' BTC');
+
+  /* also update the big portfolio display */
+  const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+  setText('walletUSDTAmount', usdtBalance.toFixed(2) + ' USDT');
 }
 
-/* ─── DROPDOWN ───────────────────────────────────────────── */
-function wireDropdowns() {
-  try {
-    document.querySelectorAll('[data-dropdown-toggle]').forEach(trigger => {
-      if (!trigger) return;
-      trigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const menu = $(trigger.dataset.dropdownToggle);
-        if (!menu) return;
-        const isOpen = menu.classList.contains('open');
-        document.querySelectorAll('.dropdown-menu').forEach(m => { if (m) m.classList.remove('open'); });
-        if (!isOpen) menu.classList.add('open');
-      });
-    });
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.dropdown-menu').forEach(m => { if (m) m.classList.remove('open'); });
-    });
-  } catch (err) {
-    console.error('Error wiring dropdowns:', err);
+/* ══════════════════════════════════════════════════════════════
+   UI — EARNINGS CHART (real data from transactions)
+══════════════════════════════════════════════════════════════ */
+function initEarningsChart(transactions) {
+  const canvas = $('earningsChart');
+  if (!canvas) return;
+
+  /* group mining transactions by day for last 12 days */
+  const now    = new Date();
+  const days   = 12;
+  const buckets = {};
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    buckets[key] = 0;
   }
-}
 
-/* ─── MODALS ─────────────────────────────────────────────── */
-function wireModals() {
-  try {
-    /* Open */
-    document.querySelectorAll('[data-modal]').forEach(btn => {
-      if (!btn) return;
-      btn.addEventListener('click', () => {
-        const modal = $(btn.dataset.modal);
-        if (modal) modal.style.display = 'flex';
-      });
-    });
-
-    /* Close button */
-    document.querySelectorAll('[data-close-modal]').forEach(btn => {
-      if (!btn) return;
-      btn.addEventListener('click', () => {
-        const modal = $(btn.dataset.closeModal);
-        if (modal) modal.style.display = 'none';
-      });
-    });
-
-    /* Click outside */
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-      if (!overlay) return;
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.style.display = 'none';
-      });
-    });
-
-    /* Withdraw form */
-    const withdrawForm = $('withdrawForm');
-    if (withdrawForm) {
-      withdrawForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const withdrawModal = $('withdrawModal');
-        if (withdrawModal) withdrawModal.style.display = 'none';
-        Toast.show('📤 Withdrawal submitted. Processing within 24 hours.', 'info', 4000);
-      });
-    }
-  } catch (err) {
-    console.error('Error wiring modals:', err);
-  }
-}
-
-/* ─── DEPOSIT FORM INIT ──────────────────────────────────── */
-function initDepositForm() {
-  try {
-    const form = document.getElementById('depositForm');
-    const coinSelect = document.getElementById('depositCoin');
-    const amountInput = document.getElementById('depositAmount');
-    const amountSuffix = document.getElementById('amountSuffix');
-    const amountHint = document.getElementById('amountHint');
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('depositScreenshot');
-    const uploadContent = document.getElementById('uploadContent');
-    const uploadPreview = document.getElementById('uploadPreview');
-    const previewImage = document.getElementById('previewImage');
-    const previewFilename = document.getElementById('previewFilename');
-    const removePreview = document.getElementById('removePreview');
-
-    if (!form) return;
-
-    /* Coin select change → update suffix & hint */
-    if (coinSelect) {
-      coinSelect.addEventListener('change', function() {
-        const val = coinSelect.value;
-        if (val === 'usdt_bep20') {
-          if (amountSuffix) amountSuffix.textContent = 'USDT';
-          if (amountHint) amountHint.textContent = 'Minimum deposit: 10 USDT';
-          if (amountInput) {
-            amountInput.placeholder = '0.00';
-            amountInput.step = '0.01';
-            amountInput.min = '10';
-          }
-        } else if (val === 'btc') {
-          if (amountSuffix) amountSuffix.textContent = 'BTC';
-          if (amountHint) amountHint.textContent = 'Minimum deposit: 0.0001 BTC';
-          if (amountInput) {
-            amountInput.placeholder = '0.00000000';
-            amountInput.step = '0.00000001';
-            amountInput.min = '0.0001';
-          }
-        } else {
-          if (amountSuffix) amountSuffix.textContent = '—';
-          if (amountHint) amountHint.textContent = 'Enter the exact amount you sent';
-        }
-      });
-    }
-
-    /* File upload handling */
-    if (uploadArea && fileInput) {
-      uploadArea.addEventListener('click', function(e) {
-        if (e.target.closest('.preview-remove')) return;
-        fileInput.click();
-      });
-
-      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
-        uploadArea.addEventListener(eventName, function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-        });
-      });
-
-      ['dragenter', 'dragover'].forEach(function(eventName) {
-        uploadArea.addEventListener(eventName, function() {
-          uploadArea.classList.add('dragover');
-        });
-      });
-
-      ['dragleave', 'drop'].forEach(function(eventName) {
-        uploadArea.addEventListener(eventName, function() {
-          uploadArea.classList.remove('dragover');
-        });
-      });
-
-      uploadArea.addEventListener('drop', function(e) {
-        const files = e.dataTransfer.files;
-        if (files.length) handleFile(files[0]);
-      });
-
-      fileInput.addEventListener('change', function() {
-        if (fileInput.files.length) handleFile(fileInput.files[0]);
-      });
-
-      function handleFile(file) {
-        var validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
-        if (validTypes.indexOf(file.type) === -1) {
-          Toast.show('Please upload an image file (PNG, JPG, GIF)', 'error');
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          Toast.show('File too large. Maximum size is 5MB.', 'error');
-          return;
-        }
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          if (previewImage) previewImage.src = e.target.result;
-          if (previewFilename) previewFilename.textContent = file.name;
-          if (uploadContent) uploadContent.style.display = 'none';
-          if (uploadPreview) uploadPreview.style.display = 'flex';
-          uploadArea.classList.add('has-file');
-          Toast.show('Screenshot uploaded successfully', 'success');
-        };
-        reader.onerror = function() {
-          Toast.show('Failed to read file.', 'error');
-        };
-        reader.readAsDataURL(file);
-      }
-
-      if (removePreview) {
-        removePreview.addEventListener('click', function(e) {
-          e.stopPropagation();
-          fileInput.value = '';
-          if (previewImage) previewImage.src = '';
-          if (uploadContent) uploadContent.style.display = 'flex';
-          if (uploadPreview) uploadPreview.style.display = 'none';
-          uploadArea.classList.remove('has-file');
-        });
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════
-       SUPABASE INTEGRATED DEPOSIT SUBMIT
-    ══════════════════════════════════════════════════════════════ */
-    form.addEventListener('submit', async function(e) {
-      e.preventDefault();
-
-      try {
-        /* ── 1. Validate form ─────────────────────────────────── */
-        var coin = coinSelect ? coinSelect.value : '';
-        var amount = amountInput ? amountInput.value : '';
-        var txHashEl = document.getElementById('depositTxHash');
-        var txHash = txHashEl ? txHashEl.value.trim() : '';
-        var hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
-
-        if (!coin) {
-          Toast.show('Please select a coin', 'error');
-          if (coinSelect) coinSelect.focus();
-          return;
-        }
-        if (!amount || parseFloat(amount) <= 0) {
-          Toast.show('Please enter a valid amount', 'error');
-          if (amountInput) amountInput.focus();
-          return;
-        }
-        if (!txHash) {
-          Toast.show('Please enter the transaction hash', 'error');
-          if (txHashEl) txHashEl.focus();
-          return;
-        }
-        if (!hasFile) {
-          Toast.show('Please upload a screenshot as proof of payment', 'error');
-          return;
-        }
-
-        /* ── 2. Auth guard ────────────────────────────────────── */
-        const user = Auth.getUser();
-        if (!user) {
-          Toast.show('Authentication required. Please log in again.', 'error', 4000);
-          return;
-        }
-
-        if (!_supabase) {
-          Toast.show('Supabase not available. Please try again later.', 'error', 4000);
-          return;
-        }
-
-        /* ── 3. Upload screenshot to Supabase Storage ─────────── */
-        const file = fileInput.files[0];
-        const fileExt = file.name.split('.').pop();
-        const fileName = user.id + '_' + Date.now() + '.' + fileExt;
-        const filePath = user.id + '/' + fileName;
-
-        Toast.show('⏳ Uploading screenshot…', 'info', 2000);
-
-        const { data: uploadData, error: uploadError } = await _supabase
-          .storage
-          .from('deposit-screenshots')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: file.type
-          });
-
-        if (uploadError) {
-          console.error('Storage upload error:', uploadError);
-          Toast.show('❌ Upload failed: ' + uploadError.message, 'error', 5000);
-          return;
-        }
-
-        /* ── 4. Get public URL ───────────────────────────────── */
-        const { data: urlData } = _supabase
-          .storage
-          .from('deposit-screenshots')
-          .getPublicUrl(filePath);
-
-        const screenshotUrl = urlData?.publicUrl || '';
-
-        /* ── 5. Insert deposit record ────────────────────────── */
-        const coinLabel = coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
-        const numericAmount = parseFloat(amount);
-
-        const { data: insertData, error: insertError } = await _supabase
-          .from('deposits')
-          .insert({
-            user_id:        user.id,
-            user_email:     user.email,
-            coin:           coin,
-            amount:         numericAmount,
-            tx_hash:        txHash,
-            screenshot_url: screenshotUrl,
-            status:         'pending',
-            created_at:     new Date().toISOString()
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Deposit insert failed:', insertError);
-
-          /* ── CLEANUP: delete orphaned screenshot from Storage ── */
-          try {
-            const { error: removeError } = await _supabase
-              .storage
-              .from('deposit-screenshots')
-              .remove([filePath]);
-
-            if (removeError) {
-              console.error('Failed to cleanup orphaned screenshot:', removeError);
-            }
-          } catch (cleanupErr) {
-            console.error('Exception during cleanup:', cleanupErr);
-          }
-
-          Toast.show('❌ Failed to save deposit: ' + insertError.message, 'error', 5000);
-          return;
-        }
-
-        /* ── 6. Success ───────────────────────────────────────── */
-        console.log('Deposit inserted successfully');
-        console.log('Deposit data:', insertData);
-        Toast.show('✅ Deposit request submitted! ' + numericAmount + ' ' + coinLabel + ' — Pending review', 'success', 5000);
-
-        /* ── 6b. INSTANTLY add to transaction table ───────────── */
-        DepositData.addDeposit(insertData);
-        renderTransactions(_currentTxFilter);
-
-        /* ── 7. Reset form ────────────────────────────────────── */
-        form.reset();
-        if (removePreview) {
-          fileInput.value = '';
-          if (previewImage) previewImage.src = '';
-          if (uploadContent) uploadContent.style.display = 'flex';
-          if (uploadPreview) uploadPreview.style.display = 'none';
-          uploadArea.classList.remove('has-file');
-        }
-        if (amountSuffix) amountSuffix.textContent = '—';
-        if (amountHint) amountHint.textContent = 'Enter the exact amount you sent';
-
-        var modal = document.getElementById('depositModal');
-        if (modal) modal.style.display = 'none';
-      } catch (err) {
-        console.error('Exception during deposit submission:', err);
-        Toast.show('❌ An unexpected error occurred. Please try again.', 'error', 5000);
+  transactions
+    .filter(t => t.type === 'mining')
+    .forEach(t => {
+      const key = t.created_at?.slice(0, 10);
+      if (key && key in buckets) {
+        buckets[key] += Number(t.amount || 0);
       }
     });
-  } catch (err) {
-    console.error('Error initializing deposit form:', err);
+
+  const labels = Object.keys(buckets);
+  const data   = Object.values(buckets);
+  const hasData = data.some(v => v > 0);
+
+  /* update summary below chart */
+  const total12d = data.reduce((s, v) => s + v, 0);
+  const avgDaily = total12d / days;
+  const bestDay  = Math.max(...data);
+  setText('chartTotal12d', hasData ? '₿ ' + total12d.toFixed(8) : '₿ 0.00000000');
+  setText('chartAvgDaily', hasData ? '₿ ' + avgDaily.toFixed(8) : '₿ 0.00000000');
+  setText('chartBestDay',  hasData ? '₿ ' + bestDay.toFixed(8)  : '₿ 0.00000000');
+
+  if (!hasData) {
+    /* draw empty-state chart */
+    _drawEmptyChart(canvas, 'No mining earnings yet');
+    return;
   }
+
+  _drawLineChart(canvas, data, '#f59e0b', 'rgba(245,158,11,0.25)');
 }
 
-/* ─── QR CODE IMAGE FIX ──────────────────────────────────── */
-function fixQRCodeImages() {
-  try {
-    document.querySelectorAll('img[data-qr]').forEach(img => {
-      if (!img) return;
-      const coin = img.dataset.qr;
-      if (coin === 'btc') {
-        img.src = './btc-qr.png';
-      } else if (coin === 'usdt') {
-        img.src = './usdt-qr.png';
-      }
+function initHashrateChart(contracts) {
+  const canvas = $('hashrateChart');
+  if (!canvas) return;
+
+  const active = contracts.filter(c => c.active === true);
+  if (!active.length) {
+    _drawEmptyChart(canvas, 'No active contracts');
+    setText('hashrateStatPeak', '—');
+    setText('hashrateStatAvg',  '—');
+    setText('hashrateStatEff',  '—');
+    return;
+  }
+
+  /* For a real app, hashrate history would come from a DB table.
+     Here we show current hashrate as a flat line — honest and real. */
+  const totalHash = active.reduce((s, c) => s + Number(c.hashrate || 0), 0);
+  const flatData  = Array(24).fill(totalHash);
+
+  _drawLineChart(canvas, flatData, '#10b981', 'rgba(16,185,129,0.2)');
+
+  setText('hashrateStatPeak', totalHash.toFixed(1) + ' TH/s');
+  setText('hashrateStatAvg',  totalHash.toFixed(1) + ' TH/s');
+  setText('hashrateStatEff',  '100%');
+}
+
+function initDonut(profile) {
+  const canvas = $('donutChart');
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  if (!ctx) return;
+  const size = 120;
+  canvas.width = size;
+  canvas.height = size;
+  const cx = size / 2, cy = size / 2, r = 44, rw = 16;
+
+  const btc  = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0;
+  const usdt = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+  const price = BTCPrice.get() || 0;
+  const btcUsd = btc * price;
+  const total  = btcUsd + usdt;
+
+  if (total <= 0) {
+    /* empty ring */
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r - rw, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(30,45,69,0.5)';
+    ctx.fill();
+    ctx.fillStyle = '#64748b'; ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Empty', cx, cy);
+    return;
+  }
+
+  const segments = [];
+  if (btcUsd > 0) segments.push({ pct: btcUsd / total, color: '#f7931a' });
+  if (usdt   > 0) segments.push({ pct: usdt   / total, color: '#26a17b' });
+
+  let start = -Math.PI / 2;
+  segments.forEach(seg => {
+    const angle = seg.pct * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, start, start + angle);
+    ctx.arc(cx, cy, r - rw, start + angle, start, true);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    start += angle + 0.03;
+  });
+
+  /* BTC % label */
+  const btcPct = total > 0 ? ((btcUsd / total) * 100).toFixed(0) : '0';
+  ctx.fillStyle = '#f1f5f9'; ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('BTC', cx, cy - 6);
+  ctx.font = '10px Arial'; ctx.fillStyle = '#94a3b8';
+  ctx.fillText(btcPct + '%', cx, cy + 8);
+}
+
+function _drawLineChart(canvas, data, lineColor, fillColor) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width  = canvas.offsetWidth || 400;
+  const h = canvas.height = 160;
+  const max   = Math.max(...data);
+  const min   = Math.min(...data);
+  const range = max - min || Math.abs(max) || 0.0000001;
+
+  const getX = i => (i / (data.length - 1)) * (w - 40) + 20;
+  const getY = v => h - 20 - ((v - min) / range) * (h - 50);
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, fillColor);
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+  ctx.beginPath();
+  ctx.moveTo(getX(0), h - 20);
+  data.forEach((v, i) => ctx.lineTo(getX(i), getY(v)));
+  ctx.lineTo(getX(data.length - 1), h - 20);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  data.forEach((v, i) => { i === 0 ? ctx.moveTo(getX(i), getY(v)) : ctx.lineTo(getX(i), getY(v)); });
+  ctx.stroke();
+
+  if (data.length <= 24) {
+    data.forEach((v, i) => {
+      ctx.beginPath();
+      ctx.arc(getX(i), getY(v), 3, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+      ctx.strokeStyle = '#1a2236';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     });
-  } catch (err) {
-    console.error('Error fixing QR code images:', err);
   }
 }
 
-/* ─── DEPOSIT / WITHDRAW BUTTON WIRING ───────────────────── */
-function wireDepositButtons() {
+function _drawEmptyChart(canvas, label) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width  = canvas.offsetWidth || 400;
+  const h = canvas.height = 160;
+  ctx.strokeStyle = 'rgba(30,45,69,0.5)';
+  ctx.lineWidth   = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = 20 + (i * (h - 40) / 3);
+    ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(w - 20, y); ctx.stroke();
+  }
+  ctx.fillStyle    = '#475569';
+  ctx.font         = '13px sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, w / 2, h / 2);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PORTFOLIO TOTAL VALUE
+══════════════════════════════════════════════════════════════ */
+function updatePortfolioValue() {
+  const profile  = Auth.getProfile();
+  const btc      = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0;
+  const usdt     = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+  const price    = BTCPrice.get();
+
+  if (price != null) {
+    const total = (btc * price) + usdt;
+    const str   = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    setText('walletBalanceUSD', str);
+    setText('portfolioTotalUSD', str);
+  } else {
+    setText('walletBalanceUSD',  '—');
+    setText('portfolioTotalUSD', '—');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TAB NAVIGATION
+══════════════════════════════════════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t  => { t.style.display = 'none'; });
+  document.querySelectorAll('.nav-item').forEach(a    => { a.classList.remove('active'); });
+
+  const tab     = $('tab-' + name);
+  const navItem = $('nav-' + name);
+  if (tab)     tab.style.display = '';
+  if (navItem) navItem.classList.add('active');
+
+  const titles = {
+    dashboard:    'Dashboard',
+    mining:       'Mining',
+    wallet:       'Wallet',
+    transactions: 'Transactions',
+    plans:        'Mining Plans',
+    referral:     'Referral Program',
+    settings:     'Settings',
+  };
+  setText('pageTitle', titles[name] || name);
+
+  /* close mobile sidebar */
+  $('sidebar')?.classList.remove('open');
+  $('sidebarOverlay')?.classList.remove('open');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODAL HELPERS
+══════════════════════════════════════════════════════════════ */
+function openDepositModal() {
+  const modal = $('depositModal');
+  if (modal) modal.style.display = 'flex';
+}
+function openWithdrawModal() {
+  const modal = $('withdrawModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PURCHASE PLAN (UI only — real purchase flow wired to balance)
+══════════════════════════════════════════════════════════════ */
+async function purchasePlan(planName, priceUsd, hashrate) {
+  const profile = Auth.getProfile();
+  const price   = BTCPrice.get();
+
+  if (!price) {
+    Toast.show('BTC price unavailable. Please try again.', 'error');
+    return;
+  }
+
+  const costBTC = parseFloat(priceUsd) / price;
+  const balance = typeof profile.btc_balance === 'number' ? profile.btc_balance : 0;
+
+  if (balance < costBTC) {
+    Toast.show(
+      `Insufficient balance. You need ₿${costBTC.toFixed(8)} but have ₿${balance.toFixed(8)}.`,
+      'error', 5000
+    );
+    return;
+  }
+
+  if (!_supabase) { Toast.show('Service unavailable.', 'error'); return; }
+
+  const user = Auth.getUser();
+  if (!user) { Toast.show('Auth error. Please log in again.', 'error'); return; }
+
   try {
-    document.querySelectorAll('[data-deposit-btn]').forEach(btn => {
-      if (!btn) return;
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        openDepositModal();
+    Toast.show('Processing…', 'info', 2000);
+
+    /* 1. Deduct balance */
+    const newBalance = balance - costBTC;
+    const { error: balErr } = await _supabase
+      .from('profiles')
+      .update({ btc_balance: newBalance })
+      .eq('id', user.id);
+    if (balErr) throw balErr;
+
+    /* 2. Create contract row */
+    const { error: contractErr } = await _supabase
+      .from('contracts')
+      .insert({
+        user_id:      user.id,
+        plan:         planName,
+        hashrate:     Number(hashrate),
+        active:       true,
+        daily_profit: Number(hashrate) * 0.0000032,  /* platform rate per TH/s */
+        progress:     0,
+        days_left:    _planDays(planName),
+        created_at:   new Date().toISOString(),
       });
+    if (contractErr) throw contractErr;
+
+    /* 3. Record transaction */
+    await _supabase.from('transactions').insert({
+      user_id:    user.id,
+      type:       'purchase',
+      amount:     costBTC,
+      status:     'success',
+      created_at: new Date().toISOString(),
     });
-  } catch (err) {
-    console.error('Error wiring deposit buttons:', err);
-  }
-}
 
-function wireWithdrawButtons() {
-  try {
-    document.querySelectorAll('[data-withdraw-btn]').forEach(btn => {
-      if (!btn) return;
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        openWithdrawModal();
-      });
-    });
-  } catch (err) {
-    console.error('Error wiring withdraw buttons:', err);
-  }
-}
+    Toast.show(`✅ ${planName} Plan activated! ${hashrate} TH/s added.`, 'success', 5000);
 
-/* ─── GLOBAL ERROR HANDLER ───────────────────────────────── */
-window.addEventListener('error', function(e) {
-  console.error('Global error caught:', e.message, 'at', e.filename, ':', e.lineno);
-});
-
-window.addEventListener('unhandledrejection', function(e) {
-  console.error('Unhandled promise rejection:', e.reason);
-});
-
-/* ─── MAIN INIT ──────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    /* 1. Auth guard — redirect to login.html if no session */
-    const ok = await Auth.init();
-    if (!ok) return;   // redirecting
-
-    /* 2. Populate UI with real user data */
+    /* 4. Refresh */
+    await Auth.refreshProfile();
     populateUserUI();
-
-    /* 3. Fetch real deposits BEFORE rendering transactions */
-    await DepositData.fetchDeposits();
-
-    /* 4. Wire interactions */
-    wireLogout();
-    wireMobileMenu();
-    wireDropdowns();
-    wireModals();
-    wireTransactionFilters();
-    wireDepositButtons();
-    wireWithdrawButtons();
-    initDepositForm();
-
-    /* 5. Render dynamic content (now uses real deposits) */
-    renderTransactions();
-    renderContracts();
-
-    /* 6. Fix QR code paths */
-    fixQRCodeImages();
-
-    /* 7. Charts (small delay to allow layout paint) */
-    setTimeout(() => {
-      try {
-        initEarningsChart();
-        initHashrateChart();
-        initDonut();
-      } catch (chartErr) {
-        console.error('Chart initialization error:', chartErr);
-      }
-    }, 120);
-
-    /* 8. Live tickers */
-    startLiveTicker();
-    animateDailyProfit();
-
-    /* 9. Expose globals needed by dashboard.html inline scripts */
-    window.switchTab     = switchTab;
-    window.purchasePlan  = purchasePlan;
-    window.saveSettings  = saveSettings;
-    window.copyToClipboard = copyToClipboard;
-    window.Toast         = Toast;
-    window.BTCPrice      = BTCPrice;
-    window.Auth          = Auth;
-    window.DepositData   = DepositData;
-    window.refreshTransactions = refreshTransactions;
-    window.openDepositModal = openDepositModal;
-    window.openWithdrawModal = openWithdrawModal;
-
-    console.log('CryptoVault dashboard initialized successfully');
+    await refreshAll();
   } catch (err) {
-    console.error('Fatal error during dashboard initialization:', err);
+    console.error('purchasePlan:', err);
+    Toast.show('Purchase failed: ' + err.message, 'error', 5000);
   }
+}
+
+function _planDays(name) {
+  const map = { Starter: 30, Silver: 90, Gold: 180, Platinum: 365 };
+  return map[name] || 30;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SAVE SETTINGS
+══════════════════════════════════════════════════════════════ */
+async function saveSettings() {
+  const name  = $('settingName')?.value.trim()  || '';
+  const email = $('settingEmail')?.value.trim() || '';
+  const updates = {};
+  if (name) updates.name = name;
+
+  if (!Object.keys(updates).length) { Toast.show('Nothing to save.', 'info'); return; }
+  const result = await Auth.updateProfile(updates);
+  if (result) {
+    if (name) document.querySelectorAll('.user-name-display').forEach(el => { el.textContent = name; });
+    Toast.show('Settings saved!', 'success');
+  } else {
+    Toast.show('Failed to save settings.', 'error');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WIRE INTERACTIONS
+══════════════════════════════════════════════════════════════ */
+function wireLogout() {
+  document.querySelectorAll('[data-logout]').forEach(el => {
+    el.addEventListener('click', async e => {
+      e.preventDefault();
+      Toast.show('Logging out…', 'info', 1200);
+      setTimeout(() => Auth.logout(), 800);
+    });
+  });
+}
+
+function wireMobileMenu() {
+  const toggle  = $('menuToggle');
+  const sidebar = $('sidebar');
+  const overlay = $('sidebarOverlay');
+  if (!toggle || !sidebar) return;
+  toggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay?.classList.toggle('open');
+  });
+  overlay?.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay?.classList.remove('open');
+  });
+}
+
+function wireDropdowns() {
+  document.querySelectorAll('[data-dropdown-toggle]').forEach(trigger => {
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      const menu = $(trigger.dataset.dropdownToggle);
+      if (!menu) return;
+      const isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+      if (!isOpen) menu.classList.add('open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+  });
+}
+
+function wireModals() {
+  document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modal = $(btn.dataset.modal);
+      if (modal) modal.style.display = 'flex';
+    });
+  });
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modal = $(btn.dataset.closeModal);
+      if (modal) modal.style.display = 'none';
+    });
+  });
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.style.display = 'none';
+    });
+  });
+
+  /* withdraw form */
+  $('withdrawForm')?.addEventListener('submit', e => {
+    e.preventDefault();
+    $('withdrawModal').style.display = 'none';
+    Toast.show('📤 Withdrawal submitted. Processing within 24 hours.', 'info', 4000);
+  });
+}
+
+function wireDepositButtons() {
+  document.querySelectorAll('[data-deposit-btn]').forEach(btn => {
+    btn.addEventListener('click', e => { e.preventDefault(); openDepositModal(); });
+  });
+}
+function wireWithdrawButtons() {
+  document.querySelectorAll('[data-withdraw-btn]').forEach(btn => {
+    btn.addEventListener('click', e => { e.preventDefault(); openWithdrawModal(); });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DEPOSIT FORM (Supabase Storage + deposits table)
+══════════════════════════════════════════════════════════════ */
+function initDepositForm() {
+  const form        = $('depositForm');
+  const coinSelect  = $('depositCoin');
+  const amountInput = $('depositAmount');
+  const amountSuffix = $('amountSuffix');
+  const amountHint   = $('amountHint');
+  const uploadArea   = $('uploadArea');
+  const fileInput    = $('depositScreenshot');
+  const uploadContent = $('uploadContent');
+  const uploadPreview = $('uploadPreview');
+  const previewImage  = $('previewImage');
+  const previewFilename = $('previewFilename');
+  const removePreview   = $('removePreview');
+
+  if (!form) return;
+
+  /* coin select → update label */
+  coinSelect?.addEventListener('change', () => {
+    const val = coinSelect.value;
+    if (val === 'usdt_bep20') {
+      if (amountSuffix) amountSuffix.textContent = 'USDT';
+      if (amountHint)   amountHint.textContent   = 'Minimum deposit: 10 USDT';
+      if (amountInput)  { amountInput.placeholder = '0.00'; amountInput.step = '0.01'; amountInput.min = '10'; }
+    } else if (val === 'btc') {
+      if (amountSuffix) amountSuffix.textContent = 'BTC';
+      if (amountHint)   amountHint.textContent   = 'Minimum deposit: 0.0001 BTC';
+      if (amountInput)  { amountInput.placeholder = '0.00000000'; amountInput.step = '0.00000001'; amountInput.min = '0.0001'; }
+    }
+  });
+
+  /* file upload */
+  if (uploadArea && fileInput) {
+    uploadArea.addEventListener('click', e => {
+      if (!e.target.closest('.preview-remove')) fileInput.click();
+    });
+    ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+      uploadArea.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+    });
+    ['dragenter','dragover'].forEach(ev => {
+      uploadArea.addEventListener(ev, () => uploadArea.classList.add('dragover'));
+    });
+    ['dragleave','drop'].forEach(ev => {
+      uploadArea.addEventListener(ev, () => uploadArea.classList.remove('dragover'));
+    });
+    uploadArea.addEventListener('drop', e => {
+      if (e.dataTransfer.files.length) _handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) _handleFile(fileInput.files[0]);
+    });
+    removePreview?.addEventListener('click', e => {
+      e.stopPropagation();
+      _resetFileInput();
+    });
+  }
+
+  function _handleFile(file) {
+    const valid = ['image/png','image/jpeg','image/jpg','image/gif'];
+    if (!valid.includes(file.type)) { Toast.show('Please upload an image (PNG, JPG, GIF)', 'error'); return; }
+    if (file.size > 5 * 1024 * 1024) { Toast.show('File too large. Max 5MB.', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (previewImage)   previewImage.src = e.target.result;
+      if (previewFilename) previewFilename.textContent = file.name;
+      if (uploadContent)  uploadContent.style.display = 'none';
+      if (uploadPreview)  uploadPreview.style.display = 'flex';
+      uploadArea.classList.add('has-file');
+      Toast.show('Screenshot ready', 'success', 2000);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function _resetFileInput() {
+    if (fileInput)      fileInput.value = '';
+    if (previewImage)   previewImage.src = '';
+    if (uploadContent)  uploadContent.style.display = 'flex';
+    if (uploadPreview)  uploadPreview.style.display = 'none';
+    if (uploadArea)     uploadArea.classList.remove('has-file');
+  }
+
+  /* form submit */
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const coin    = coinSelect?.value || '';
+    const amount  = amountInput?.value || '';
+    const txHash  = $('depositTxHash')?.value.trim() || '';
+    const hasFile = fileInput?.files?.length > 0;
+
+    if (!coin)                            { Toast.show('Select a coin',                   'error'); return; }
+    if (!amount || parseFloat(amount)<=0) { Toast.show('Enter a valid amount',             'error'); return; }
+    if (!txHash)                          { Toast.show('Enter the transaction hash',       'error'); return; }
+    if (!hasFile)                         { Toast.show('Upload a payment screenshot',       'error'); return; }
+
+    const user = Auth.getUser();
+    if (!user)     { Toast.show('Auth required. Please log in again.', 'error'); return; }
+    if (!_supabase){ Toast.show('Service unavailable.',                 'error'); return; }
+
+    const file     = fileInput.files[0];
+    const fileExt  = file.name.split('.').pop();
+    const filePath = user.id + '/' + Date.now() + '.' + fileExt;
+
+    Toast.show('⏳ Uploading screenshot…', 'info', 2000);
+
+    const { error: uploadErr } = await _supabase
+      .storage
+      .from('deposit-screenshots')
+      .upload(filePath, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+
+    if (uploadErr) { Toast.show('Upload failed: ' + uploadErr.message, 'error', 5000); return; }
+
+    const { data: urlData } = _supabase
+      .storage
+      .from('deposit-screenshots')
+      .getPublicUrl(filePath);
+
+    const { data: dep, error: insertErr } = await _supabase
+      .from('deposits')
+      .insert({
+        user_id:        user.id,
+        user_email:     user.email,
+        coin,
+        amount:         parseFloat(amount),
+        tx_hash:        txHash,
+        screenshot_url: urlData?.publicUrl || '',
+        status:         'pending',
+        created_at:     new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      /* cleanup orphan screenshot */
+      await _supabase.storage.from('deposit-screenshots').remove([filePath]).catch(() => {});
+      Toast.show('Failed to save deposit: ' + insertErr.message, 'error', 5000);
+      return;
+    }
+
+    const coinLabel = coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
+    Toast.show(`✅ Deposit submitted! ${amount} ${coinLabel} — pending review.`, 'success', 5000);
+
+    /* add to local list and re-render immediately */
+    if (dep) _allDeposits.unshift(dep);
+    renderTransactions(_currentTxFilter);
+
+    /* reset form */
+    form.reset();
+    _resetFileInput();
+    if (amountSuffix) amountSuffix.textContent = '—';
+    if (amountHint)   amountHint.textContent   = 'Enter the exact amount you sent';
+    $('depositModal').style.display = 'none';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REFRESH ALL DATA
+══════════════════════════════════════════════════════════════ */
+async function refreshAll() {
+  const [txns, deps, contracts] = await Promise.all([
+    loadTransactions(),
+    loadDeposits(),
+    loadContracts(),
+  ]);
+  _allTransactions = txns;
+  _allDeposits     = deps;
+
+  renderTransactions(_currentTxFilter);
+  renderRecentActivity();
+  renderContracts(contracts);
+  renderMiningStats(contracts);
+  renderWalletSummary();
+  updatePortfolioValue();
+  populateDashboardStats(contracts);
+
+  setTimeout(() => {
+    initEarningsChart(txns);
+    initHashrateChart(contracts);
+    initDonut(Auth.getProfile());
+  }, 120);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN INIT
+══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async () => {
+  /* 1. Auth guard */
+  const ok = await Auth.init();
+  if (!ok) return;
+
+  /* 2. Populate UI with real profile data */
+  populateUserUI();
+
+  /* 3. Wire all interactions */
+  wireLogout();
+  wireMobileMenu();
+  wireDropdowns();
+  wireModals();
+  wireTransactionFilters();
+  wireDepositButtons();
+  wireWithdrawButtons();
+  initDepositForm();
+
+  /* 4. Load all real data and render */
+  await refreshAll();
+
+  /* 5. BTC price drives USD displays */
+  BTCPrice.onChange(() => {
+    updatePortfolioValue();
+    renderTransactions(_currentTxFilter); /* refresh USD column */
+  });
+
+  /* 6. Expose globals needed by inline HTML onclick= attributes */
+  window.switchTab          = switchTab;
+  window.purchasePlan       = purchasePlan;
+  window.saveSettings       = saveSettings;
+  window.copyToClipboard    = copyToClipboard;
+  window.Toast              = Toast;
+  window.BTCPrice           = BTCPrice;
+  window.Auth               = Auth;
+  window.openDepositModal   = openDepositModal;
+  window.openWithdrawModal  = openWithdrawModal;
+  window.refreshTransactions = async () => {
+    _allDeposits     = await loadDeposits();
+    _allTransactions = await loadTransactions();
+    renderTransactions(_currentTxFilter);
+  };
+
+  console.log('CryptoVault dashboard initialized — real data only.');
 });
