@@ -861,17 +861,12 @@ const TransactionsModule = {
       const rows = data || [];
       const nUserIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
       const nProfileMap = await _fetchProfiles(nUserIds);
-
-      const nUserIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
-      const nProfileMap = await _fetchProfiles(nUserIds);
-      const cUserIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
-      const cProfileMap = await _fetchProfiles(cUserIds);
       if (!rows.length) { setHTML(container, AdminUI.empty('No transactions found.')); return; }
 
       const TYPE_ICON = { mining: '⛏️', deposit: '📥', withdrawal: '📤', referral: '👥', transfer: '↔️', purchase: '🛒' };
       const tbodyHTML = rows.map(tx => {
-        const email  = (txProfileMap[tx.user_id]?.email || '—') || '—';
-        const name   = (txProfileMap[tx.user_id]?.name || email)  || email;
+        const email  = (nProfileMap[tx.user_id]?.email || '—') || '—';
+        const name   = (nProfileMap[tx.user_id]?.name || email)  || email;
         const amount = Number(tx.amount || 0).toFixed(8);
         const date   = tx.created_at
           ? new Date(tx.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
@@ -930,12 +925,14 @@ const ContractsModule = {
     try {
       const { data, error } = await sb
         .from('contracts')
-        .select('id, user_id, title, message, type, is_read, created_at')
+        .select('id, user_id, plan, hashrate, daily_profit, active, created_at')
         .order('created_at', { ascending: false })
         .limit(300);
       if (error) throw error;
       const rows = data || [];
       if (!rows.length) { setHTML(container, AdminUI.empty('No contracts found.')); return; }
+      const cUserIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+      const cProfileMap = await _fetchProfiles(cUserIds);
 
       const tbodyHTML = rows.map(c => {
         const email    = (cProfileMap[c.user_id]?.email || '—') || '—';
