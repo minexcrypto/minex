@@ -357,6 +357,20 @@ async function populateUserUI() {
   // Referral CODE display karo (link nahi)
   setText('refLinkDisplay', refCode || '—');
 
+  /* ─── USER ID DISPLAY (5-letter) ─────────────────────────── */
+  const userId = profile.user_id || '—';
+  let userIdEl = $('userIdDisplay');
+  if (!userIdEl) {
+    const refEl = $('refLinkDisplay');
+    if (refEl && refEl.parentElement) {
+      userIdEl = document.createElement('div');
+      userIdEl.id = 'userIdDisplay';
+      userIdEl.style.cssText = 'margin-top:6px;font-size:13px;color:#f59e0b;font-weight:700;font-family:monospace;';
+      refEl.parentElement.appendChild(userIdEl);
+    }
+  }
+  if (userIdEl) userIdEl.textContent = 'User ID: ' + userId;
+
   // Copy button sirf CODE copy karega
   const copyRefBtn = $('copyRefBtn');
   if (copyRefBtn) {
