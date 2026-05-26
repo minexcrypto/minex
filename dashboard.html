@@ -4,22 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dashboard — CryptoVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₿</text></svg>">
-<!-- Supabase must load before dashboard.js -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-
-
 </head>
 <body>
 
 <div class="app-shell">
 
-<!-- ─── SIDEBAR OVERLAY ──────────────────────────────────── -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<!-- ─── SIDEBAR ─────────────────────────────────────────── -->
 <<aside class="sidebar" id="sidebar">
   <a href="index.html" class="sidebar-logo">
     <div class="logo-icon">₿</div>
@@ -28,42 +25,33 @@
 
   <nav class="sidebar-nav">
     <div class="nav-section-label">Main</div>
-
     <a href="dashboard.html" class="nav-item active" id="nav-dashboard">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       Dashboard
     </a>
-
     <a href="#" class="nav-item" onclick="switchTab('mining');return false;" id="nav-mining">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
       Mining
     </a>
-
     <a href="#" class="nav-item" onclick="switchTab('wallet');return false;" id="nav-wallet">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" fill="currentColor"/><path d="M22 11V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v3"/></svg>
       Wallet
     </a>
-
     <a href="#" class="nav-item" onclick="switchTab('transactions');return false;" id="nav-transactions">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 3v18"/></svg>
       Transactions
       <span class="nav-badge" id="txNavBadge" style="display:none;"></span>
     </a>
-
     <div class="nav-section-label" style="margin-top:12px;">Growth</div>
-
     <a href="#" class="nav-item" onclick="switchTab('plans');return false;" id="nav-plans">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       Plans
     </a>
-
     <a href="#" class="nav-item" onclick="switchTab('referral');return false;" id="nav-referral">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Referral
     </a>
-
     <div class="nav-section-label" style="margin-top:12px;">Account</div>
-
     <a href="#" class="nav-item" onclick="switchTab('settings');return false;" id="nav-settings">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
@@ -75,30 +63,26 @@
       <div class="user-avatar user-avatar-display">U</div>
       <div class="user-info">
         <div class="user-name user-name-display">User</div>
-        <!-- real email shown here -->
         <div class="user-level user-email-display" style="font-size:11px;opacity:0.7;word-break:break-all;">Loading…</div>
       </div>
     </div>
   </div>
 </aside>
 
-<!-- ─── NAVBAR ───────────────────────────────────────────── -->
 <<header class="navbar">
   <div class="navbar-left">
-    <button class="menu-toggle" id="menuToggle">
+    <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <span class="page-title" id="pageTitle">Dashboard</span>
   </div>
   <div class="navbar-right">
-    <!-- BTC Ticker -->
-    <div class="btc-ticker">
+    <div class="btc-ticker glass">
       <div class="ticker-dot"></div>
       <span class="ticker-symbol">BTC</span>
       <span class="ticker-price" id="tickerPrice">$67,842.00</span>
-      <span class="ticker-change ticker-up">▲ 1.24%</span>
+      <span class="ticker-change ticker-up" id="tickerChange">▲ 1.24%</span>
     </div>
-    <!-- Notifications -->
     <div class="icon-btn" data-dropdown-toggle="notificationMenu" id="notificationBell" style="position:relative;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
@@ -113,7 +97,6 @@
         <a href="#" onclick="switchTab('transactions');document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.remove('open'));return false;" style="font-size:12px;color:var(--gold);text-decoration:none;font-weight:500;">View all activity →</a>
       </div>
     </div>
-    <!-- User dropdown -->
     <div class="dropdown">
       <div class="icon-btn" data-dropdown-toggle="userMenu" style="width:auto;padding:0 10px;gap:8px;cursor:pointer;">
         <div class="user-avatar user-avatar-display" style="width:28px;height:28px;font-size:12px;">U</div>
@@ -121,44 +104,40 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <div class="dropdown-menu" id="userMenu">
-        <!-- Real email displayed here -->
         <div style="padding:10px 16px 6px;font-size:11px;color:#6b7280;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;word-break:break-all;" class="user-email-display">…</div>
         <a class="dropdown-item" href="#" onclick="switchTab('settings');return false;">⚙️ Settings</a>
         <a class="dropdown-item" href="#" onclick="switchTab('wallet');return false;">💼 Wallet</a>
         <div class="dropdown-sep"></div>
-        <!-- Logout wired via data-logout attribute in dashboard.js -->
         <a class="dropdown-item danger" href="#" data-logout>🚪 Logout</a>
       </div>
     </div>
   </div>
 </header>
 
-<!-- ─── MAIN CONTENT ─────────────────────────────────────── -->
 <<main class="main-content">
 
-  <!-- ════════════ TAB: DASHBOARD ════════════ -->
+  <!-- TAB: DASHBOARD -->
   <div id="tab-dashboard" class="tab-content">
-
     <div class="stats-grid mb-28">
-      <div class="stat-card gold">
+      <div class="stat-card gold glass">
         <div class="stat-icon">💰</div>
         <div class="stat-value mono" id="walletBalanceCounter">₿ …</div>
         <div class="stat-label">Wallet Balance</div>
         <div class="stat-change up">No earnings yet</div>
       </div>
-      <div class="stat-card green">
+      <div class="stat-card green glass">
         <div class="stat-icon">⛏️</div>
         <div class="stat-value mono" id="liveHashrate">0 TH/s</div>
         <div class="stat-label">Live Hashrate</div>
         <div class="stat-change up">No active contracts</div>
       </div>
-      <div class="stat-card blue">
+      <div class="stat-card blue glass">
         <div class="stat-icon">📈</div>
         <div class="stat-value mono" id="dailyProfitEl">₿ 0.00000000</div>
         <div class="stat-label">Daily Profit</div>
         <div class="stat-change up">No mining data</div>
       </div>
-      <div class="stat-card orange">
+      <div class="stat-card orange glass">
         <div class="stat-icon">🏆</div>
         <div class="stat-value mono" id="totalMinedEl">₿ 0.00000000</div>
         <div class="stat-label">Total Mined</div>
@@ -167,7 +146,7 @@
     </div>
 
     <div class="grid-2-1 mb-28">
-      <div class="card">
+      <div class="card glass">
         <div class="card-header">
           <div>
             <div class="card-title">Mining Earnings</div>
@@ -196,7 +175,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card glass">
         <div class="card-header">
           <div class="card-title">Portfolio</div>
           <span class="badge badge-success">Live</span>
@@ -233,7 +212,7 @@
     </div>
 
     <div class="grid-2 mb-28">
-      <div class="card">
+      <div class="card glass">
         <div class="card-header">
           <div>
             <div class="card-title">Hashrate History</div>
@@ -252,7 +231,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card glass">
         <div class="card-header">
           <div class="card-title">Recent Activity</div>
           <button class="btn btn-ghost btn-sm" onclick="switchTab('transactions')">See All →</button>
@@ -261,7 +240,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card glass">
       <div class="card-header"><div class="card-title">Quick Actions</div></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
         <button class="btn btn-green" data-modal="depositModal">📥 Deposit BTC</button>
@@ -270,12 +249,11 @@
         <button class="btn btn-outline" onclick="switchTab('referral')">👥 Refer Friends</button>
       </div>
     </div>
+  </div>
 
-  </div><!-- /tab-dashboard -->
-
-  <!-- ════════════ TAB: MINING ════════════ -->
+  <!-- TAB: MINING -->
   <div id="tab-mining" class="tab-content" style="display:none;">
-    <div class="card mb-24">
+    <div class="card glass mb-24">
       <div class="card-header">
         <div><div class="card-title">Active Mining Contracts</div><div class="card-subtitle">No active contracts</div></div>
         <button class="btn btn-primary btn-sm" onclick="switchTab('plans')">+ Add Contract</button>
@@ -284,7 +262,7 @@
     </div>
 
     <div class="grid-2">
-      <div class="card">
+      <div class="card glass">
         <div class="card-title mb-16">Mining Statistics</div>
         <div class="settings-item" style="padding:12px 0;">
           <div class="settings-info"><h4>Total Hashrate</h4><p>Across all active contracts</p></div>
@@ -308,17 +286,15 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card glass">
         <div class="card-title mb-16">Contract Progress</div>
         <div id="contractProgressContainer"></div>
       </div>
     </div>
-  </div><!-- /tab-mining -->
+  </div>
 
-  <!-- ════════════ TAB: WALLET ════════════ -->
+  <!-- TAB: WALLET -->
   <div id="tab-wallet" class="tab-content" style="display:none;">
-
-    <!-- Wallet Balance Header -->
     <div class="wallet-header mb-24">
       <div class="wallet-balance-label">Total Wallet Balance</div>
       <div class="wallet-balance-value" id="walletBigBalance">₿ …</div>
@@ -329,8 +305,7 @@
       </div>
     </div>
 
-    <!-- ═══ DEPOSIT ADDRESSES ═══ -->
-    <div class="card mb-24 deposit-section">
+    <div class="card glass mb-24 deposit-section">
       <div class="card-header">
         <div>
           <div class="card-title">💰 Deposit Addresses</div>
@@ -338,10 +313,7 @@
         </div>
         <span class="badge badge-success">Active</span>
       </div>
-
       <div class="deposit-methods-grid">
-
-        <!-- BTC Card -->
         <div class="deposit-method-card">
           <div class="deposit-method-header">
             <div class="deposit-coin-badge btc">
@@ -353,14 +325,12 @@
             </div>
             <span class="badge badge-warning">BTC</span>
           </div>
-
           <div class="deposit-qr-area">
             <div class="qr-placeholder btc-qr" style="background:transparent;border:2px solid rgba(247,147,26,0.2);padding:12px;border-radius:16px;">
               <img src="btc-qr.png" alt="Bitcoin Deposit QR" style="width:160px;height:160px;object-fit:contain;border-radius:8px;display:block;margin:0 auto;">
               <span class="qr-label" style="display:block;text-align:center;margin-top:8px;">Scan QR Code</span>
             </div>
           </div>
-
           <div class="deposit-address-box">
             <label class="deposit-label">Deposit Address</label>
             <div class="wallet-address-row deposit-address-row">
@@ -376,7 +346,6 @@
           </div>
         </div>
 
-        <!-- USDT BEP20 Card -->
         <div class="deposit-method-card">
           <div class="deposit-method-header">
             <div class="deposit-coin-badge usdt">
@@ -388,14 +357,12 @@
             </div>
             <span class="badge badge-info">BEP20</span>
           </div>
-
           <div class="deposit-qr-area">
             <div class="qr-placeholder" style="background:transparent;border:2px solid rgba(38,161,123,0.2);padding:12px;border-radius:16px;">
               <img src="usdt-qr.png" alt="USDT Deposit QR" style="width:160px;height:160px;object-fit:contain;border-radius:8px;display:block;margin:0 auto;">
               <span class="qr-label" style="display:block;text-align:center;margin-top:8px;">Scan QR Code</span>
             </div>
           </div>
-
           <div class="deposit-address-box">
             <label class="deposit-label">Deposit Address</label>
             <div class="wallet-address-row deposit-address-row">
@@ -410,13 +377,11 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
 
-    <!-- Balances Grid -->
     <div class="grid-2 mb-24">
-      <div class="card">
+      <div class="card glass">
         <div class="card-title mb-16">Balances</div>
         <div class="portfolio-item">
           <div class="portfolio-coin"><div class="coin-icon coin-btc">₿</div><div><div class="coin-name">Bitcoin</div><div class="coin-full">BTC</div></div></div>
@@ -438,7 +403,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card glass">
         <div class="card-title mb-16">Transaction Summary</div>
         <div class="settings-item" style="padding:10px 0;">
           <div class="settings-info"><h4>Total Deposited</h4></div>
@@ -458,9 +423,11 @@
         </div>
       </div>
     </div>
-  </div><!-- /tab-wallet --><!-- ════════════ TAB: TRANSACTIONS ════════════ -->
+  </div>
+
+  <!-- TAB: TRANSACTIONS -->
   <div id="tab-transactions" class="tab-content" style="display:none;">
-    <div class="card">
+    <div class="card glass">
       <div class="card-header">
         <div><div class="card-title">Transaction History</div><div class="card-subtitle">All account activity</div></div>
         <div class="tabs">
@@ -486,101 +453,241 @@
         </table>
       </div>
     </div>
-  </div><!-- /tab-transactions -->
+  </div>
 
-  <!-- ════════════ TAB: PLANS ════════════ -->
+  <!-- TAB: PLANS -->
   <div id="tab-plans" class="tab-content" style="display:none;">
-    <div class="section-header" style="text-align:left;margin-bottom:28px;">
-      <h2 style="font-size:24px;">Mining <span style="color:var(--gold)">Plans</span></h2>
-      <p style="text-align:left;font-size:13px;">Upgrade your hashrate and increase daily earnings.</p>
+    <div class="section-header mb-28">
+      <h2>Mining <span>Plans</span></h2>
+      <p>Choose a contract that fits your goals. Higher hashrate, higher returns.</p>
     </div>
-    <div class="plans-grid">
-      <div class="plan-card">
-        <div class="plan-icon">🌱</div>
-        <div class="plan-name">Starter</div>
-        <div class="plan-desc">Perfect for beginners</div>
-        <div class="plan-price">$500</div>
-        <div class="plan-period">30 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">10 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green" style="color:var(--green)">~0.000032 BTC</span></div>
-        <div class="plan-stat"><span>Approx Return</span><span class="plan-stat-val text-green" style="color:var(--green)">~10% Monthly</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>10 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>Basic Dashboard</li>
-          <li class="unavail">Priority Support</li>
-        </ul>
-        <button class="btn btn-outline btn-full" onclick="purchasePlan('Starter','500','10')">Purchase</button>
-      </div>
-      <div class="plan-card">
-        <div class="plan-icon">🥈</div>
-        <div class="plan-name">Silver</div>
-        <div class="plan-desc">Growing portfolio</div>
-        <div class="plan-price">$2,500</div>
-        <div class="plan-period">90 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">50 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green" style="color:var(--green)">~0.000158 BTC</span></div>
-        <div class="plan-stat"><span>Approx Return</span><span class="plan-stat-val text-green" style="color:var(--green)">~15% Monthly</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>50 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>Full Dashboard</li>
-          <li>Analytics Reports</li>
-        </ul>
-        <button class="btn btn-outline btn-full" onclick="purchasePlan('Silver','2500','50')">Purchase</button>
-      </div>
-      <div class="plan-card featured">
-        <div class="plan-featured-badge">Popular</div>
-        <div class="plan-icon">🥇</div>
-        <div class="plan-name">Gold</div>
-        <div class="plan-desc">Best value</div>
-        <div class="plan-price">$5,000</div>
-        <div class="plan-period">180 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">100 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val" style="color:var(--green)">~0.000315 BTC</span></div>
-        <div class="plan-stat"><span>Approx Return</span><span class="plan-stat-val" style="color:var(--green)">~20% Monthly</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>100 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>Advanced Dashboard</li>
-          <li>Priority Support</li>
-          <li>Auto Reinvest</li>
-        </ul>
-        <button class="btn btn-primary btn-full" onclick="purchasePlan('Gold','5000','100')">Purchase</button>
-      </div>
-      <div class="plan-card">
-        <div class="plan-icon">💎</div>
-        <div class="plan-name">Platinum</div>
-        <div class="plan-desc">Maximum returns</div>
-        <div class="plan-price">$10,000</div>
-        <div class="plan-period">365 day contract</div>
-        <div class="plan-divider"></div>
-        <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">300 TH/s</span></div>
-        <div class="plan-stat"><span>Daily</span><span class="plan-stat-val" style="color:var(--green)">~0.000945 BTC</span></div>
-        <div class="plan-stat"><span>Approx Return</span><span class="plan-stat-val" style="color:var(--green)">~25% Monthly</span></div>
-        <div class="plan-divider"></div>
-        <ul class="plan-features">
-          <li>300 TH/s Hashrate</li>
-          <li>Daily Payouts</li>
-          <li>VIP Dashboard</li>
-          <li>Dedicated Manager</li>
-          <li>Auto Reinvest + Compound</li>
-        </ul>
-        <button class="btn btn-outline btn-full" onclick="purchasePlan('Platinum','10000','300')">Purchase</button>
-      </div>
-    </div>
-  </div><!-- /tab-plans -->
 
-  <!-- ════════════ TAB: REFERRAL ════════════ -->
+    <div class="plans-grid">
+      <!-- Starter -->
+      <div class="plan-card starter">
+        <div class="plan-image">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="chassisGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1f2937"/><stop offset="100%" stop-color="#111827"/></linearGradient>
+              <linearGradient id="fanGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity="0.2"/><stop offset="100%" stop-color="currentColor" stop-opacity="0.05"/></linearGradient>
+            </defs>
+            <rect x="50" y="50" width="300" height="120" rx="14" fill="url(#chassisGrad)" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.25"/>
+            <rect x="70" y="58" width="260" height="4" rx="2" fill="currentColor" fill-opacity="0.15"/>
+            <circle cx="80" cy="60" r="2.5" fill="currentColor" fill-opacity="0.9"/><circle cx="90" cy="60" r="2.5" fill="currentColor" fill-opacity="0.5"/><circle cx="100" cy="60" r="2.5" fill="currentColor" fill-opacity="0.7"/>
+            <circle cx="130" cy="110" r="32" fill="url(#fanGrad)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="130" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M130 78 L130 142 M98 110 L162 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M107 87 L153 133 M153 87 L107 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <circle cx="270" cy="110" r="32" fill="url(#fanGrad)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="270" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M270 78 L270 142 M238 110 L302 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M247 87 L293 133 M293 87 L247 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <rect x="185" y="75" width="30" height="70" rx="4" fill="currentColor" fill-opacity="0.05"/>
+            <line x1="192" y1="82" x2="192" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="200" y1="82" x2="200" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="208" y1="82" x2="208" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <rect x="70" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <rect x="310" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <ellipse cx="200" cy="185" rx="140" ry="12" fill="currentColor" fill-opacity="0.08" filter="blur(8px)"/>
+          </svg>
+          <div class="plan-image-overlay"></div>
+        </div>
+        <div class="plan-content">
+          <div class="plan-header">
+            <div class="plan-icon">🌱</div>
+            <div class="plan-name">Starter</div>
+            <div class="plan-desc">Beginner friendly</div>
+          </div>
+          <div class="plan-price">$500</div>
+          <div class="plan-period">30 Day Contract</div>
+          <div class="plan-divider"></div>
+          <div class="plan-stats">
+            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">10 TH/s</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green">~0.000032 BTC</span></div>
+            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-green">~10%</span></div>
+          </div>
+          <div class="plan-divider"></div>
+          <ul class="plan-features">
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>10 TH/s Hashrate</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Basic Dashboard</li>
+            <li class="unavail"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority Support</li>
+          </ul>
+          <button class="btn btn-green btn-full plan-purchase-btn" data-plan="Starter" data-price="500" data-hash="10" data-daily="0.000032" data-days="30">Purchase Plan</button>
+        </div>
+      </div>
+
+      <!-- Silver -->
+      <div class="plan-card silver">
+        <div class="plan-image">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="chassisGrad2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1f2937"/><stop offset="100%" stop-color="#111827"/></linearGradient>
+              <linearGradient id="fanGrad2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity="0.2"/><stop offset="100%" stop-color="currentColor" stop-opacity="0.05"/></linearGradient>
+            </defs>
+            <rect x="50" y="50" width="300" height="120" rx="14" fill="url(#chassisGrad2)" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.25"/>
+            <rect x="70" y="58" width="260" height="4" rx="2" fill="currentColor" fill-opacity="0.15"/>
+            <circle cx="80" cy="60" r="2.5" fill="currentColor" fill-opacity="0.9"/><circle cx="90" cy="60" r="2.5" fill="currentColor" fill-opacity="0.5"/><circle cx="100" cy="60" r="2.5" fill="currentColor" fill-opacity="0.7"/>
+            <circle cx="130" cy="110" r="32" fill="url(#fanGrad2)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="130" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M130 78 L130 142 M98 110 L162 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M107 87 L153 133 M153 87 L107 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <circle cx="270" cy="110" r="32" fill="url(#fanGrad2)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="270" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M270 78 L270 142 M238 110 L302 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M247 87 L293 133 M293 87 L247 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <rect x="185" y="75" width="30" height="70" rx="4" fill="currentColor" fill-opacity="0.05"/>
+            <line x1="192" y1="82" x2="192" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="200" y1="82" x2="200" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="208" y1="82" x2="208" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <rect x="70" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <rect x="310" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <ellipse cx="200" cy="185" rx="140" ry="12" fill="currentColor" fill-opacity="0.08" filter="blur(8px)"/>
+          </svg>
+          <div class="plan-image-overlay"></div>
+        </div>
+        <div class="plan-content">
+          <div class="plan-header">
+            <div class="plan-icon">🥈</div>
+            <div class="plan-name">Silver</div>
+            <div class="plan-desc">Growing portfolio</div>
+          </div>
+          <div class="plan-price">$2,500</div>
+          <div class="plan-period">90 Day Contract</div>
+          <div class="plan-divider"></div>
+          <div class="plan-stats">
+            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">50 TH/s</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-blue">~0.000158 BTC</span></div>
+            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-blue">~15%</span></div>
+          </div>
+          <div class="plan-divider"></div>
+          <ul class="plan-features">
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>50 TH/s Hashrate</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Full Dashboard</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Analytics Reports</li>
+          </ul>
+          <button class="btn btn-blue btn-full plan-purchase-btn" data-plan="Silver" data-price="2500" data-hash="50" data-daily="0.000158" data-days="90">Purchase Plan</button>
+        </div>
+      </div>
+
+      <!-- Gold -->
+      <div class="plan-card gold featured">
+        <div class="plan-badge-popular">Most Popular</div>
+        <div class="plan-image">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="chassisGrad3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1f2937"/><stop offset="100%" stop-color="#111827"/></linearGradient>
+              <linearGradient id="fanGrad3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity="0.2"/><stop offset="100%" stop-color="currentColor" stop-opacity="0.05"/></linearGradient>
+            </defs>
+            <rect x="50" y="50" width="300" height="120" rx="14" fill="url(#chassisGrad3)" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.25"/>
+            <rect x="70" y="58" width="260" height="4" rx="2" fill="currentColor" fill-opacity="0.15"/>
+            <circle cx="80" cy="60" r="2.5" fill="currentColor" fill-opacity="0.9"/><circle cx="90" cy="60" r="2.5" fill="currentColor" fill-opacity="0.5"/><circle cx="100" cy="60" r="2.5" fill="currentColor" fill-opacity="0.7"/>
+            <circle cx="130" cy="110" r="32" fill="url(#fanGrad3)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="130" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M130 78 L130 142 M98 110 L162 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M107 87 L153 133 M153 87 L107 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <circle cx="270" cy="110" r="32" fill="url(#fanGrad3)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="270" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M270 78 L270 142 M238 110 L302 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M247 87 L293 133 M293 87 L247 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <rect x="185" y="75" width="30" height="70" rx="4" fill="currentColor" fill-opacity="0.05"/>
+            <line x1="192" y1="82" x2="192" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="200" y1="82" x2="200" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="208" y1="82" x2="208" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <rect x="70" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <rect x="310" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <ellipse cx="200" cy="185" rx="140" ry="12" fill="currentColor" fill-opacity="0.08" filter="blur(8px)"/>
+          </svg>
+          <div class="plan-image-overlay"></div>
+        </div>
+        <div class="plan-content">
+          <div class="plan-header">
+            <div class="plan-icon">🥇</div>
+            <div class="plan-name">Gold</div>
+            <div class="plan-desc">Best value</div>
+          </div>
+          <div class="plan-price">$5,000</div>
+          <div class="plan-period">180 Day Contract</div>
+          <div class="plan-divider"></div>
+          <div class="plan-stats">
+            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">100 TH/s</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-gold">~0.000315 BTC</span></div>
+            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-gold">~20%</span></div>
+          </div>
+          <div class="plan-divider"></div>
+          <ul class="plan-features">
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>100 TH/s Hashrate</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Advanced Dashboard</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority Support</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Auto Reinvest</li>
+          </ul>
+          <button class="btn btn-primary btn-full plan-purchase-btn" data-plan="Gold" data-price="5000" data-hash="100" data-daily="0.000315" data-days="180">Purchase Plan</button>
+        </div>
+      </div>
+
+      <!-- Platinum -->
+      <div class="plan-card platinum">
+        <div class="plan-image">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="chassisGrad4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1f2937"/><stop offset="100%" stop-color="#111827"/></linearGradient>
+              <linearGradient id="fanGrad4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity="0.2"/><stop offset="100%" stop-color="currentColor" stop-opacity="0.05"/></linearGradient>
+            </defs>
+            <rect x="50" y="50" width="300" height="120" rx="14" fill="url(#chassisGrad4)" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.25"/>
+            <rect x="70" y="58" width="260" height="4" rx="2" fill="currentColor" fill-opacity="0.15"/>
+            <circle cx="80" cy="60" r="2.5" fill="currentColor" fill-opacity="0.9"/><circle cx="90" cy="60" r="2.5" fill="currentColor" fill-opacity="0.5"/><circle cx="100" cy="60" r="2.5" fill="currentColor" fill-opacity="0.7"/>
+            <circle cx="130" cy="110" r="32" fill="url(#fanGrad4)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="130" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M130 78 L130 142 M98 110 L162 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M107 87 L153 133 M153 87 L107 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <circle cx="270" cy="110" r="32" fill="url(#fanGrad4)" stroke="currentColor" stroke-width="2" stroke-opacity="0.3"/>
+            <circle cx="270" cy="110" r="24" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.15"/>
+            <path d="M270 78 L270 142 M238 110 L302 110" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.1"/>
+            <path d="M247 87 L293 133 M293 87 L247 133" stroke="currentColor" stroke-width="1" stroke-opacity="0.08"/>
+            <rect x="185" y="75" width="30" height="70" rx="4" fill="currentColor" fill-opacity="0.05"/>
+            <line x1="192" y1="82" x2="192" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="200" y1="82" x2="200" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <line x1="208" y1="82" x2="208" y2="138" stroke="currentColor" stroke-width="1" stroke-opacity="0.15"/>
+            <rect x="70" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <rect x="310" y="170" width="20" height="10" rx="3" fill="currentColor" fill-opacity="0.2"/>
+            <ellipse cx="200" cy="185" rx="140" ry="12" fill="currentColor" fill-opacity="0.08" filter="blur(8px)"/>
+          </svg>
+          <div class="plan-image-overlay"></div>
+        </div>
+        <div class="plan-content">
+          <div class="plan-header">
+            <div class="plan-icon">💎</div>
+            <div class="plan-name">Platinum</div>
+            <div class="plan-desc">Maximum returns</div>
+          </div>
+          <div class="plan-price">$10,000</div>
+          <div class="plan-period">365 Day Contract</div>
+          <div class="plan-divider"></div>
+          <div class="plan-stats">
+            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">300 TH/s</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-purple">~0.000945 BTC</span></div>
+            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-purple">~25%</span></div>
+          </div>
+          <div class="plan-divider"></div>
+          <ul class="plan-features">
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>300 TH/s Hashrate</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>VIP Dashboard</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dedicated Manager</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Auto Reinvest + Compound</li>
+          </ul>
+          <button class="btn btn-purple btn-full plan-purchase-btn" data-plan="Platinum" data-price="10000" data-hash="300" data-daily="0.000945" data-days="365">Purchase Plan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: REFERRAL -->
   <div id="tab-referral" class="tab-content" style="display:none;">
     <div class="grid-2-1 mb-24">
-      <div class="referral-card">
+      <div class="referral-card glass">
         <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:6px;">Earn 5% <span style="color:var(--gold)">Commission</span></div>
         <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;max-width:480px;">Share your referral link. Every time someone purchases a mining contract using your link, you earn 5% of their contract value — paid instantly in BTC.</p>
         <div class="referral-link-box">
@@ -594,7 +701,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card glass">
         <div class="card-title mb-16">Your Stats</div>
         <div style="text-align:center;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:12px;">
           <div style="font-size:38px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold);" id="refCountEl">0</div>
@@ -615,7 +722,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card glass">
       <div class="card-header"><div class="card-title">Commission Tiers</div></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
         <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
@@ -641,12 +748,12 @@
         </div>
       </div>
     </div>
-  </div><!-- /tab-referral -->
+  </div>
 
-  <!-- ════════════ TAB: SETTINGS ════════════ -->
+  <!-- TAB: SETTINGS -->
   <div id="tab-settings" class="tab-content" style="display:none;">
     <div class="grid-2">
-      <div class="card mb-20">
+      <div class="card glass mb-20">
         <div class="card-header"><div class="card-title">Profile Settings</div></div>
         <div class="form-group">
           <label>Full Name</label>
@@ -670,7 +777,7 @@
         <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
       </div>
 
-      <div class="card mb-20">
+      <div class="card glass mb-20">
         <div class="card-header"><div class="card-title">Security</div></div>
         <div class="settings-item">
           <div class="settings-info"><h4>Two-Factor Authentication</h4><p>Add an extra layer of security</p></div>
@@ -690,7 +797,7 @@
         </div>
       </div>
 
-      <div class="card mb-20">
+      <div class="card glass mb-20">
         <div class="card-header"><div class="card-title">Mining Preferences</div></div>
         <div class="settings-item">
           <div class="settings-info"><h4>Auto Reinvest Earnings</h4><p>Automatically reinvest daily mining rewards</p></div>
@@ -706,7 +813,7 @@
         </div>
       </div>
 
-      <div class="card" style="border-color:rgba(239,68,68,0.2);">
+      <div class="card glass" style="border-color:rgba(239,68,68,0.2);">
         <div class="card-header"><div class="card-title" style="color:var(--red)">Danger Zone</div></div>
         <div class="settings-item">
           <div class="settings-info"><h4>Change Password</h4><p>Update your login password</p></div>
@@ -722,12 +829,10 @@
         </div>
       </div>
     </div>
-  </div><!-- /tab-settings -->
+  </div>
 
 </main>
-</div><!-- /app-shell -->
-
-<!-- ─── MODALS ────────────────────────────────────────────── -->
+</div>
 
 <!-- Deposit Modal -->
 <div class="modal-overlay" id="depositModal" style="display:none;">
@@ -736,9 +841,7 @@
       <h3>📥 Submit Deposit</h3>
       <button class="modal-close" data-close-modal="depositModal">✕</button>
     </div>
-
     <form id="depositForm" class="deposit-form-modal">
-      <!-- Coin Select -->
       <div class="form-group">
         <label for="depositCoin">Select Coin</label>
         <div class="select-wrapper">
@@ -750,8 +853,6 @@
           <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
-
-      <!-- Amount Input -->
       <div class="form-group">
         <label for="depositAmount">Amount</label>
         <div class="input-group deposit-input-group">
@@ -760,8 +861,6 @@
         </div>
         <div class="deposit-hint" id="amountHint">Enter the exact amount you sent</div>
       </div>
-
-      <!-- Transaction Hash -->
       <div class="form-group">
         <label for="depositTxHash">Transaction Hash (TXID)</label>
         <div class="input-group">
@@ -770,8 +869,6 @@
         </div>
         <div class="deposit-hint">You can find this in your wallet's transaction history</div>
       </div>
-
-      <!-- Screenshot Upload -->
       <div class="form-group">
         <label>Screenshot / Proof of Payment</label>
         <div class="upload-area" id="uploadArea">
@@ -786,7 +883,6 @@
             </div>
             <div class="upload-formats">PNG, JPG, GIF up to 5MB</div>
           </div>
-          <!-- Image Preview -->
           <div class="upload-preview" id="uploadPreview" style="display:none;">
             <img id="previewImage" src="" alt="Preview">
             <div class="preview-overlay">
@@ -798,8 +894,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Submit Button -->
       <div class="deposit-form-actions" style="margin-top:20px;">
         <button type="submit" class="btn btn-green btn-full">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -812,7 +906,9 @@
       </div>
     </form>
   </div>
-</div><!-- Withdraw Modal -->
+</div>
+
+<!-- Withdraw Modal -->
 <div class="modal-overlay" id="withdrawModal" style="display:none;">
   <div class="modal">
     <div class="modal-header">
@@ -844,7 +940,17 @@
   </div>
 </div>
 
-<!-- dashboard.js handles all logic; supabase is already loaded above -->
+<!-- Purchase Confirmation Modal -->
+<div class="modal-overlay" id="purchaseModal" style="display:none;">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>Confirm Purchase</h3>
+      <button class="modal-close" data-close-modal="purchaseModal">✕</button>
+    </div>
+    <div id="purchaseModalBody"></div>
+  </div>
+</div>
+
 <script src="dashboard.js"></script>
 </body>
 </html>
