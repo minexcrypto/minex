@@ -11,6 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₿</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+
 </head>
 <body>
 
@@ -812,13 +813,16 @@
         <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:6px;">Earn 5% <span style="color:var(--gold)">Commission</span></div>
         <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;max-width:480px;">Share your referral link. Every time someone purchases a mining contract using your link, you earn 5% of their contract value — paid instantly in BTC.</p>
         <div class="referral-link-box">
-          <span class="referral-link" id="refLinkDisplay">Loading…</span>
-          <button class="btn btn-primary btn-sm" id="copyRefBtn">📋 Copy Link</button>
+          <span class="referral-link" id="refLinkDisplay">Loading your unique link…</span>
+          <button class="btn btn-primary btn-sm" id="copyRefBtn" disabled style="opacity:0.5;">📋 Copy Link</button>
         </div>
-        <div style="display:flex;gap:10px;margin-top:12px;">
-          <button class="btn btn-ghost btn-sm">📱 Share via WhatsApp</button>
-          <button class="btn btn-ghost btn-sm">🐦 Share via Twitter</button>
-          <button class="btn btn-ghost btn-sm">✉️ Share via Email</button>
+        <div id="refErrorMsg" style="display:none;color:var(--red);font-size:13px;margin-top:8px;">
+          ⚠️ Unable to generate link. Please refresh the page or contact support.
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" id="shareWhatsApp" onclick="shareReferral('whatsapp')">📱 WhatsApp</button>
+          <button class="btn btn-ghost btn-sm" id="shareTwitter" onclick="shareReferral('twitter')">🐦 Twitter</button>
+          <button class="btn btn-ghost btn-sm" id="shareEmail" onclick="shareReferral('email')">✉️ Email</button>
         </div>
       </div>
 
@@ -1073,5 +1077,26 @@
 </div>
 
 <script src="dashboard.js"></script>
+
+<script>
+/* ─── REFERRAL SHARE FUNCTIONS ─── */
+function shareReferral(platform) {
+  const link = document.getElementById('refLinkDisplay')?.textContent || '';
+  if (!link || link === 'Loading your unique link…' || link === '—') {
+    alert('Your referral link is still loading. Please wait a moment and try again.');
+    return;
+  }
+  const text = 'Join me on CryptoVault and start earning Bitcoin with cloud mining! Use my referral link: ' + link;
+
+  if (platform === 'whatsapp') {
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  } else if (platform === 'twitter') {
+    window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+  } else if (platform === 'email') {
+    window.location.href = 'mailto:?subject=' + encodeURIComponent('Join CryptoVault - Bitcoin Mining') + '&body=' + encodeURIComponent(text);
+  }
+}
+</script>
+
 </body>
 </html>
