@@ -298,7 +298,7 @@ async function loadContracts() {
 /* ══════════════════════════════════════════════════════════════
    UI — POPULATE USER DATA
 ══════════════════════════════════════════════════════════════ */
-function populateUserUI() {
+async function populateUserUI() {
   const user    = Auth.getUser();
   const profile = Auth.getProfile();
   const email   = user?.email || '';
@@ -347,11 +347,11 @@ function populateUserUI() {
   let refCode = profile.ref_code || '';
 
   // If no ref_code exists, generate a permanent one and save to database
-  if (!refCode && _supabase && _session) {
+  if (!refCode && _supabase && user) {
     refCode = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
-    await _supabase.from('profiles').update({ ref_code: refCode }).eq('id', _session.user.id);
+    await _supabase.from('profiles').update({ ref_code: refCode }).eq('id', user.id);
     // Update local profile cache
-    _profile.ref_code = refCode;
+    profile.ref_code = refCode;
   }
 
   // Build real referral link using current domain
@@ -1797,7 +1797,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ok = await Auth.init();
   if (!ok) return;
 
-  populateUserUI();
+  await populateUserUI();
 
   wireLogout();
   wireMobileMenu();
