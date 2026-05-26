@@ -241,7 +241,7 @@ function paginate(rows, pageSize, page, containerId, renderFn, moduleName) {
    §10  DEPOSITS MODULE
 ══════════════════════════════════════════════════════════════ */
 const DepositsModule = {
-  _rows:[], _page:1, _pageSize:25,
+  _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   async load(statusFilter='all'){
     const container=document.getElementById('depositsTableWrap'); if(!container||!sb)return;
@@ -249,7 +249,10 @@ const DepositsModule = {
     try{
       let q=sb.from('deposits').select('*').order('created_at',{ascending:false}).limit(1000);
       if(statusFilter!=='all')q=q.eq('status',statusFilter);
-      const{data,error}=await q; if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage(); this._syncBadges(this._rows);
+      const{data,error}=await q; if(error)throw error; this._rows=data||[];
+      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
+      this._profileMap=await _fetchProfiles(userIds);
+      this._page=1; this._renderPage(); this._syncBadges(this._rows);
     }catch(err){ setHTML(container,AdminUI.error('Could not load deposits: '+err.message)); }
   },
   _renderPage(){
@@ -267,7 +270,7 @@ const DepositsModule = {
       const actions=d.status==='pending'
         ?`<button class="admin-btn admin-btn-approve" onclick="DepositsModule.updateStatus('${d.id}','approved')">✅ Approve</button><button class="admin-btn admin-btn-reject" onclick="DepositsModule.updateStatus('${d.id}','rejected')" style="margin-left:4px;">❌ Reject</button>${screenshotBtn}`
         :`<span style="font-size:12px;color:#475569">—</span>${screenshotBtn}`;
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(d.id||'').slice(0,8)}…</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${email}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amount} <span style="font-size:10px;color:#64748b">${coinLabel}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${d.tx_hash?d.tx_hash.slice(0,20)+'…':'—'}</td><td style="${TD}">${AdminUI.badge(d.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="DepositsModule.openEditModal('${d.id}')" style="margin-left:4px;">✏️</button><button class="admin-btn admin-btn-danger" onclick="DepositsModule.deleteDeposit('${d.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(d.id||'').slice(0,8)}…</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${email}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[d.user_id]?.user_id || '—'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amount} <span style="font-size:10px;color:#64748b">${coinLabel}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${d.tx_hash?d.tx_hash.slice(0,20)+'…':'—'}</td><td style="${TD}">${AdminUI.badge(d.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="DepositsModule.openEditModal('${d.id}')" style="margin-left:4px;">✏️</button><button class="admin-btn admin-btn-danger" onclick="DepositsModule.deleteDeposit('${d.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Amount</th><th style="${TH}">TXID</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${tbodyHTML}</tbody></table>`);
   },
@@ -370,7 +373,7 @@ const DepositsModule = {
    §11  WITHDRAWALS MODULE
 ══════════════════════════════════════════════════════════════ */
 const WithdrawalsModule = {
-  _rows:[], _page:1, _pageSize:25,
+  _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   async load(statusFilter='all'){
     const container=document.getElementById('withdrawalsTableWrap'); if(!container||!sb)return;
@@ -378,7 +381,10 @@ const WithdrawalsModule = {
     try{
       let q=sb.from('withdrawals').select('*').order('created_at',{ascending:false}).limit(1000);
       if(statusFilter!=='all')q=q.eq('status',statusFilter);
-      const{data,error}=await q; if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage(); this._syncBadges(this._rows);
+      const{data,error}=await q; if(error)throw error; this._rows=data||[];
+      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
+      this._profileMap=await _fetchProfiles(userIds);
+      this._page=1; this._renderPage(); this._syncBadges(this._rows);
     }catch(err){ setHTML(container,AdminUI.error('Could not load withdrawals: '+err.message)); }
   },
   _renderPage(){
@@ -394,7 +400,7 @@ const WithdrawalsModule = {
       const actions=w.status==='pending'
         ?`<button class="admin-btn admin-btn-approve" onclick="WithdrawalsModule.updateStatus('${w.id}','approved')">✅ Approve</button><button class="admin-btn admin-btn-reject" onclick="WithdrawalsModule.updateStatus('${w.id}','rejected')" style="margin-left:4px;">❌ Reject</button>`
         :`<span style="font-size:12px;color:#475569">—</span>`;
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(w.id||'').slice(0,8)}…</td><td style="${TD}">${w.user_email||'—'}</td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amt} ${coin}</td><td style="${TD};font-size:12px;color:#94a3b8">${w.address?w.address.slice(0,20)+'…':'—'}</td><td style="${TD}">${AdminUI.badge(w.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="WithdrawalsModule.openEditModal('${w.id}')" style="margin-left:4px;">✏️</button><button class="admin-btn admin-btn-danger" onclick="WithdrawalsModule.deleteWithdrawal('${w.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(w.id||'').slice(0,8)}…</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${w.user_email||'—'}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[w.user_id]?.user_id || '—'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amt} ${coin}</td><td style="${TD};font-size:12px;color:#94a3b8">${w.address?w.address.slice(0,20)+'…':'—'}</td><td style="${TD}">${AdminUI.badge(w.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="WithdrawalsModule.openEditModal('${w.id}')" style="margin-left:4px;">✏️</button><button class="admin-btn admin-btn-danger" onclick="WithdrawalsModule.deleteWithdrawal('${w.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Amount</th><th style="${TH}">Address</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -496,7 +502,7 @@ const UsersModule = {
     const container=document.getElementById('usersTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading users…'));
     try{
-      const{data,error}=await sb.from('profiles').select('id,email,name,btc_balance,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at').order('created_at',{ascending:false}).limit(1000);
+      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,btc_balance,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at').order('created_at',{ascending:false}).limit(1000);
       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage(); setText('#stat-total-users',this._rows.length);
     }catch(err){ setHTML(container,AdminUI.error('Could not load users: '+err.message)); }
   },
@@ -513,7 +519,7 @@ const UsersModule = {
     const html=rows.map(u=>{
       const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
       const btc=Number(u.btc_balance||0).toFixed(8); let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(u.id||'').slice(0,8)}…</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">👁 View</button><button class="admin-btn admin-btn-outline" onclick="UsersModule.toggleActive('${u.id}')" style="margin-left:4px;">${u.is_active!==false?'Suspend':'Reinstate'}</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">👁 View</button><button class="admin-btn admin-btn-outline" onclick="UsersModule.toggleActive('${u.id}')" style="margin-left:4px;">${u.is_active!==false?'Suspend':'Reinstate'}</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">BTC Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -545,7 +551,8 @@ const UsersModule = {
             <div><strong style="color:#f1f5f9;">Email:</strong> ${u.email||'—'}</div>
             <div><strong style="color:#f1f5f9;">Phone:</strong> ${u.phone||'—'}</div>
             <div><strong style="color:#f1f5f9;">Country:</strong> ${u.country||'—'}</div>
-            <div><strong style="color:#f1f5f9;">ID:</strong> ${u.id}</div>
+            <div><strong style="color:#f1f5f9;">User ID:</strong> <span style="color:#f59e0b;font-weight:700;">${u.user_id || '—'}</span></div>
+            <div><strong style="color:#f1f5f9;">Internal UUID:</strong> <span style="font-size:11px;color:#64748b;">${u.id}</span></div>
             <div><strong style="color:#f1f5f9;">Ref Code:</strong> ${u.ref_code||'—'}</div>
             <div><strong style="color:#f1f5f9;">Joined:</strong> ${u.created_at?new Date(u.created_at).toLocaleString():'—'}</div>
             <div><strong style="color:#f1f5f9;">Status:</strong> ${AdminUI.badge(statusText)} ${u.is_admin?'<span style="color:#f59e0b;">👑 Admin</span>':''}</div>
@@ -650,7 +657,7 @@ window.UsersModule=UsersModule;
    §13  TRANSACTIONS MODULE
 ══════════════════════════════════════════════════════════════ */
 const TransactionsModule = {
-  _rows:[], _page:1, _pageSize:25,
+  _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   async load(typeFilter='all'){
     const container=document.getElementById('transactionsTableWrap'); if(!container||!sb)return;
@@ -658,7 +665,10 @@ const TransactionsModule = {
     try{
       let q=sb.from('transactions').select('id,user_id,amount,type,coin,status,created_at').order('created_at',{ascending:false}).limit(1000);
       if(typeFilter!=='all')q=q.eq('type',typeFilter);
-      const{data,error}=await q; if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
+      const{data,error}=await q; if(error)throw error; this._rows=data||[];
+      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
+      this._profileMap=await _fetchProfiles(userIds);
+      this._page=1; this._renderPage();
     }catch(err){ setHTML(container,AdminUI.error('Could not load transactions: '+err.message)); }
   },
   _renderPage(){
@@ -672,7 +682,7 @@ const TransactionsModule = {
       const isUSDT=tx.coin==='usdt'||tx.coin==='usdt_bep20'; const coin=isUSDT?'USDT':'BTC'; const decimals=isUSDT?2:8;
       const amt=Number(tx.amount||0).toFixed(decimals); const date=tx.created_at?new Date(tx.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—';
       const isOut=tx.type==='withdrawal'||tx.type==='purchase'; const color=isOut?'#ef4444':'#10b981'; const sign=isOut?'-':'+';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id||'').slice(0,8)}…</td><td style="${TD}">${tx.user_id?tx.user_id.slice(0,8)+'…':'—'}</td><td style="${TD}">${AdminUI.badge(tx.type)}</td><td style="${TD};font-family:monospace;color:${color};font-weight:600">${sign}${amt} ${coin}</td><td style="${TD}">${AdminUI.badge(tx.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openEditModal('${tx.id}')">✏️</button><button class="admin-btn admin-btn-danger" onclick="TransactionsModule.deleteTransaction('${tx.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id||'').slice(0,8)}…</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[tx.user_id]?.user_id || (tx.user_id?tx.user_id.slice(0,8)+'…':'—')}</span></td><td style="${TD}">${AdminUI.badge(tx.type)}</td><td style="${TD};font-family:monospace;color:${color};font-weight:600">${sign}${amt} ${coin}</td><td style="${TD}">${AdminUI.badge(tx.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openEditModal('${tx.id}')">✏️</button><button class="admin-btn admin-btn-danger" onclick="TransactionsModule.deleteTransaction('${tx.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Type</th><th style="${TH}">Amount</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -736,14 +746,17 @@ const TransactionsModule = {
    §14  CONTRACTS MODULE
 ══════════════════════════════════════════════════════════════ */
 const ContractsModule = {
-  _rows:[], _page:1, _pageSize:25,
+  _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   async load(){
     const container=document.getElementById('contractsTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading contracts…'));
     try{
       const{data,error}=await sb.from('contracts').select('id,user_id,plan,hashrate,daily_profit,active,days_left,progress,created_at').order('created_at',{ascending:false}).limit(1000);
-      if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
+      if(error)throw error; this._rows=data||[];
+      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
+      this._profileMap=await _fetchProfiles(userIds);
+      this._page=1; this._renderPage();
     }catch(err){ setHTML(container,AdminUI.error('Could not load contracts: '+err.message)); }
   },
   _renderPage(){
@@ -757,7 +770,7 @@ const ContractsModule = {
     const html=rows.map(c=>{
       const date=c.created_at?new Date(c.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
       const hashrate=c.hashrate!=null?Number(c.hashrate).toFixed(1)+' TH/s':'—'; const daily=c.daily_profit!=null?Number(c.daily_profit).toFixed(8):'—';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(c.id||'').slice(0,8)}…</td><td style="${TD}">${c.user_id?c.user_id.slice(0,8)+'…':'—'}</td><td style="${TD};font-weight:600;color:#f1f5f9">${c.plan||'—'}</td><td style="${TD};font-family:monospace;color:#fbbf24">${hashrate}</td><td style="${TD};font-family:monospace;color:#10b981;font-size:12px">${daily}</td><td style="${TD}">${AdminUI.badge(c.active?'active':'inactive')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="ContractsModule.openEditModal('${c.id}')">✏️</button><button class="admin-btn ${c.active?'admin-btn-reject':'admin-btn-approve'}" onclick="ContractsModule.toggleActive('${c.id}')" style="margin-left:4px;">${c.active?'Pause':'Resume'}</button><button class="admin-btn admin-btn-danger" onclick="ContractsModule.deleteContract('${c.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(c.id||'').slice(0,8)}…</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[c.user_id]?.user_id || (c.user_id?c.user_id.slice(0,8)+'…':'—')}</span></td><td style="${TD};font-weight:600;color:#f1f5f9">${c.plan||'—'}</td><td style="${TD};font-family:monospace;color:#fbbf24">${hashrate}</td><td style="${TD};font-family:monospace;color:#10b981;font-size:12px">${daily}</td><td style="${TD}">${AdminUI.badge(c.active?'active':'inactive')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="ContractsModule.openEditModal('${c.id}')">✏️</button><button class="admin-btn ${c.active?'admin-btn-reject':'admin-btn-approve'}" onclick="ContractsModule.toggleActive('${c.id}')" style="margin-left:4px;">${c.active?'Pause':'Resume'}</button><button class="admin-btn admin-btn-danger" onclick="ContractsModule.deleteContract('${c.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Plan</th><th style="${TH}">Hashrate</th><th style="${TH}">Daily</th><th style="${TH}">Status</th><th style="${TH}">Started</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -843,7 +856,7 @@ const NotificationsModule = {
       const profileMap=await _fetchProfiles(userIds);
       const html=rows.map(n=>{
         const email=(profileMap[n.user_id]?.email||'All Users')||'All Users'; const name=(profileMap[n.user_id]?.name||email)||email; const date=n.created_at?new Date(n.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—';
-        return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(n.id||'').slice(0,8)}…</td><td style="${TD}">${name}</td><td style="${TD}">${n.title||'—'}</td><td style="${TD};font-size:12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.message||'—'}</td><td style="${TD}">${AdminUI.badge(n.type)}</td><td style="${TD}">${AdminUI.badge(n.is_read?'success':'pending')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
+        return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(n.id||'').slice(0,8)}…</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${name}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${profileMap[n.user_id]?.user_id || '—'}</div></td><td style="${TD}">${n.title||'—'}</td><td style="${TD};font-size:12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.message||'—'}</td><td style="${TD}">${AdminUI.badge(n.type)}</td><td style="${TD}">${AdminUI.badge(n.is_read?'success':'pending')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
       }).join('');
       setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Title</th><th style="${TH}">Message</th><th style="${TH}">Type</th><th style="${TH}">Status</th><th style="${TH}">Date</th></tr></thead><tbody>${html}</tbody></table>`);
     }catch(err){ setHTML(container,AdminUI.error('Could not load notifications: '+err.message)); }
@@ -982,7 +995,7 @@ function downloadCSV(filename, rows){
 ══════════════════════════════════════════════════════════════ */
 async function _fetchProfiles(userIds){
   if(!sb||!userIds.length)return{};
-  const{data,error}=await sb.from('profiles').select('id,email,name').in('id',userIds);
+  const{data,error}=await sb.from('profiles').select('id,email,name,user_id').in('id',userIds);
   if(error){ console.warn('Profile fetch error:',error.message); return{}; }
   const map={}; (data||[]).forEach(p=>{map[p.id]=p;}); return map;
 }
