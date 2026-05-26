@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₮</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<base target="_blank">
 </head>
 <body>
 
@@ -947,6 +948,21 @@ function shareReferral(platform) {
   }
 }
 </script>
+
+<!-- ══════════════════════════════════════════════════════════════
+     PLAN DETAIL MODAL  (User ke plan pe click karne par ye khulta hai)
+══════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="planDetailModal" style="display:none;">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3 id="planDetailTitle">Plan Details</h3>
+      <button class="modal-close" onclick="closePlanDetailModal()">✕</button>
+    </div>
+    <div id="planDetailBody">
+      <!-- JS se populate hoga -->
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
