@@ -696,7 +696,7 @@ function renderContracts(contracts) {
 
   container.innerHTML = active.map(c => {
     const progress    = c.progress != null ? Math.min(100, Math.max(0, Number(c.progress))) : 0;
-    const daysLeft    = c.days_left != null ? c.days_left : '—';
+    const daysLeft    = c.days_left != null ? c.days_left + ' days left' : 'Unlimited';
     const hashrate    = c.hashrate  != null ? c.hashrate.toFixed(1) + ' TH/s' : '—';
     const dailyProfit = c.daily_profit != null
       ? Number(c.daily_profit).toFixed(8) + ' BTC'
@@ -708,7 +708,7 @@ function renderContracts(contracts) {
         <div class="tx-icon mining">⛏️</div>
         <div class="rig-info">
           <div class="rig-name">${planName}</div>
-          <div class="rig-specs">${hashrate} · ${daysLeft} days left</div>
+          <div class="rig-specs">${hashrate} · ${daysLeft}</div>
         </div>
         <div class="rig-metrics">
           <div class="rig-hash" style="color:var(--green)">${dailyProfit}/day</div>
@@ -751,14 +751,14 @@ function renderContractProgress(active) {
 
   container.innerHTML = active.map(c => {
     const progress = Math.min(100, Math.max(0, Number(c.progress || 0)));
-    const daysLeft = c.days_left != null ? c.days_left : '—';
+    const daysLeft = c.days_left != null ? c.days_left + ' days left' : 'Unlimited';
     const planName = c.plan || c.name || 'Contract';
     const hashrate = c.hashrate != null ? c.hashrate.toFixed(1) : '—';
     return `
       <div style="margin-bottom:16px;">
         <div class="progress-label">
           <span>${planName}</span>
-          <span>${daysLeft} days left</span>
+          <span>${daysLeft}</span>
         </div>
         <div class="progress-bar">
           <div class="progress-fill" style="width:${progress}%"></div>
@@ -1080,6 +1080,7 @@ function purchasePlan(planName, priceUsd, hashrate) {
 
   const daily = (Number(hashrate) * 0.0000032).toFixed(8);
   const days  = _planDays(planName);
+  const daysText = days ? `${days} Days` : 'Unlimited';
   const icon  = planName === 'Starter' ? '🌱' : planName === 'Silver' ? '🥈' : planName === 'Gold' ? '🥇' : '💎';
   const color = planName === 'Starter' ? 'var(--green)' : planName === 'Silver' ? 'var(--blue)' : planName === 'Gold' ? 'var(--gold)' : 'var(--purple)';
 
@@ -1087,7 +1088,7 @@ function purchasePlan(planName, priceUsd, hashrate) {
     <div style="text-align:center;margin-bottom:20px;">
       <div style="font-size:48px;margin-bottom:8px;">${icon}</div>
       <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;">${planName} Plan</div>
-      <div style="color:var(--text-muted);font-size:14px;">${hashrate} TH/s · ${days} Days</div>
+      <div style="color:var(--text-muted);font-size:14px;">${hashrate} TH/s · ${daysText}</div>
     </div>
     <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
       <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Price</span><span style="font-weight:700;">$${priceUsd}</span></div>
@@ -1182,8 +1183,7 @@ async function _executePurchase(planName, priceUsd, hashrate) {
 }
 
 function _planDays(name) {
-  const map = { Starter: 30, Silver: 90, Gold: 180, Platinum: 365 };
-  return map[name] || 30;
+  return null; // Unlimited — no expiry
 }
 
 async function approveDeposit(deposit) {
