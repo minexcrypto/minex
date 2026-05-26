@@ -2376,3 +2376,121 @@ select { cursor: pointer; appearance: none; }
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   PLAN DETAIL MODAL STYLES
+══════════════════════════════════════════════════════════════ */
+
+/* Contract cards — clickable feel */
+.plan-contract-card { cursor: pointer; transition: all 0.25s ease; position: relative; }
+.plan-contract-card::after {
+  content: '→'; position: absolute; right: 16px; top: 50%;
+  transform: translateY(-50%); font-size: 16px;
+  color: var(--gold); opacity: 0; transition: all 0.25s ease;
+}
+.plan-contract-card:hover {
+  border-color: rgba(245,158,11,0.3);
+  transform: translateX(6px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.plan-contract-card:hover::after { opacity: 1; right: 12px; }
+
+/* Modal body layout */
+.plan-detail-body { padding: 4px 0; }
+.plan-detail-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.plan-detail-icon-large {
+  width: 56px; height: 56px; border-radius: 14px;
+  background: rgba(245,158,11,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; border: 1px solid rgba(245,158,11,0.2);
+}
+.plan-detail-status-badge {
+  font-size: 12px; font-weight: 700; padding: 6px 14px;
+  border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.plan-detail-status-badge.active {
+  background: rgba(34,197,94,0.15); color: var(--green);
+  border: 1px solid rgba(34,197,94,0.3);
+}
+.plan-detail-status-badge.inactive {
+  background: var(--red-dim); color: var(--red);
+  border: 1px solid rgba(239,68,68,0.3);
+}
+
+/* 4-stat grid */
+.plan-detail-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  margin-bottom: 20px;
+}
+.plan-detail-cell {
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; text-align: center;
+  transition: all 0.2s ease;
+}
+.plan-detail-cell:hover { border-color: rgba(245,158,11,0.2); }
+.plan-detail-cell-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px;
+}
+.plan-detail-cell-value {
+  font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;
+  color: var(--text-primary); line-height: 1.2;
+}
+.plan-detail-cell-value.gold { color: var(--gold); }
+.plan-detail-cell-sub {
+  font-size: 11px; color: var(--text-muted); margin-top: 4px;
+}
+
+/* Live countdown timer box */
+.plan-detail-timer-box {
+  background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(59,130,246,0.05));
+  border: 1px solid rgba(245,158,11,0.2); border-radius: 14px;
+  padding: 24px; text-align: center; margin-bottom: 20px;
+  position: relative; overflow: hidden;
+}
+.plan-detail-timer-box::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.plan-detail-timer-header {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); margin-bottom: 12px;
+}
+.plan-detail-timer-icon { font-size: 16px; }
+.plan-detail-timer-display {
+  font-family: 'DM Mono', monospace; font-size: 42px; font-weight: 500;
+  color: var(--gold); letter-spacing: 2px; line-height: 1;
+  margin-bottom: 14px;
+  text-shadow: 0 0 20px rgba(245,158,11,0.3);
+}
+.plan-detail-timer-info {
+  font-size: 13px; color: var(--text-muted); line-height: 1.6;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.plan-detail-timer-amount {
+  font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 600;
+  color: var(--green);
+}
+
+/* Progress section inside modal */
+.plan-detail-progress-wrap { margin-top: 4px; }
+.plan-detail-progress-label {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;
+}
+.plan-detail-progress-meta {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--text-muted); margin-top: 8px;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .plan-detail-grid { grid-template-columns: 1fr; }
+  .plan-detail-timer-display { font-size: 32px; letter-spacing: 1px; }
+  .plan-contract-card:hover { transform: translateX(3px); }
+}
