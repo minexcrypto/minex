@@ -683,6 +683,7 @@ function renderContracts(contracts) {
   if (!container) return;
 
   const active = contracts.filter(c => c.active === true);
+  window._activeContracts = active; // 👈 modal ke liye store kar rahe hain
 
   if (!active.length) {
     container.innerHTML = `
@@ -704,7 +705,7 @@ function renderContracts(contracts) {
     const planName    = c.plan || c.name || 'Mining Contract';
 
     return `
-      <div class="rig-card" style="margin-bottom:12px;">
+      <div class="rig-card plan-contract-card" style="margin-bottom:12px;" onclick="openPlanDetailModal('${c.id}')">
         <div class="tx-icon mining">⛏️</div>
         <div class="rig-info">
           <div class="rig-name">${planName}</div>
@@ -1072,6 +1073,148 @@ function openWithdrawModal()  { openModal('withdrawModal'); }
    PURCHASE PLAN — WITH CONFIRMATION
 ══════════════════════════════════════════════════════════════ */
 let _pendingPurchase = null;
+
+/* ══════════════════════════════════════════════════════════════
+   PLAN DETAIL MODAL  —  Live 24h Payout Timer
+══════════════════════════════════════════════════════════════ */
+let _planDetailTimerInterval = null;
+
+function openPlanDetailModal(contractId) {
+  const contract = (window._activeContracts || []).find(c => c.id === contractId || c.id == contractId);
+  if (!contract) { Toast.show('Contract not found', 'error'); return; }
+
+  // Purana timer band karo
+  if (_planDetailTimerInterval) { clearInterval(_planDetailTimerInterval); _planDetailTimerInterval = null; }
+
+  const modal = $('planDetailModal');
+  const body  = $('planDetailBody');
+  const title = $('planDetailTitle');
+  if (!modal || !body) return;
+
+  const planName      = escapeHtml(contract.plan || contract.name || 'Mining Contract');
+  const hashrate      = contract.hashrate != null ? contract.hashrate.toFixed(1) + ' TH/s' : '—';
+  const dailyProfit   = Number(contract.daily_profit || 0);
+  const dailyProfitStr= dailyProfit > 0 ? dailyProfit.toFixed(8) + ' BTC' : '—';
+  const progress      = Math.min(100, Math.max(0, Number(contract.progress || 0)));
+  const daysLeft      = contract.days_left != null ? contract.days_left + ' days' : 'Unlimited';
+
+  const startDate     = contract.created_at ? new Date(contract.created_at) : new Date();
+  const startDateStr  = startDate.toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
+  const startTimeStr  = startDate.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+
+  const now           = new Date();
+  const msPerDay      = 24 * 60 * 60 * 1000;
+  const elapsedMs     = now - startDate;
+  const daysActive    = Math.max(0, elapsedMs / msPerDay);
+  const totalEarned   = dailyProfit * daysActive;
+  const totalEarnedStr= totalEarned > 0 ? totalEarned.toFixed(8) + ' BTC' : '0.00000000 BTC';
+
+  // USDT equivalent (agar BTC price available hai)
+  const btcPrice      = BTCPrice.get();
+  const totalEarnedUSD= btcPrice != null ? '≈ $' + (totalEarned * btcPrice).toFixed(2) + ' USD' : '';
+  const dailyProfitUSD= btcPrice != null ? '≈ $' + (dailyProfit * btcPrice).toFixed(2) + ' USD' : '';
+
+  title.textContent = planName + ' Plan';
+
+  body.innerHTML = `
+    <div class="plan-detail-body">
+      <div class="plan-detail-top">
+        <div class="plan-detail-icon-large">⛏️</div>
+        <div class="plan-detail-status-badge ${contract.active ? 'active' : 'inactive'}">${contract.active ? '● Active' : 'Inactive'}</div>
+      </div>
+
+      <div class="plan-detail-grid">
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">🚀 Started On</div>
+          <div class="plan-detail-cell-value">${startDateStr}</div>
+          <div class="plan-detail-cell-sub">${startTimeStr}</div>
+        </div>
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">📅 Days Active</div>
+          <div class="plan-detail-cell-value">${Math.floor(daysActive)}</div>
+          <div class="plan-detail-cell-sub">days running</div>
+        </div>
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">⏳ Days Left</div>
+          <div class="plan-detail-cell-value">${daysLeft}</div>
+          <div class="plan-detail-cell-sub">remaining</div>
+        </div>
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">💰 Total Earned</div>
+          <div class="plan-detail-cell-value gold">${totalEarnedStr}</div>
+          <div class="plan-detail-cell-sub">${totalEarnedUSD}</div>
+        </div>
+      </div>
+
+      <div class="plan-detail-timer-box">
+        <div class="plan-detail-timer-header">
+          <span class="plan-detail-timer-icon">⏱️</span>
+          <span>Next Payout Timer (24h Cycle)</span>
+        </div>
+        <div class="plan-detail-timer-display" id="planDetailTimer">00:00:00</div>
+        <div class="plan-detail-timer-info">
+          <span>Aane wale <b>24 ghante</b> mein aapko milega:</span>
+          <span class="plan-detail-timer-amount">${dailyProfitStr}</span>
+          <span style="font-size:12px;">${dailyProfitUSD}</span>
+        </div>
+      </div>
+
+      <div class="plan-detail-progress-wrap">
+        <div class="plan-detail-progress-label">
+          <span>Contract Progress</span>
+          <span>${progress.toFixed(0)}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${progress}%"></div>
+        </div>
+        <div class="plan-detail-progress-meta">
+          <span>${hashrate}</span>
+          <span>${dailyProfitStr} / day</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openModal('planDetailModal');
+
+  // 🔥 Live timer start — har second update hoga
+  _planDetailTimerInterval = setInterval(() => _updatePlanDetailTimer(contract), 1000);
+  _updatePlanDetailTimer(contract); // immediate first run
+}
+
+function _updatePlanDetailTimer(contract) {
+  const start   = new Date(contract.created_at || Date.now());
+  const now     = new Date();
+  const msPerDay= 24 * 60 * 60 * 1000;
+  const elapsed = now - start;
+
+  // Har 24 ghante ka cycle — agla payout kab hoga
+  const cycles    = Math.floor(elapsed / msPerDay);
+  const nextPayout= new Date(start.getTime() + (cycles + 1) * msPerDay);
+  let timeUntil   = nextPayout - now;
+
+  if (timeUntil < 0) timeUntil = 0;
+
+  const hours   = Math.floor(timeUntil / (60 * 60 * 1000));
+  const minutes = Math.floor((timeUntil % (60 * 60 * 1000)) / (60 * 1000));
+  const seconds = Math.floor((timeUntil % (60 * 1000)) / 1000);
+
+  const timerEl = $('planDetailTimer');
+  if (timerEl) {
+    timerEl.textContent =
+      String(hours).padStart(2, '0') + ':' +
+      String(minutes).padStart(2, '0') + ':' +
+      String(seconds).padStart(2, '0');
+  }
+}
+
+function closePlanDetailModal() {
+  if (_planDetailTimerInterval) {
+    clearInterval(_planDetailTimerInterval);
+    _planDetailTimerInterval = null;
+  }
+  closeModal('planDetailModal');
+}
 
 function purchasePlan(planName, priceUsd, hashrate) {
   const modal = $('purchaseModal');
@@ -1853,11 +1996,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.openWithdrawModal  = openWithdrawModal;
   window.approveDeposit     = approveDeposit;
   window.updateBTCPrice     = updateBTCPrice;
+  window.openPlanDetailModal  = openPlanDetailModal;
+  window.closePlanDetailModal = closePlanDetailModal;
   window.refreshTransactions = async () => {
     _allDeposits     = await loadDeposits();
     _allTransactions = await loadTransactions();
     renderTransactions(_currentTxFilter);
   };
+
+  // Escape key se plan detail modal band karo + timer stop karo
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('planDetailModal')?.style.display === 'flex') {
+      closePlanDetailModal();
+    }
+  });
+
+  // Overlay click se bhi timer band karo
+  $('planDetailModal')?.addEventListener('click', e => {
+    if (e.target === $('planDetailModal')) closePlanDetailModal();
+  });
 
   console.log('CryptoVault dashboard initialized — real data only.');
 });
