@@ -151,7 +151,6 @@ const Auth = (() => {
         };
       } else {
         _profile = prof;
-        // If profile exists but ref_code is missing, generate one permanently
         if (!_profile.ref_code && _supabase) {
           const ref_code = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
           await _supabase.from('profiles').update({ ref_code }).eq('id', session.user.id);
@@ -343,26 +342,26 @@ async function populateUserUI() {
     }
   });
 
-  /* ─── REFERRAL LINK: Generate if missing, never changes ─── */
+  /* ─── REFERRAL CODE SYSTEM ─────────────────────────────────
+     Sirf referral CODE dikhao — koi link nahi
+  ────────────────────────────────────────────────────────── */
   let refCode = profile.ref_code || '';
 
-  // If no ref_code exists, generate a permanent one and save to database
+  // Agar ref_code nahi hai to generate karo aur database mein save karo
   if (!refCode && _supabase && user) {
     refCode = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
     await _supabase.from('profiles').update({ ref_code: refCode }).eq('id', user.id);
-    // Update local profile cache
     profile.ref_code = refCode;
   }
 
-  // Build real referral link using current domain
-  const baseUrl = window.location.origin.replace(/\/$/, '');
-  const refLink = refCode ? baseUrl + '/ref/' + refCode : '—';
+  // Referral CODE display karo (link nahi)
+  setText('refLinkDisplay', refCode || '—');
 
-  setText('refLinkDisplay', refLink);
+  // Copy button sirf CODE copy karega
   const copyRefBtn = $('copyRefBtn');
   if (copyRefBtn) {
     if (refCode) {
-      copyRefBtn.onclick = () => copyToClipboard(refLink, 'Referral link copied!');
+      copyRefBtn.onclick = () => copyToClipboard(refCode, '🎟️ Referral code copied!');
       copyRefBtn.disabled = false;
       copyRefBtn.style.opacity = '1';
     } else {
@@ -371,6 +370,8 @@ async function populateUserUI() {
       copyRefBtn.onclick = null;
     }
   }
+
+  // Referral stats update
   setText('refCountEl',    profile.ref_count    || 0);
   setText('refEarningsEl', '₿ ' + (Number(profile.ref_earnings) || 0).toFixed(8));
   setText('activeRefEl',   profile.ref_count    || 0);
