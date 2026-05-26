@@ -24,8 +24,8 @@ const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel); } cat
 const $$ = (sel, ctx = document) => { try { return [...ctx.querySelectorAll(sel)]; } catch { return []; } };
 function setHTML(sel, html)  { const el = resolve(sel); if (el) el.innerHTML = html; }
 function setText(sel, text)  { const el = resolve(sel); if (el) el.textContent = text; }
-function show(sel)           { resolve(sel)?.classList.remove('hidden'); }
-function hide(sel)           { resolve(sel)?.classList.add('hidden'); }
+function show(sel)           { const el=resolve(sel); if(el){ el.classList.remove('hidden'); el.classList.add('open'); } }
+function hide(sel)           { const el=resolve(sel); if(el){ el.classList.add('hidden'); el.classList.remove('open'); } }
 function on(sel, evt, fn, ctx = document) { const el = typeof sel === 'string' ? $(sel, ctx) : (sel || null); if (el) el.addEventListener(evt, fn); }
 function resolve(sel) { return typeof sel === 'string' ? $(sel) : (sel || null); }
 
@@ -422,7 +422,7 @@ const WithdrawalsModule = {
     const{data:prof}=await sb.from('profiles').select(field).eq('id',row.user_id).maybeSingle();
     if(!prof)return;
     const current=Number(prof[field]||0); const debit=Number(row.amount||0);
-    if(current<<debit){ AdminUI.toast('⚠ User balance insufficient for debit.','warning',6000); return; }
+    if(current<debit){ AdminUI.toast('⚠ User balance insufficient for debit.','warning',6000); return; }
     const{error}=await sb.from('profiles').update({[field]:current-debit}).eq('id',row.user_id);
     if(error){ AdminUI.toast('Balance debit failed.','error'); return; }
     await sb.from('transactions').insert({user_id:row.user_id,type:'withdrawal',amount:debit,coin:row.coin||'btc',status:'success',created_at:new Date().toISOString()});
@@ -449,7 +449,7 @@ const WithdrawalsModule = {
     const{data:prof}=await sb.from('profiles').select('id,btc_balance,usdt_balance').eq('email',email).maybeSingle();
     if(!prof){ AdminUI.toast('User not found.','error'); return; }
     const field=coin==='usdt_bep20'?'usdt_balance':'btc_balance'; const bal=Number(prof[field]||0);
-    if(bal<<amount){ AdminUI.toast('Insufficient user balance.','error'); return; }
+    if(bal<amount){ AdminUI.toast('Insufficient user balance.','error'); return; }
     const{data:w,error}=await sb.from('withdrawals').insert({user_id:prof.id,user_email:email,coin,amount,address,status:'approved',created_at:new Date().toISOString()}).select().single();
     if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
     await sb.from('profiles').update({[field]:bal-amount}).eq('id',prof.id);
@@ -871,7 +871,7 @@ const NotificationsModule = {
       else{ if(!email)throw new Error('Enter user email.'); const{data:prof,error:profErr}=await sb.from('profiles').select('id').eq('email',email).maybeSingle(); if(profErr)throw profErr; if(!prof)throw new Error('User not found.'); userIds=[prof.id]; }
       if(!userIds.length)throw new Error('No target users.');
       const rows=userIds.map(uid=>({user_id:uid,title,message,type,is_read:false,created_at:new Date().toISOString()}));
-      for(let i=0;i<<rows.length;i+=500){ const batch=rows.slice(i,i+500); const{error}=await sb.from('notifications').insert(batch); if(error)throw error; }
+      for(let i=0;i<rows.length;i+=500){ const batch=rows.slice(i,i+500); const{error}=await sb.from('notifications').insert(batch); if(error)throw error; }
       AdminUI.toast(`Sent to ${userIds.length} user(s).`,'success'); document.getElementById('notifTitle').value=''; document.getElementById('notifMessage').value=''; this.load();
     }catch(err){ AdminUI.toast('Send failed: '+err.message,'error'); }
     finally{ if(btn){btn.disabled=false; btn.textContent='📤 Send Notification';} }
@@ -1095,6 +1095,11 @@ function initNavigation(){
   $$('[data-admin-logout]').forEach(btn=>{ btn.addEventListener('click',()=>AdminAuth.logout()); });
 }
 
+function initModals(){
+  on('#entityModal','click',e=>{ if(e.target===e.currentTarget) closeEntityModal(); });
+  on('#userDetailModal','click',e=>{ if(e.target===e.currentTarget) UsersModule.closeModal(); });
+}
+
 async function loadSection(name){
   if(_loaded.has(name))return; _loaded.add(name);
   switch(name){
@@ -1124,7 +1129,7 @@ async function _bootPanel(){
 console.log('[CryptoVault] admin.js enterprise loaded.');
 
 document.addEventListener('DOMContentLoaded',async()=>{
-  initNavigation(); initLoginForm();
+  initNavigation(); initLoginForm(); initModals();
   if(!initSupabaseClient()){ show('#adminLoginScreen'); hide('#adminAppShell'); return; }
   let alreadyLoggedIn=false;
   try{ alreadyLoggedIn=await AdminAuth.check(); }catch(err){ console.warn('[Admin] Session check error:',err.message); }
