@@ -467,8 +467,48 @@
       <!-- Starter -->
       <div class="plan-card starter">
         <div class="plan-image">
-          <div class="plan-badge">Starter</div>
-          <img src="images/mining-starter.png" alt="Starter Mining Machine" class="plan-machine-img">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="st-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#374151"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
+              <linearGradient id="st-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity="0.3"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0.05"/></linearGradient>
+              <radialGradient id="st-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#22c55e" stop-opacity="0.15"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0"/></radialGradient>
+            </defs>
+            <!-- Chassis body -->
+            <rect x="60" y="40" width="280" height="140" rx="8" fill="url(#st-chassis)" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3"/>
+            <!-- Top status bar -->
+            <rect x="60" y="40" width="280" height="22" rx="8" fill="#1f2937"/>
+            <rect x="60" y="52" width="280" height="10" fill="#1f2937"/>
+            <!-- Status LEDs -->
+            <circle cx="78" cy="51" r="3" fill="#22c55e" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2s" repeatCount="indefinite"/></circle>
+            <circle cx="92" cy="51" r="3" fill="#22c55e" opacity="0.5"/>
+            <circle cx="106" cy="51" r="3" fill="#22c55e" opacity="0.7"/>
+            <!-- Left Fan -->
+            <circle cx="135" cy="110" r="38" fill="url(#st-fan)" stroke="#22c55e" stroke-width="2" stroke-opacity="0.4"/>
+            <circle cx="135" cy="110" r="30" fill="none" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
+            <g stroke="#22c55e" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="135" y1="72" x2="135" y2="148"/><line x1="97" y1="110" x2="173" y2="110"/>
+              <line x1="108" y1="83" x2="162" y2="137"/><line x1="162" y1="83" x2="108" y2="137"/>
+            </g>
+            <!-- Right Fan -->
+            <circle cx="265" cy="110" r="38" fill="url(#st-fan)" stroke="#22c55e" stroke-width="2" stroke-opacity="0.4"/>
+            <circle cx="265" cy="110" r="30" fill="none" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
+            <g stroke="#22c55e" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="265" y1="72" x2="265" y2="148"/><line x1="227" y1="110" x2="303" y2="110"/>
+              <line x1="238" y1="83" x2="292" y2="137"/><line x1="292" y1="83" x2="238" y2="137"/>
+            </g>
+            <!-- Center control panel -->
+            <rect x="185" y="75" width="30" height="70" rx="3" fill="#111827" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
+            <rect x="190" y="82" width="20" height="4" rx="2" fill="#22c55e" opacity="0.6"/>
+            <rect x="190" y="92" width="20" height="4" rx="2" fill="#22c55e" opacity="0.4"/>
+            <rect x="190" y="102" width="20" height="4" rx="2" fill="#22c55e" opacity="0.3"/>
+            <!-- Side vents -->
+            <rect x="65" y="165" width="25" height="8" rx="2" fill="#22c55e" opacity="0.2"/>
+            <rect x="310" y="165" width="25" height="8" rx="2" fill="#22c55e" opacity="0.2"/>
+            <!-- Bottom glow -->
+            <ellipse cx="200" cy="190" rx="130" ry="10" fill="url(#st-glow)" filter="blur(6px)"/>
+            <!-- AntMiner text -->
+            <text x="200" y="62" text-anchor="middle" font-size="8" fill="#22c55e" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
+          </svg>
           <div class="plan-image-overlay"></div>
         </div>
         <div class="plan-content">
@@ -499,8 +539,48 @@
       <!-- Silver -->
       <div class="plan-card silver">
         <div class="plan-image">
-          <div class="plan-badge">Silver</div>
-          <img src="images/mining-silver.png" alt="Silver Mining Machine" class="plan-machine-img">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="sv-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#374151"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
+              <linearGradient id="sv-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.05"/></linearGradient>
+              <radialGradient id="sv-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></radialGradient>
+            </defs>
+            <!-- Chassis body -->
+            <rect x="55" y="35" width="290" height="150" rx="8" fill="url(#sv-chassis)" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3"/>
+            <!-- Top status bar -->
+            <rect x="55" y="35" width="290" height="22" rx="8" fill="#1f2937"/>
+            <rect x="55" y="47" width="290" height="10" fill="#1f2937"/>
+            <!-- Status LEDs -->
+            <circle cx="73" cy="46" r="3" fill="#3b82f6" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2s" repeatCount="indefinite"/></circle>
+            <circle cx="87" cy="46" r="3" fill="#3b82f6" opacity="0.5"/>
+            <circle cx="101" cy="46" r="3" fill="#3b82f6" opacity="0.7"/>
+            <!-- Left Fan -->
+            <circle cx="140" cy="105" r="40" fill="url(#sv-fan)" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.4"/>
+            <circle cx="140" cy="105" r="32" fill="none" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.2"/>
+            <g stroke="#3b82f6" stroke-width="2.5" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="140" y1="65" x2="140" y2="145"/><line x1="100" y1="105" x2="180" y2="105"/>
+              <line x1="112" y1="77" x2="168" y2="133"/><line x1="168" y1="77" x2="112" y2="133"/>
+            </g>
+            <!-- Right Fan -->
+            <circle cx="260" cy="105" r="40" fill="url(#sv-fan)" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.4"/>
+            <circle cx="260" cy="105" r="32" fill="none" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.2"/>
+            <g stroke="#3b82f6" stroke-width="2.5" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="260" y1="65" x2="260" y2="145"/><line x1="220" y1="105" x2="300" y2="105"/>
+              <line x1="232" y1="77" x2="288" y2="133"/><line x1="288" y1="77" x2="232" y2="133"/>
+            </g>
+            <!-- Center control panel -->
+            <rect x="190" y="70" width="20" height="70" rx="3" fill="#111827" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.2"/>
+            <rect x="194" y="78" width="12" height="3" rx="1" fill="#3b82f6" opacity="0.6"/>
+            <rect x="194" y="86" width="12" height="3" rx="1" fill="#3b82f6" opacity="0.4"/>
+            <rect x="194" y="94" width="12" height="3" rx="1" fill="#3b82f6" opacity="0.3"/>
+            <!-- Side vents -->
+            <rect x="60" y="168" width="25" height="8" rx="2" fill="#3b82f6" opacity="0.2"/>
+            <rect x="315" y="168" width="25" height="8" rx="2" fill="#3b82f6" opacity="0.2"/>
+            <!-- Bottom glow -->
+            <ellipse cx="200" cy="195" rx="130" ry="10" fill="url(#sv-glow)" filter="blur(6px)"/>
+            <!-- AntMiner text -->
+            <text x="200" y="57" text-anchor="middle" font-size="8" fill="#3b82f6" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
+          </svg>
           <div class="plan-image-overlay"></div>
         </div>
         <div class="plan-content">
@@ -532,7 +612,58 @@
       <div class="plan-card gold featured">
         <div class="plan-image">
           <div class="plan-badge-popular">Most Popular</div>
-          <img src="images/mining-gold.png" alt="Gold Mining Machine" class="plan-machine-img">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="gd-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4b5563"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
+              <linearGradient id="gd-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0.05"/></linearGradient>
+              <radialGradient id="gd-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.2"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
+            </defs>
+            <!-- Top Unit -->
+            <rect x="55" y="30" width="290" height="70" rx="6" fill="url(#gd-chassis)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.35"/>
+            <rect x="55" y="30" width="290" height="18" rx="6" fill="#1f2937"/>
+            <rect x="55" y="42" width="290" height="6" fill="#1f2937"/>
+            <circle cx="73" cy="39" r="2.5" fill="#f59e0b" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.5s" repeatCount="indefinite"/></circle>
+            <circle cx="85" cy="39" r="2.5" fill="#f59e0b" opacity="0.5"/>
+            <circle cx="97" cy="39" r="2.5" fill="#f59e0b" opacity="0.7"/>
+            <!-- Top Left Fan -->
+            <circle cx="130" cy="65" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="130" y1="39" x2="130" y2="91"/><line x1="104" y1="65" x2="156" y2="65"/>
+              <line x1="112" y1="47" x2="148" y2="83"/><line x1="148" y1="47" x2="112" y2="83"/>
+            </g>
+            <!-- Top Right Fan -->
+            <circle cx="270" cy="65" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="270" y1="39" x2="270" y2="91"/><line x1="244" y1="65" x2="296" y2="65"/>
+              <line x1="252" y1="47" x2="288" y2="83"/><line x1="288" y1="47" x2="252" y2="83"/>
+            </g>
+            <!-- Separator -->
+            <rect x="55" y="100" width="290" height="4" rx="2" fill="#f59e0b" opacity="0.15"/>
+            <!-- Bottom Unit -->
+            <rect x="55" y="106" width="290" height="70" rx="6" fill="url(#gd-chassis)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.35"/>
+            <rect x="55" y="106" width="290" height="18" rx="6" fill="#1f2937"/>
+            <rect x="55" y="118" width="290" height="6" fill="#1f2937"/>
+            <circle cx="73" cy="115" r="2.5" fill="#f59e0b" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.5s" begin="0.7s" repeatCount="indefinite"/></circle>
+            <circle cx="85" cy="115" r="2.5" fill="#f59e0b" opacity="0.5"/>
+            <circle cx="97" cy="115" r="2.5" fill="#f59e0b" opacity="0.7"/>
+            <!-- Bottom Left Fan -->
+            <circle cx="130" cy="141" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="130" y1="115" x2="130" y2="167"/><line x1="104" y1="141" x2="156" y2="141"/>
+              <line x1="112" y1="123" x2="148" y2="159"/><line x1="148" y1="123" x2="112" y2="159"/>
+            </g>
+            <!-- Bottom Right Fan -->
+            <circle cx="270" cy="141" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="270" y1="115" x2="270" y2="167"/><line x1="244" y1="141" x2="296" y2="141"/>
+              <line x1="252" y1="123" x2="288" y2="159"/><line x1="288" y1="123" x2="252" y2="159"/>
+            </g>
+            <!-- Bottom glow -->
+            <ellipse cx="200" cy="188" rx="130" ry="10" fill="url(#gd-glow)" filter="blur(6px)"/>
+            <!-- AntMiner text -->
+            <text x="200" y="54" text-anchor="middle" font-size="7" fill="#f59e0b" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
+            <text x="200" y="130" text-anchor="middle" font-size="7" fill="#f59e0b" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
+          </svg>
           <div class="plan-image-overlay"></div>
         </div>
         <div class="plan-content">
@@ -564,8 +695,86 @@
       <!-- Platinum -->
       <div class="plan-card platinum">
         <div class="plan-image">
-          <div class="plan-badge">Platinum</div>
-          <img src="images/mining-platinum.png" alt="Platinum Mining Machine" class="plan-machine-img">
+          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
+            <defs>
+              <linearGradient id="pt-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4b5563"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
+              <linearGradient id="pt-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a855f7" stop-opacity="0.3"/><stop offset="100%" stop-color="#a855f7" stop-opacity="0.05"/></linearGradient>
+              <radialGradient id="pt-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#a855f7" stop-opacity="0.2"/><stop offset="100%" stop-color="#a855f7" stop-opacity="0"/></radialGradient>
+            </defs>
+            <!-- Top Unit -->
+            <rect x="55" y="18" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
+            <rect x="55" y="18" width="290" height="14" rx="5" fill="#1f2937"/>
+            <circle cx="70" cy="25" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" repeatCount="indefinite"/></circle>
+            <circle cx="80" cy="25" r="2" fill="#a855f7" opacity="0.5"/>
+            <circle cx="90" cy="25" r="2" fill="#a855f7" opacity="0.7"/>
+            <circle cx="125" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="125" y1="26" x2="125" y2="66"/><line x1="105" y1="46" x2="145" y2="46"/>
+              <line x1="111" y1="32" x2="139" y2="60"/><line x1="139" y1="32" x2="111" y2="60"/>
+            </g>
+            <circle cx="200" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="200" y1="26" x2="200" y2="66"/><line x1="180" y1="46" x2="220" y2="46"/>
+              <line x1="186" y1="32" x2="214" y2="60"/><line x1="214" y1="32" x2="186" y2="60"/>
+            </g>
+            <circle cx="275" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="275" y1="26" x2="275" y2="66"/><line x1="255" y1="46" x2="295" y2="46"/>
+              <line x1="261" y1="32" x2="289" y2="60"/><line x1="289" y1="32" x2="261" y2="60"/>
+            </g>
+            <!-- Separator 1 -->
+            <rect x="55" y="74" width="290" height="3" rx="1" fill="#a855f7" opacity="0.12"/>
+            <!-- Middle Unit -->
+            <rect x="55" y="78" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
+            <rect x="55" y="78" width="290" height="14" rx="5" fill="#1f2937"/>
+            <circle cx="70" cy="85" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" begin="0.4s" repeatCount="indefinite"/></circle>
+            <circle cx="80" cy="85" r="2" fill="#a855f7" opacity="0.5"/>
+            <circle cx="90" cy="85" r="2" fill="#a855f7" opacity="0.7"/>
+            <circle cx="125" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="125" y1="86" x2="125" y2="126"/><line x1="105" y1="106" x2="145" y2="106"/>
+              <line x1="111" y1="92" x2="139" y2="120"/><line x1="139" y1="92" x2="111" y2="120"/>
+            </g>
+            <circle cx="200" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="200" y1="86" x2="200" y2="126"/><line x1="180" y1="106" x2="220" y2="106"/>
+              <line x1="186" y1="92" x2="214" y2="120"/><line x1="214" y1="92" x2="186" y2="120"/>
+            </g>
+            <circle cx="275" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="275" y1="86" x2="275" y2="126"/><line x1="255" y1="106" x2="295" y2="106"/>
+              <line x1="261" y1="92" x2="289" y2="120"/><line x1="289" y1="92" x2="261" y2="120"/>
+            </g>
+            <!-- Separator 2 -->
+            <rect x="55" y="134" width="290" height="3" rx="1" fill="#a855f7" opacity="0.12"/>
+            <!-- Bottom Unit -->
+            <rect x="55" y="138" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
+            <rect x="55" y="138" width="290" height="14" rx="5" fill="#1f2937"/>
+            <circle cx="70" cy="145" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" begin="0.8s" repeatCount="indefinite"/></circle>
+            <circle cx="80" cy="145" r="2" fill="#a855f7" opacity="0.5"/>
+            <circle cx="90" cy="145" r="2" fill="#a855f7" opacity="0.7"/>
+            <circle cx="125" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="125" y1="146" x2="125" y2="186"/><line x1="105" y1="166" x2="145" y2="166"/>
+              <line x1="111" y1="152" x2="139" y2="180"/><line x1="139" y1="152" x2="111" y2="180"/>
+            </g>
+            <circle cx="200" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="200" y1="146" x2="200" y2="186"/><line x1="180" y1="166" x2="220" y2="166"/>
+              <line x1="186" y1="152" x2="214" y2="180"/><line x1="214" y1="152" x2="186" y2="180"/>
+            </g>
+            <circle cx="275" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
+            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
+              <line x1="275" y1="146" x2="275" y2="186"/><line x1="255" y1="166" x2="295" y2="166"/>
+              <line x1="261" y1="152" x2="289" y2="180"/><line x1="289" y1="152" x2="261" y2="180"/>
+            </g>
+            <!-- Bottom glow -->
+            <ellipse cx="200" cy="198" rx="130" ry="8" fill="url(#pt-glow)" filter="blur(6px)"/>
+            <!-- AntMiner text -->
+            <text x="200" y="40" text-anchor="middle" font-size="6" fill="#a855f7" opacity="0.4" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
+            <text x="200" y="100" text-anchor="middle" font-size="6" fill="#a855f7" opacity="0.4" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
+            <text x="200" y="160" text-anchor="middle" font-size="6" fill="#a855f7" opacity="0.4" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
+          </svg>
           <div class="plan-image-overlay"></div>
         </div>
         <div class="plan-content">
