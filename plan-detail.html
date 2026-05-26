@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan Details — CryptoVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₮</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<base target="_blank">
+</head>
+<body>
+
+<div class="app-shell">
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <a href="index.html" class="sidebar-logo">
+    <div class="logo-icon">₮</div>
+    <div class="logo-text">Crypto<span>Vault</span></div>
+  </a>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Main</div>
+    <a href="dashboard.html" class="nav-item" id="nav-dashboard">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a href="dashboard.html#mining" class="nav-item active" id="nav-mining">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Mining
+    </a>
+    <a href="dashboard.html#wallet" class="nav-item" id="nav-wallet">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" fill="currentColor"/><path d="M22 11V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v3"/></svg>
+      Wallet
+    </a>
+    <a href="dashboard.html#transactions" class="nav-item" id="nav-transactions">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 3v18"/></svg>
+      Transactions
+    </a>
+    <div class="nav-section-label" style="margin-top:12px;">Growth</div>
+    <a href="dashboard.html#plans" class="nav-item" id="nav-plans">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      Plans
+    </a>
+    <a href="dashboard.html#referral" class="nav-item" id="nav-referral">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Referral
+    </a>
+    <div class="nav-section-label" style="margin-top:12px;">Account</div>
+    <a href="dashboard.html#settings" class="nav-item" id="nav-settings">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="user-avatar user-avatar-display">U</div>
+      <div class="user-info">
+        <div class="user-name user-name-display">User</div>
+        <div class="user-level user-email-display" style="font-size:11px;opacity:0.7;word-break:break-all;">Loading…</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<header class="navbar">
+  <div class="navbar-left">
+    <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span class="page-title" id="pageTitle">Plan Details</span>
+  </div>
+  <div class="navbar-right">
+    <div class="btc-ticker glass">
+      <div class="ticker-dot"></div>
+      <span class="ticker-symbol">BTC</span>
+      <span class="ticker-price" id="tickerPrice">$67,842.00</span>
+      <span class="ticker-change ticker-up" id="tickerChange">▲ 1.24%</span>
+    </div>
+    <div class="dropdown">
+      <div class="icon-btn" data-dropdown-toggle="userMenu" style="width:auto;padding:0 10px;gap:8px;cursor:pointer;">
+        <div class="user-avatar user-avatar-display" style="width:28px;height:28px;font-size:12px;">U</div>
+        <span style="font-size:13px;font-weight:600;" class="user-name-display">User</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="dropdown-menu" id="userMenu">
+        <div style="padding:10px 16px 6px;font-size:11px;color:#6b7280;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;word-break:break-all;" class="user-email-display">…</div>
+        <a class="dropdown-item" href="dashboard.html#settings">⚙️ Settings</a>
+        <a class="dropdown-item" href="dashboard.html#wallet">💼 Wallet</a>
+        <div class="dropdown-sep"></div>
+        <a class="dropdown-item danger" href="#" data-logout>🚪 Logout</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main-content">
+
+  <!-- Back Button -->
+  <div style="margin-bottom:20px;">
+    <a href="dashboard.html" class="btn btn-ghost btn-sm" style="display:inline-flex;gap:6px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back to Dashboard
+    </a>
+  </div>
+
+  <!-- PLAN HERO HEADER -->
+  <div class="plan-detail-hero">
+    <div class="plan-detail-hero-left">
+      <div class="plan-detail-hero-icon" id="planHeroIcon">⛏️</div>
+      <div>
+        <div class="plan-detail-hero-name" id="planHeroName">Loading...</div>
+        <div class="plan-detail-hero-status" id="planHeroStatus">
+          <span class="status-dot"></span> Active Contract
+        </div>
+      </div>
+    </div>
+    <div class="plan-detail-hero-right">
+      <div class="plan-detail-hero-label">Total Earned</div>
+      <div class="plan-detail-hero-value" id="planHeroEarned">—</div>
+    </div>
+  </div>
+
+  <!-- STATS GRID -->
+  <div class="plan-detail-stats-grid">
+    <div class="plan-detail-stat-card">
+      <div class="plan-detail-stat-icon">🚀</div>
+      <div class="plan-detail-stat-label">Started On</div>
+      <div class="plan-detail-stat-value" id="planStartDate">—</div>
+      <div class="plan-detail-stat-sub" id="planStartTime">—</div>
+    </div>
+    <div class="plan-detail-stat-card">
+      <div class="plan-detail-stat-icon">📅</div>
+      <div class="plan-detail-stat-label">Days Active</div>
+      <div class="plan-detail-stat-value" id="planDaysActive">—</div>
+      <div class="plan-detail-stat-sub">days running</div>
+    </div>
+    <div class="plan-detail-stat-card">
+      <div class="plan-detail-stat-icon">⏳</div>
+      <div class="plan-detail-stat-label">Days Left</div>
+      <div class="plan-detail-stat-value" id="planDaysLeft">—</div>
+      <div class="plan-detail-stat-sub">remaining</div>
+    </div>
+    <div class="plan-detail-stat-card">
+      <div class="plan-detail-stat-icon">⚡</div>
+      <div class="plan-detail-stat-label">Hashrate</div>
+      <div class="plan-detail-stat-value" id="planHashrate">—</div>
+      <div class="plan-detail-stat-sub">TH/s power</div>
+    </div>
+  </div>
+
+  <!-- TIMER SECTION -->
+  <div class="plan-detail-timer-section">
+    <div class="plan-detail-timer-left">
+      <div class="plan-detail-timer-title">⏱️ Next Payout Timer</div>
+      <div class="plan-detail-timer-subtitle">24 Hour Cycle</div>
+      <div class="plan-detail-timer-countdown" id="planTimerDisplay">00:00:00</div>
+      <div class="plan-detail-timer-cycle">Next payout in <span id="planTimerHours">—</span> hours</div>
+    </div>
+    <div class="plan-detail-timer-divider"></div>
+    <div class="plan-detail-timer-right">
+      <div class="plan-detail-timer-info-label">Aane wale <b>24 ghante</b> mein aapko milega:</div>
+      <div class="plan-detail-timer-info-amount" id="planTimerAmount">—</div>
+      <div class="plan-detail-timer-info-usd" id="planTimerUSD">—</div>
+    </div>
+  </div>
+
+  <!-- PROGRESS & DETAILS -->
+  <div class="grid-2 mb-28">
+    <div class="card glass">
+      <div class="card-header">
+        <div class="card-title">Contract Progress</div>
+        <span class="badge badge-success" id="planProgressBadge">0%</span>
+      </div>
+      <div style="margin:20px 0;">
+        <div class="progress-bar" style="height:10px;border-radius:5px;">
+          <div class="progress-fill" id="planProgressBar" style="width:0%;transition:width 1s ease;"></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);">
+        <span>Started</span>
+        <span id="planProgressText">0% Complete</span>
+      </div>
+    </div>
+
+    <div class="card glass">
+      <div class="card-header">
+        <div class="card-title">Daily Earnings</div>
+      </div>
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;color:var(--gold);" id="planDailyEarnings">—</div>
+        <div style="font-size:14px;color:var(--text-muted);margin-top:8px;" id="planDailyEarningsUSD">—</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+          Per Day · Auto-credited every 24h
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EARNINGS CHART -->
+  <div class="card glass mb-28">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Earnings History</div>
+        <div class="card-subtitle">Since contract started</div>
+      </div>
+    </div>
+    <canvas id="planEarningsChart" style="width:100%;height:200px;display:block;"></canvas>
+    <div style="display:flex;gap:24px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <div>
+        <div style="font-size:11px;color:var(--text-muted)">Total Earned</div>
+        <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;" id="planChartTotal">—</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted)">Daily Average</div>
+        <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--green);font-weight:500;margin-top:3px;" id="planChartAvg">—</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted)">Projected Monthly</div>
+        <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--text-primary);font-weight:500;margin-top:3px;" id="planChartMonthly">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTRACT INFO TABLE -->
+  <div class="card glass">
+    <div class="card-header">
+      <div class="card-title">Contract Information</div>
+    </div>
+    <div class="plan-detail-info-table">
+      <div class="plan-detail-info-row">
+        <span class="plan-detail-info-label">Plan Name</span>
+        <span class="plan-detail-info-value" id="infoPlanName">—</span>
+      </div>
+      <div class="plan-detail-info-row">
+        <span class="plan-detail-info-label">Contract ID</span>
+        <span class="plan-detail-info-value mono" id="infoContractId">—</span>
+      </div>
+      <div class="plan-detail-info-row">
+        <span class="plan-detail-info-label">Start Date</span>
+        <span class="plan-detail-info-value" id="infoStartDate">—</span>
+      </div>
+      <div class="plan-detail-info-row">
+        <span class="plan-detail-info-label">Hashrate</span>
+        <span class="plan-detail-info-value" id="infoHashrate">—</span>
+      </div>
+      <div class="plan-detail-info-row">
+        <span class="plan-detail-info-label">Daily Profit</span>
+        <span class="plan-detail-info-value text-green" id="infoDailyProfit">—</span>
+      </div>
+      <div class="plan-detail-info-row">
+        <span class="plan-detail-info-label">Status</span>
+        <span class="plan-detail-info-value" id="infoStatus">—</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="plan-detail.js"></script>
+
+</body>
+</html>
