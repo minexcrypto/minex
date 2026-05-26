@@ -123,7 +123,7 @@
     <div class="stats-grid mb-28">
       <div class="stat-card gold glass">
         <div class="stat-icon">💰</div>
-        <div class="stat-value mono" id="walletBalanceCounter">₿ …</div>
+        <div class="stat-value mono" id="walletBalanceCounter">$0.00 USDT</div>
         <div class="stat-label">Wallet Balance</div>
         <div class="stat-change up">No earnings yet</div>
       </div>
@@ -135,13 +135,13 @@
       </div>
       <div class="stat-card blue glass">
         <div class="stat-icon">📈</div>
-        <div class="stat-value mono" id="dailyProfitEl">₿ 0.00000000</div>
+        <div class="stat-value mono" id="dailyProfitEl">$0.00</div>
         <div class="stat-label">Daily Profit</div>
         <div class="stat-change up">No mining data</div>
       </div>
       <div class="stat-card orange glass">
         <div class="stat-icon">🏆</div>
-        <div class="stat-value mono" id="totalMinedEl">₿ 0.00000000</div>
+        <div class="stat-value mono" id="totalMinedEl">—</div>
         <div class="stat-label">Total Mined</div>
         <div class="stat-change up">▲ All time</div>
       </div>
@@ -152,7 +152,7 @@
         <div class="card-header">
           <div>
             <div class="card-title">Mining Earnings</div>
-            <div class="card-subtitle">Last 12 days • BTC</div>
+            <div class="card-subtitle">Last 12 days • USDT</div>
           </div>
           <div class="tabs">
             <button class="tab-btn active">12D</button>
@@ -164,15 +164,15 @@
         <div style="display:flex;gap:24px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
           <div>
             <div style="font-size:11px;color:var(--text-muted)">Total Earned (12d)</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;" id="chartTotal12d">₿ 0.00000000</div>
+            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;" id="chartTotal12d">$0.00</div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-muted)">Avg Daily</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--green);font-weight:500;margin-top:3px;" id="chartAvgDaily">₿ 0.00000000</div>
+            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--green);font-weight:500;margin-top:3px;" id="chartAvgDaily">$0.00</div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-muted)">Best Day</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--text-primary);font-weight:500;margin-top:3px;" id="chartBestDay">₿ 0.00000000</div>
+            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--text-primary);font-weight:500;margin-top:3px;" id="chartBestDay">$0.00</div>
           </div>
         </div>
       </div>
@@ -187,17 +187,7 @@
           <div style="flex:1;">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Total Value</div>
             <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--gold)" id="portfolioTotalUSD">$0.00</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">≈ 0.00000000 BTC</div>
-          </div>
-        </div>
-        <div class="portfolio-item">
-          <div class="portfolio-coin">
-            <div class="coin-icon coin-btc">₿</div>
-            <div><div class="coin-name">Bitcoin</div><div class="coin-full">BTC</div></div>
-          </div>
-          <div class="portfolio-right">
-            <div class="portfolio-amount" id="walletBTCAmount">0.00000000</div>
-            <div class="portfolio-usd" id="portfolioBTCusd">$0.00</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">≈ 0.00 USDT</div>
           </div>
         </div>
         <div class="portfolio-item">
@@ -245,7 +235,7 @@
     <div class="card glass">
       <div class="card-header"><div class="card-title">Quick Actions</div></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
-        <button class="btn btn-green" data-modal="depositModal">📥 Deposit BTC</button>
+        <button class="btn btn-green" data-modal="depositModal">📥 Deposit USDT</button>
         <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
         <button class="btn btn-ghost" onclick="switchTab('plans')">⛏️ Buy Mining Plan</button>
         <button class="btn btn-outline" onclick="switchTab('referral')">👥 Refer Friends</button>
@@ -299,8 +289,8 @@
   <div id="tab-wallet" class="tab-content" style="display:none;">
     <div class="wallet-header mb-24">
       <div class="wallet-balance-label">Total Wallet Balance</div>
-      <div class="wallet-balance-value" id="walletBigBalance">₿ …</div>
-      <div class="wallet-balance-usd" id="walletBigUSD">≈ $— USD</div>
+      <div class="wallet-balance-value" id="walletBigBalance">$0.00 USDT</div>
+      <div class="wallet-balance-usd" id="walletBigUSD">≈ $0.00 USD</div>
       <div style="display:flex;gap:12px;margin-bottom:24px;">
         <button class="btn btn-green" data-modal="depositModal">📥 Deposit</button>
         <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
@@ -316,38 +306,6 @@
         <span class="badge badge-success">Active</span>
       </div>
       <div class="deposit-methods-grid">
-        <div class="deposit-method-card">
-          <div class="deposit-method-header">
-            <div class="deposit-coin-badge btc">
-              <span class="coin-icon coin-btc">₿</span>
-              <div>
-                <div class="deposit-coin-name">Bitcoin</div>
-                <div class="deposit-coin-network">BTC Network</div>
-              </div>
-            </div>
-            <span class="badge badge-warning">BTC</span>
-          </div>
-          <div class="deposit-qr-area">
-            <div class="qr-placeholder btc-qr" style="background:transparent;border:2px solid rgba(247,147,26,0.2);padding:12px;border-radius:16px;">
-              <img src="btc-qr.png" alt="Bitcoin Deposit QR" style="width:160px;height:160px;object-fit:contain;border-radius:8px;display:block;margin:0 auto;">
-              <span class="qr-label" style="display:block;text-align:center;margin-top:8px;">Scan QR Code</span>
-            </div>
-          </div>
-          <div class="deposit-address-box">
-            <label class="deposit-label">Deposit Address</label>
-            <div class="wallet-address-row deposit-address-row">
-              <div class="wallet-address" id="btcAddress">bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe</div>
-              <button class="copy-btn" onclick="copyToClipboard('bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe','BTC address copied!')" title="Copy Address">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-            </div>
-            <div class="deposit-warning">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>Minimum deposit: 0.0001 BTC. Funds will be credited after 1 network confirmation.</span>
-            </div>
-          </div>
-        </div>
-
         <div class="deposit-method-card">
           <div class="deposit-method-header">
             <div class="deposit-coin-badge usdt">
@@ -386,21 +344,17 @@
       <div class="card glass">
         <div class="card-title mb-16">Balances</div>
         <div class="portfolio-item">
-          <div class="portfolio-coin"><div class="coin-icon coin-btc">₿</div><div><div class="coin-name">Bitcoin</div><div class="coin-full">BTC</div></div></div>
-          <div class="portfolio-right"><div class="portfolio-amount" id="walletBTCBalance">0.00000000 BTC</div><div class="portfolio-usd" id="walletItemUSD">$0.00</div></div>
-        </div>
-        <div class="portfolio-item">
           <div class="portfolio-coin"><div class="coin-icon coin-usdt">₮</div><div><div class="coin-name">Tether</div><div class="coin-full">USDT</div></div></div>
           <div class="portfolio-right"><div class="portfolio-amount" id="walletUSDTBalance">0.00 USDT</div><div class="portfolio-usd">$0.00</div></div>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">
           <div class="flex justify-between text-sm" style="color:var(--text-muted);">
             <span>Total Mining Earnings</span>
-            <span class="mono text-gold" style="color:var(--gold);" id="walletTotalMinedEarnings">₿ 0.00000000</span>
+            <span class="mono text-gold" style="color:var(--gold);" id="walletTotalMinedEarnings">$0.00</span>
           </div>
           <div class="flex justify-between text-sm mt-8" style="color:var(--text-muted);">
             <span>Total Referral Earnings</span>
-            <span class="mono" style="color:var(--green);" id="walletTotalReferralEarnings">₿ 0.00000000</span>
+            <span class="mono" style="color:var(--green);" id="walletTotalReferralEarnings">$0.00</span>
           </div>
         </div>
       </div>
@@ -409,19 +363,19 @@
         <div class="card-title mb-16">Transaction Summary</div>
         <div class="settings-item" style="padding:10px 0;">
           <div class="settings-info"><h4>Total Deposited</h4></div>
-          <div class="mono" style="color:var(--green);font-weight:600;" id="walletTotalDeposited">₿ 0.00000000</div>
+          <div class="mono" style="color:var(--green);font-weight:600;" id="walletTotalDeposited">$0.00</div>
         </div>
         <div class="settings-item" style="padding:10px 0;">
           <div class="settings-info"><h4>Total Withdrawn</h4></div>
-          <div class="mono" style="color:var(--red);font-weight:600;" id="walletTotalWithdrawn">₿ 0.00000000</div>
+          <div class="mono" style="color:var(--red);font-weight:600;" id="walletTotalWithdrawn">$0.00</div>
         </div>
         <div class="settings-item" style="padding:10px 0;">
           <div class="settings-info"><h4>Mining Income</h4></div>
-          <div class="mono text-gold" style="color:var(--gold);font-weight:600;" id="walletMiningIncome">₿ 0.00000000</div>
+          <div class="mono text-gold" style="color:var(--gold);font-weight:600;" id="walletMiningIncome">$0.00</div>
         </div>
         <div class="settings-item" style="padding:10px 0;border-bottom:none;">
           <div class="settings-info"><h4>Referral Bonuses</h4></div>
-          <div class="mono" style="color:var(--blue);font-weight:600;" id="walletReferralBonuses">₿ 0.00000000</div>
+          <div class="mono" style="color:var(--blue);font-weight:600;" id="walletReferralBonuses">$0.00</div>
         </div>
       </div>
     </div>
@@ -523,7 +477,7 @@
           <div class="plan-divider"></div>
           <div class="plan-stats">
             <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">10 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green">~0.000032 BTC</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green">~$0.50</span></div>
             <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-green">~10%</span></div>
           </div>
           <div class="plan-divider"></div>
@@ -595,7 +549,7 @@
           <div class="plan-divider"></div>
           <div class="plan-stats">
             <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">50 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-blue">~0.000158 BTC</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-blue">~$2.50</span></div>
             <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-blue">~15%</span></div>
           </div>
           <div class="plan-divider"></div>
@@ -678,7 +632,7 @@
           <div class="plan-divider"></div>
           <div class="plan-stats">
             <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">100 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-gold">~0.000315 BTC</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-gold">~$5.00</span></div>
             <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-gold">~20%</span></div>
           </div>
           <div class="plan-divider"></div>
@@ -778,325 +732,4 @@
           </svg>
           <div class="plan-image-overlay"></div>
         </div>
-        <div class="plan-content">
-          <div class="plan-header">
-            <div class="plan-icon">💎</div>
-            <div class="plan-name">Platinum</div>
-            <div class="plan-desc">Maximum returns</div>
-          </div>
-          <div class="plan-price">$10,000</div>
-          <div class="plan-period">365 Day Contract</div>
-          <div class="plan-divider"></div>
-          <div class="plan-stats">
-            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">300 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-purple">~0.000945 BTC</span></div>
-            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-purple">~25%</span></div>
-          </div>
-          <div class="plan-divider"></div>
-          <ul class="plan-features">
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>300 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>VIP Dashboard</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dedicated Manager</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Auto Reinvest + Compound</li>
-          </ul>
-          <button class="btn btn-purple btn-full plan-purchase-btn" data-plan="Platinum" data-price="10000" data-hash="300" data-daily="0.000945" data-days="365">Purchase Plan</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: REFERRAL -->
-  <div id="tab-referral" class="tab-content" style="display:none;">
-    <div class="grid-2-1 mb-24">
-      <div class="referral-card glass">
-        <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:6px;">Earn 5% <span style="color:var(--gold)">Commission</span></div>
-        <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;max-width:480px;">Share your referral link. Every time someone purchases a mining contract using your link, you earn 5% of their contract value — paid instantly in BTC.</p>
-        <div class="referral-link-box">
-          <span class="referral-link" id="refLinkDisplay">Loading your unique link…</span>
-          <button class="btn btn-primary btn-sm" id="copyRefBtn" disabled style="opacity:0.5;">📋 Copy Link</button>
-        </div>
-        <div id="refErrorMsg" style="display:none;color:var(--red);font-size:13px;margin-top:8px;">
-          ⚠️ Unable to generate link. Please refresh the page or contact support.
-        </div>
-        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" id="shareWhatsApp" onclick="shareReferral('whatsapp')">📱 WhatsApp</button>
-          <button class="btn btn-ghost btn-sm" id="shareTwitter" onclick="shareReferral('twitter')">🐦 Twitter</button>
-          <button class="btn btn-ghost btn-sm" id="shareEmail" onclick="shareReferral('email')">✉️ Email</button>
-        </div>
-      </div>
-
-      <div class="card glass">
-        <div class="card-title mb-16">Your Stats</div>
-        <div style="text-align:center;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:12px;">
-          <div style="font-size:38px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold);" id="refCountEl">0</div>
-          <div style="font-size:12px;color:var(--text-muted);">Total Referrals</div>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
-          <span style="color:var(--text-muted)">Total Earned</span>
-          <span class="mono text-gold" style="color:var(--gold);" id="refEarningsEl">₿ 0.000000</span>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
-          <span style="color:var(--text-muted)">This Month</span>
-          <span class="mono" style="color:var(--green);">₿ 0.000000</span>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;">
-          <span style="color:var(--text-muted)">Active Referrals</span>
-          <span style="color:var(--text-primary);font-weight:600;" id="activeRefEl">0</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card glass">
-      <div class="card-header"><div class="card-title">Commission Tiers</div></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
-        <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥉</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Bronze</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">1–4 referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">5%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥈</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Silver</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">5–19 referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">7%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥇</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Gold</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">20+ referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">10%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: SETTINGS -->
-  <div id="tab-settings" class="tab-content" style="display:none;">
-    <div class="grid-2">
-      <div class="card glass mb-20">
-        <div class="card-header"><div class="card-title">Profile Settings</div></div>
-        <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="settingName" placeholder="Your name">
-        </div>
-        <div class="form-group">
-          <label>Email Address</label>
-          <input type="email" id="settingEmail" placeholder="you@example.com" readonly style="opacity:0.7;cursor:not-allowed;">
-        </div>
-        <div class="form-group">
-          <label>Country</label>
-          <select>
-            <option>India</option>
-            <option>United States</option>
-            <option>United Kingdom</option>
-            <option>Germany</option>
-            <option>Singapore</option>
-            <option>UAE</option>
-          </select>
-        </div>
-        <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
-      </div>
-
-      <div class="card glass mb-20">
-        <div class="card-header"><div class="card-title">Security</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Two-Factor Authentication</h4><p>Add an extra layer of security</p></div>
-          <label class="toggle"><input type="checkbox" id="toggle2fa"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Email Notifications</h4><p>Get alerts for payouts & activity</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleEmail" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Withdrawal Confirmation</h4><p>Require email confirm on withdrawals</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleWithdraw" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Login Alerts</h4><p>Notify on new device logins</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleLogin" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <div class="card glass mb-20">
-        <div class="card-header"><div class="card-title">Mining Preferences</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Auto Reinvest Earnings</h4><p>Automatically reinvest daily mining rewards</p></div>
-          <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Mining Reports</h4><p>Weekly PDF performance reports</p></div>
-          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Low Hashrate Alerts</h4><p>Alert when efficiency drops below 90%</p></div>
-          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <div class="card glass" style="border-color:rgba(239,68,68,0.2);">
-        <div class="card-header"><div class="card-title" style="color:var(--red)">Danger Zone</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Change Password</h4><p>Update your login password</p></div>
-          <button class="btn btn-outline btn-sm">Change</button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Export Data</h4><p>Download all your account data</p></div>
-          <button class="btn btn-outline btn-sm">Export CSV</button>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Logout</h4><p>Sign out of this session</p></div>
-          <button class="btn btn-red btn-sm" data-logout>Logout</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</main>
-</div>
-
-<!-- Deposit Modal -->
-<div class="modal-overlay" id="depositModal" style="display:none;">
-  <div class="modal" style="max-width:540px;">
-    <div class="modal-header">
-      <h3>📥 Submit Deposit</h3>
-      <button class="modal-close" data-close-modal="depositModal">✕</button>
-    </div>
-    <form id="depositForm" class="deposit-form-modal">
-      <div class="form-group">
-        <label for="depositCoin">Select Coin</label>
-        <div class="select-wrapper">
-          <select id="depositCoin" name="coin" required>
-            <option value="" disabled selected>Choose deposit method</option>
-            <option value="usdt_bep20">USDT (BEP20)</option>
-            <option value="btc">Bitcoin (BTC)</option>
-          </select>
-          <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="depositAmount">Amount</label>
-        <div class="input-group deposit-input-group">
-          <input type="number" id="depositAmount" name="amount" step="0.00000001" min="0.00000001" placeholder="0.00" required>
-          <span class="input-suffix" id="amountSuffix">—</span>
-        </div>
-        <div class="deposit-hint" id="amountHint">Enter the exact amount you sent</div>
-      </div>
-      <div class="form-group">
-        <label for="depositTxHash">Transaction Hash (TXID)</label>
-        <div class="input-group">
-          <span class="input-icon">🔗</span>
-          <input type="text" id="depositTxHash" name="txHash" placeholder="Paste your transaction hash here" required>
-        </div>
-        <div class="deposit-hint">You can find this in your wallet's transaction history</div>
-      </div>
-      <div class="form-group">
-        <label>Screenshot / Proof of Payment</label>
-        <div class="upload-area" id="uploadArea">
-          <input type="file" id="depositScreenshot" name="screenshot" accept="image/*" hidden>
-          <div class="upload-content" id="uploadContent">
-            <div class="upload-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </div>
-            <div class="upload-text">
-              <span class="upload-title">Click to upload screenshot</span>
-              <span class="upload-subtitle">or drag and drop here</span>
-            </div>
-            <div class="upload-formats">PNG, JPG, GIF up to 5MB</div>
-          </div>
-          <div class="upload-preview" id="uploadPreview" style="display:none;">
-            <img id="previewImage" src="" alt="Preview">
-            <div class="preview-overlay">
-              <button type="button" class="preview-remove" id="removePreview" title="Remove">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-              <span class="preview-filename" id="previewFilename">screenshot.png</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="deposit-form-actions" style="margin-top:20px;">
-        <button type="submit" class="btn btn-green btn-full">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          Submit Deposit Request
-        </button>
-        <p class="deposit-form-note">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          Your deposit will be reviewed within 15–30 minutes during business hours.
-        </p>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Withdraw Modal -->
-<div class="modal-overlay" id="withdrawModal" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>📤 Withdraw Bitcoin</h3>
-      <button class="modal-close" data-close-modal="withdrawModal">✕</button>
-    </div>
-    <form id="withdrawForm">
-      <div class="form-group">
-        <label>BTC Wallet Address</label>
-        <div class="input-group">
-          <span class="input-icon">₿</span>
-          <input type="text" placeholder="bc1q..." required>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Amount (BTC)</label>
-        <div class="input-group">
-          <span class="input-icon">💰</span>
-          <input type="number" name="amount" step="0.00000001" min="0.00005" placeholder="0.00000000" required>
-          <span class="input-suffix">BTC</span>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Min: 0.00005 BTC · Fee: 0.00001 BTC</div>
-      </div>
-      <div style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--red);margin-bottom:20px;">
-        ⚠️ Withdrawals are processed within 24 hours. Double-check your address.
-      </div>
-      <button type="submit" class="btn btn-primary btn-full">Confirm Withdrawal</button>
-    </form>
-  </div>
-</div>
-
-<!-- Purchase Confirmation Modal -->
-<div class="modal-overlay" id="purchaseModal" style="display:none;">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header">
-      <h3>Confirm Purchase</h3>
-      <button class="modal-close" data-close-modal="purchaseModal">✕</button>
-    </div>
-    <div id="purchaseModalBody"></div>
-  </div>
-</div>
-
-<script src="dashboard.js"></script>
-
-<script>
-/* ─── REFERRAL SHARE FUNCTIONS ─── */
-function shareReferral(platform) {
-  const link = document.getElementById('refLinkDisplay')?.textContent || '';
-  if (!link || link === 'Loading your unique link…' || link === '—') {
-    alert('Your referral link is still loading. Please wait a moment and try again.');
-    return;
-  }
-  const text = 'Join me on CryptoVault and start earning Bitcoin with cloud mining! Use my referral link: ' + link;
-
-  if (platform === 'whatsapp') {
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-  } else if (platform === 'twitter') {
-    window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
-  } else if (platform === 'email') {
-    window.location.href = 'mailto:?subject=' + encodeURIComponent('Join CryptoVault - Bitcoin Mining') + '&body=' + encodeURIComponent(text);
-  }
-}
-</script>
-
-</body>
-</html>
+        <div class="plan
