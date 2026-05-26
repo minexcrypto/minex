@@ -1,79 +1,70 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — app.js
-   Shared UI utilities ONLY. 
-   NOTE: Auth, BTCPrice, Toast, copyToClipboard, modals are all 
-         handled in dashboard.js. This file provides sidebar + 
-         dropdown helpers for pages that don't load dashboard.js.
+   Shared UI utilities for LANDING PAGE (index.html) and other pages.
+
+   NOTE: When dashboard.js loads, it provides its own BTCPrice,
+   Toast, copyToClipboard, openModal, closeModal. This file uses
+   guards so it NEVER overwrites dashboard.js versions.
 ══════════════════════════════════════════════════════════════ */
 
 'use strict';
 
-/* ─── SIDEBAR ───────────────────────────────────────────── */
-function initSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  const toggle  = document.getElementById('menuToggle');
-  const overlay = document.getElementById('sidebarOverlay');
-  if (!sidebar) return;
+/* ══════════════════════════════════════════════════════════════
+   BTC PRICE — For landing page ONLY
+   (dashboard.js has its own version for the dashboard)
+══════════════════════════════════════════════════════════════ */
+if (typeof BTCPrice === 'undefined' || !BTCPrice.onChange) {
+  window.BTCPrice = {
+    current: null,
+    prev: null,
+    pct: 0,
+    handlers: [],
 
-  toggle?.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
-    overlay?.classList.toggle('open');
-  });
-  overlay?.addEventListener('click', () => {
-    sidebar.classList.remove('open');
-    overlay?.classList.remove('open');
-  });
+    async fetch() {
+      try {
+        const res = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'
+        );
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const price  = data.bitcoin?.usd           ?? null;
+        const change = data.bitcoin?.usd_24h_change ?? null;
+        if (price !== null) {
+          this.prev = this.current?.price ?? price;
+          this.current = { price, change };
+          this.pct = change ?? 0;
+          this.handlers.forEach(fn => fn(this.current, this.prev));
+        }
+      } catch {
+        /* silent — keep stale value */
+      }
+    },
 
-  const path = window.location.pathname.split('/').pop() || 'index.html';
-  document.querySelectorAll('.nav-item').forEach(a => {
-    if (a.getAttribute('href') === path) a.classList.add('active');
-  });
-}
+    onChange(fn) {
+      this.handlers.push(fn);
+      if (this.current) fn(this.current, this.prev);
+    },
 
-/* ─── MODAL (fallback only if dashboard.js not loaded) ─── */
-if (typeof openModal !== 'function') {
-  window.openModal = function(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'flex';
+    start(ms = 60_000) {
+      this.fetch();
+      setInterval(() => this.fetch(), ms);
+    },
+
+    format(n) {
+      if (n == null) return '$—';
+      return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+
+    pctChange() {
+      return this.pct.toFixed(2);
+    },
   };
 }
-if (typeof closeModal !== 'function') {
-  window.closeModal = function(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  };
-}
 
-function initModals() {
-  document.querySelectorAll('[data-modal]').forEach(btn => {
-    btn.addEventListener('click', () => openModal(btn.dataset.modal));
-  });
-  document.querySelectorAll('[data-close-modal]').forEach(btn => {
-    btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
-  });
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) overlay.style.display = 'none';
-    });
-  });
-}
-
-/* ─── DROPDOWN ──────────────────────────────────────────── */
-function initDropdowns() {
-  document.querySelectorAll('[data-dropdown-toggle]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const menu = document.getElementById(btn.dataset.dropdownToggle);
-      menu?.classList.toggle('open');
-    });
-  });
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
-  });
-}
-
-/* ─── TOAST (fallback only if dashboard.js not loaded) ─── */
-if (typeof Toast === 'undefined') {
+/* ══════════════════════════════════════════════════════════════
+   TOAST — Fallback only if dashboard.js not loaded
+══════════════════════════════════════════════════════════════ */
+if (typeof Toast === 'undefined' || !Toast.show) {
   window.Toast = {
     show(msg, type = 'info', duration = 3500) {
       let container = document.getElementById('toast-container');
@@ -110,7 +101,9 @@ if (typeof Toast === 'undefined') {
   };
 }
 
-/* ─── COPY (fallback only if dashboard.js not loaded) ──── */
+/* ══════════════════════════════════════════════════════════════
+   COPY TO CLIPBOARD — Fallback only
+══════════════════════════════════════════════════════════════ */
 if (typeof copyToClipboard !== 'function') {
   window.copyToClipboard = function(text, msg = 'Copied!') {
     if (navigator.clipboard?.writeText) {
@@ -137,6 +130,82 @@ if (typeof copyToClipboard !== 'function') {
   };
 }
 
+/* ══════════════════════════════════════════════════════════════
+   MODAL — Fallback only if dashboard.js not loaded
+══════════════════════════════════════════════════════════════ */
+if (typeof openModal !== 'function') {
+  window.openModal = function(id) {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'flex'; el.classList.add('open'); }
+  };
+}
+if (typeof closeModal !== 'function') {
+  window.closeModal = function(id) {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; el.classList.remove('open'); }
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════════════════════════ */
+function initSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const toggle  = document.getElementById('menuToggle');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar) return;
+
+  toggle?.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay?.classList.toggle('open');
+  });
+  overlay?.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay?.classList.remove('open');
+  });
+
+  const path = window.location.pathname.split('/').pop() || 'index.html';
+  document.querySelectorAll('.nav-item').forEach(a => {
+    if (a.getAttribute('href') === path) a.classList.add('active');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODAL WIRING
+══════════════════════════════════════════════════════════════ */
+function initModals() {
+  document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => openModal(btn.dataset.modal));
+  });
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+  });
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.style.display = 'none';
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DROPDOWN
+══════════════════════════════════════════════════════════════ */
+function initDropdowns() {
+  document.querySelectorAll('[data-dropdown-toggle]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const menu = document.getElementById(btn.dataset.dropdownToggle);
+      if (!menu) return;
+      const isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+      if (!isOpen) menu.classList.add('open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  });
+}
+
 /* inject keyframe once */
 (() => {
   if (document.getElementById('_cvAppKF')) return;
@@ -146,7 +215,9 @@ if (typeof copyToClipboard !== 'function') {
   document.head.appendChild(s);
 })();
 
-/* ─── INIT ──────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   initSidebar();
   initModals();
