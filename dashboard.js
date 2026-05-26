@@ -151,6 +151,12 @@ const Auth = (() => {
         };
       } else {
         _profile = prof;
+        // If profile exists but ref_code is missing, generate one permanently
+        if (!_profile.ref_code && _supabase) {
+          const ref_code = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+          await _supabase.from('profiles').update({ ref_code }).eq('id', session.user.id);
+          _profile.ref_code = ref_code;
+        }
       }
 
       _supabase.auth.onAuthStateChange(event => {
@@ -337,15 +343,36 @@ function populateUserUI() {
     }
   });
 
-  const refCode = profile.ref_code || '';
-  const refLink = refCode ? 'https://cryptovault.io/ref/' + refCode : '—';
+  /* ─── REFERRAL LINK: Generate if missing, never changes ─── */
+  let refCode = profile.ref_code || '';
+
+  // If no ref_code exists, generate a permanent one and save to database
+  if (!refCode && _supabase && _session) {
+    refCode = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    await _supabase.from('profiles').update({ ref_code: refCode }).eq('id', _session.user.id);
+    // Update local profile cache
+    _profile.ref_code = refCode;
+  }
+
+  // Build real referral link using current domain
+  const baseUrl = window.location.origin.replace(/\/$/, '');
+  const refLink = refCode ? baseUrl + '/ref/' + refCode : '—';
+
   setText('refLinkDisplay', refLink);
   const copyRefBtn = $('copyRefBtn');
-  if (copyRefBtn && refCode) {
-    copyRefBtn.onclick = () => copyToClipboard(refLink, 'Referral link copied!');
+  if (copyRefBtn) {
+    if (refCode) {
+      copyRefBtn.onclick = () => copyToClipboard(refLink, 'Referral link copied!');
+      copyRefBtn.disabled = false;
+      copyRefBtn.style.opacity = '1';
+    } else {
+      copyRefBtn.disabled = true;
+      copyRefBtn.style.opacity = '0.5';
+      copyRefBtn.onclick = null;
+    }
   }
   setText('refCountEl',    profile.ref_count    || 0);
-  setText('refEarningsEl', '₿ ' + (profile.ref_earnings || 0).toFixed(8));
+  setText('refEarningsEl', '₿ ' + (Number(profile.ref_earnings) || 0).toFixed(8));
   setText('activeRefEl',   profile.ref_count    || 0);
 
   const sName  = $('settingName');
