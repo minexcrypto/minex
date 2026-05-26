@@ -705,7 +705,7 @@ function renderContracts(contracts) {
     const planName    = c.plan || c.name || 'Mining Contract';
 
     return `
-      <div class="rig-card plan-contract-card" style="margin-bottom:12px;" onclick="openPlanDetailModal('${c.id}')">
+      <div class="rig-card plan-contract-card" style="margin-bottom:12px;" onclick="window.location.href='plan-detail.html?contract=${c.id}'">
         <div class="tx-icon mining">⛏️</div>
         <div class="rig-info">
           <div class="rig-name">${planName}</div>
