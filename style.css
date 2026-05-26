@@ -2494,3 +2494,258 @@ select { cursor: pointer; appearance: none; }
   .plan-detail-timer-display { font-size: 32px; letter-spacing: 1px; }
   .plan-contract-card:hover { transform: translateX(3px); }
 }
+
+
+/* ══════════════════════════════════════════════════════════════
+   PLAN DETAIL PAGE STYLES (Standalone Page)
+══════════════════════════════════════════════════════════════ */
+
+/* Hero Header */
+.plan-detail-hero {
+  background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(59,130,246,0.05));
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.plan-detail-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--orange));
+}
+.plan-detail-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.plan-detail-hero-icon {
+  width: 72px; height: 72px;
+  border-radius: 18px;
+  background: rgba(245,158,11,0.15);
+  border: 2px solid rgba(245,158,11,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  flex-shrink: 0;
+}
+.plan-detail-hero-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px; font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.plan-detail-hero-status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 600;
+  color: var(--green);
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse-dot 2s infinite;
+}
+.plan-detail-hero-right {
+  text-align: right;
+}
+.plan-detail-hero-label {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.plan-detail-hero-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 24px; font-weight: 500;
+  color: var(--gold);
+}
+
+/* Stats Grid */
+.plan-detail-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+.plan-detail-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.plan-detail-stat-card:hover {
+  border-color: rgba(245,158,11,0.2);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.plan-detail-stat-icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+.plan-detail-stat-label {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.plan-detail-stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px; font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.plan-detail-stat-sub {
+  font-size: 12px; color: var(--text-muted);
+}
+
+/* Timer Section */
+.plan-detail-timer-section {
+  background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(34,197,94,0.05));
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.plan-detail-timer-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.plan-detail-timer-left {
+  flex: 1;
+}
+.plan-detail-timer-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px; font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.plan-detail-timer-subtitle {
+  font-size: 13px; color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.plan-detail-timer-countdown {
+  font-family: 'DM Mono', monospace;
+  font-size: 56px; font-weight: 500;
+  color: var(--gold);
+  letter-spacing: 4px;
+  line-height: 1;
+  text-shadow: 0 0 30px rgba(245,158,11,0.3);
+  margin-bottom: 12px;
+}
+.plan-detail-timer-cycle {
+  font-size: 14px; color: var(--text-muted);
+}
+.plan-detail-timer-cycle span {
+  color: var(--gold); font-weight: 600;
+}
+.plan-detail-timer-divider {
+  width: 1px;
+  height: 120px;
+  background: linear-gradient(180deg, transparent, var(--border), transparent);
+  margin: 0 40px;
+}
+.plan-detail-timer-right {
+  flex: 1;
+  text-align: center;
+}
+.plan-detail-timer-info-label {
+  font-size: 14px; color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.plan-detail-timer-info-label b {
+  color: var(--gold);
+}
+.plan-detail-timer-info-amount {
+  font-family: 'DM Mono', monospace;
+  font-size: 24px; font-weight: 600;
+  color: var(--green);
+  margin-bottom: 6px;
+}
+.plan-detail-timer-info-usd {
+  font-size: 14px; color: var(--text-muted);
+}
+
+/* Info Table */
+.plan-detail-info-table {
+  display: flex;
+  flex-direction: column;
+}
+.plan-detail-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(30,45,69,0.4);
+}
+.plan-detail-info-row:last-child {
+  border-bottom: none;
+}
+.plan-detail-info-label {
+  font-size: 14px; color: var(--text-muted);
+  font-weight: 500;
+}
+.plan-detail-info-value {
+  font-size: 14px; font-weight: 600;
+  color: var(--text-primary);
+}
+.plan-detail-info-value.text-green {
+  color: var(--green);
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .plan-detail-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .plan-detail-timer-section {
+    flex-direction: column;
+    gap: 24px;
+    text-align: center;
+  }
+  .plan-detail-timer-divider {
+    width: 80%;
+    height: 1px;
+    margin: 0;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+  .plan-detail-timer-countdown {
+    font-size: 42px;
+    letter-spacing: 2px;
+  }
+}
+@media (max-width: 600px) {
+  .plan-detail-hero {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  .plan-detail-hero-right {
+    text-align: center;
+  }
+  .plan-detail-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .plan-detail-timer-countdown {
+    font-size: 32px;
+    letter-spacing: 1px;
+  }
+}
