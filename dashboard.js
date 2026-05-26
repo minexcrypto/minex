@@ -1,7 +1,6 @@
 /* ══════════════════════════════════════════════════════════════
    CRYPTOVAULT — dashboard.js
-   All data comes from Supabase. Zero hardcoded / fake values.
-   Tables: profiles · deposits · contracts · transactions · notifications
+   Premium Vanilla JS · Production Ready
 ══════════════════════════════════════════════════════════════ */
 'use strict';
 
@@ -34,11 +33,11 @@ const Toast = (() => {
       document.body.appendChild(container);
     }
     const icons   = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
-    const colours = { success: '#10b981', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
+    const colours = { success: '#22c55e', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
     const border  = colours[type] || colours.info;
     const toast   = document.createElement('div');
     toast.style.cssText = [
-      'background:#111720', 'border:1px solid #1e2d45',
+      'background:#111827', 'border:1px solid #1e2d45',
       `border-left:3px solid ${border}`, 'border-radius:12px',
       'padding:14px 18px', 'display:flex', 'align-items:center', 'gap:12px',
       'font-size:13px', 'color:#94a3b8', 'min-width:260px', 'max-width:380px',
@@ -49,6 +48,10 @@ const Toast = (() => {
       `<span style="font-size:17px;flex-shrink:0">${icons[type] || '💡'}</span>` +
       `<span style="flex:1;line-height:1.45">${msg}</span>`;
     container.appendChild(toast);
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateX(0)';
+    });
     setTimeout(() => {
       Object.assign(toast.style, { opacity: '0', transform: 'translateX(16px)' });
       setTimeout(() => toast.remove(), 320);
@@ -56,6 +59,9 @@ const Toast = (() => {
   }
   return { show };
 })();
+
+/* Global wrappers */
+function showToast(msg, type, duration) { Toast.show(msg, type, duration); }
 
 /* ─── DOM HELPERS ────────────────────────────────────────── */
 function $(id)            { return document.getElementById(id); }
@@ -227,6 +233,22 @@ const BTCPrice = (() => {
 
   return { onChange, get, fmt };
 })();
+
+function updateBTCPrice() {
+  BTCPrice.onChange(({ price, change }) => {
+    const tickerPrice  = $('tickerPrice');
+    const tickerChange = $('tickerChange');
+    if (tickerPrice)  tickerPrice.textContent  = BTCPrice.fmt(price);
+    if (tickerChange) {
+      const pctStr = change != null
+        ? ((change >= 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(2) + '%')
+        : '';
+      const pctClass = change != null ? (change >= 0 ? 'ticker-up' : 'ticker-down') : '';
+      tickerChange.textContent = pctStr;
+      tickerChange.className   = 'ticker-change ' + pctClass;
+    }
+  });
+}
 
 /* ══════════════════════════════════════════════════════════════
    DATA LOADERS
@@ -478,7 +500,7 @@ function renderTransactions(filter) {
     <tr>
       <td>${tx.desc}</td>
       <td>${tx.coin}</td>
-      <td style="color:${tx.amount.startsWith('+') ? '#10b981' : '#ef4444'};font-family:'DM Mono',monospace;">${tx.amount}</td>
+      <td style="color:${tx.amount.startsWith('+') ? '#22c55e' : '#ef4444'};font-family:'DM Mono',monospace;">${tx.amount}</td>
       <td style="font-family:'DM Mono',monospace;color:#94a3b8;">${tx.usd}</td>
       <td>${_statusBadge(tx.status)}</td>
       <td style="color:#94a3b8;">${tx.date}</td>
@@ -502,14 +524,6 @@ function _txLabel(type) {
   return map[t] || type || '—';
 }
 
-function _usdStr(amount, type) {
-  const price = BTCPrice.get();
-  if (price == null) return '—';
-  const val = Math.abs(Number(amount || 0)) * price;
-  const pfx = type === 'withdrawal' ? '-' : '+';
-  return pfx + '$' + val.toFixed(2);
-}
-
 function _fmtDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -517,8 +531,8 @@ function _fmtDate(iso) {
 
 function _statusBadge(s) {
   const map = {
-    success:  { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Success'  },
-    approved: { bg: 'rgba(16,185,129,.15)',  fg: '#10b981', label: 'Approved' },
+    success:  { bg: 'rgba(34,197,94,.15)',  fg: '#22c55e', label: 'Success'  },
+    approved: { bg: 'rgba(34,197,94,.15)',  fg: '#22c55e', label: 'Approved' },
     pending:  { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'  },
     rejected: { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected' },
     failed:   { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Failed'   },
@@ -673,10 +687,10 @@ function renderMiningStats(contracts) {
   const dailyProfit  = active.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
   const monthlyProj  = dailyProfit * 30;
 
-  setText('miningTotalHashrate',  totalHash   > 0 ? totalHash.toFixed(1)   + ' TH/s' : '0 TH/s');
-  setText('miningPowerConsump',   totalPower  > 0 ? totalPower.toFixed(0)  + ' W'    : '0 W');
-  setText('miningDailyRevenue',   '₿ ' + dailyProfit.toFixed(8));
-  setText('miningMonthlyProj',    '₿ ' + monthlyProj.toFixed(8));
+  setText('miningStatHashrate',  totalHash   > 0 ? totalHash.toFixed(1)   + ' TH/s' : '0 TH/s');
+  setText('miningStatPower',     totalPower  > 0 ? totalPower.toFixed(0)  + ' W'    : '0 W');
+  setText('miningStatDaily',     '₿ ' + dailyProfit.toFixed(8));
+  setText('miningStatMonthly',   '₿ ' + monthlyProj.toFixed(8));
 
   renderContractProgress(active);
 }
@@ -804,7 +818,7 @@ function initHashrateChart(contracts) {
   const totalHash = active.reduce((s, c) => s + Number(c.hashrate || 0), 0);
   const flatData  = Array(24).fill(totalHash);
 
-  _drawLineChart(canvas, flatData, '#10b981', 'rgba(16,185,129,0.2)');
+  _drawLineChart(canvas, flatData, '#22c55e', 'rgba(34,197,94,0.2)');
 
   setText('hashrateStatPeak', totalHash.toFixed(1) + ' TH/s');
   setText('hashrateStatAvg',  totalHash.toFixed(1) + ' TH/s');
@@ -856,7 +870,7 @@ function initDonut(profile) {
   });
 
   const btcPct = total > 0 ? ((btcUsd / total) * 100).toFixed(0) : '0';
-  ctx.fillStyle = '#f1f5f9'; ctx.font = 'bold 13px Arial';
+  ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 13px Arial';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('BTC', cx, cy - 6);
   ctx.font = '10px Arial'; ctx.fillStyle = '#94a3b8';
@@ -976,22 +990,88 @@ function switchTab(name) {
   $('sidebarOverlay')?.classList.remove('open');
 }
 
-/* ══════════════════════════════════════════════════════════════
-   MODAL HELPERS
-══════════════════════════════════════════════════════════════ */
-function openDepositModal() {
-  const modal = $('depositModal');
-  if (modal) modal.style.display = 'flex';
-}
-function openWithdrawModal() {
-  const modal = $('withdrawModal');
-  if (modal) modal.style.display = 'flex';
+/* ─── SIDEBAR TOGGLE ─────────────────────────────────────── */
+function toggleSidebar() {
+  const sidebar = $('sidebar');
+  const overlay = $('sidebarOverlay');
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.contains('open');
+  if (isOpen) {
+    sidebar.classList.remove('open');
+    overlay?.classList.remove('open');
+  } else {
+    sidebar.classList.add('open');
+    overlay?.classList.add('open');
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PURCHASE PLAN
+   MODAL HELPERS
 ══════════════════════════════════════════════════════════════ */
-async function purchasePlan(planName, priceUsd, hashrate) {
+function openModal(id) {
+  const modal = $(id);
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+  }
+}
+function closeModal(id) {
+  const modal = $(id);
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove('open');
+  }
+}
+
+function openDepositModal()   { openModal('depositModal'); }
+function openWithdrawModal()  { openModal('withdrawModal'); }
+
+/* ══════════════════════════════════════════════════════════════
+   PURCHASE PLAN — WITH CONFIRMATION
+══════════════════════════════════════════════════════════════ */
+let _pendingPurchase = null;
+
+function purchasePlan(planName, priceUsd, hashrate) {
+  const modal = $('purchaseModal');
+  const body  = $('purchaseModalBody');
+  if (!modal || !body) return;
+
+  const daily = (Number(hashrate) * 0.0000032).toFixed(8);
+  const days  = _planDays(planName);
+  const icon  = planName === 'Starter' ? '🌱' : planName === 'Silver' ? '🥈' : planName === 'Gold' ? '🥇' : '💎';
+  const color = planName === 'Starter' ? 'var(--green)' : planName === 'Silver' ? 'var(--blue)' : planName === 'Gold' ? 'var(--gold)' : 'var(--purple)';
+
+  body.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:48px;margin-bottom:8px;">${icon}</div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;">${planName} Plan</div>
+      <div style="color:var(--text-muted);font-size:14px;">${hashrate} TH/s · ${days} Days</div>
+    </div>
+    <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Price</span><span style="font-weight:700;">$${priceUsd}</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Hashrate</span><span style="font-weight:700;">${hashrate} TH/s</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Daily Profit</span><span style="font-weight:700;color:${color};">~${daily} BTC</span></div>
+      <div class="flex justify-between"><span style="color:var(--text-muted);">Est. Monthly</span><span style="font-weight:700;color:var(--gold);">~${(daily * 30).toFixed(8)} BTC</span></div>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('purchaseModal')">Cancel</button>
+      <button class="btn btn-primary btn-full" onclick="confirmPurchase()">Confirm Purchase</button>
+    </div>
+  `;
+
+  _pendingPurchase = { planName, priceUsd: parseFloat(priceUsd), hashrate: Number(hashrate), daily, days };
+  openModal('purchaseModal');
+}
+
+async function confirmPurchase() {
+  if (!_pendingPurchase) return;
+  const { planName, priceUsd, hashrate } = _pendingPurchase;
+  closeModal('purchaseModal');
+  _pendingPurchase = null;
+  await _executePurchase(planName, priceUsd, hashrate);
+}
+
+async function _executePurchase(planName, priceUsd, hashrate) {
   const latestProfile = await Auth.refreshProfile();
   const balance = typeof latestProfile?.usdt_balance === 'number' ? latestProfile.usdt_balance : 0;
   const cost    = parseFloat(priceUsd);
@@ -1128,7 +1208,6 @@ async function approveDeposit(deposit) {
 ══════════════════════════════════════════════════════════════ */
 async function saveSettings() {
   const name  = $('settingName')?.value.trim()  || '';
-  const email = $('settingEmail')?.value.trim() || '';
   const updates = {};
   if (name) updates.name = name;
 
@@ -1189,14 +1268,12 @@ function wireDropdowns() {
 function wireModals() {
   document.querySelectorAll('[data-modal]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const modal = $(btn.dataset.modal);
-      if (modal) modal.style.display = 'flex';
+      openModal(btn.dataset.modal);
     });
   });
   document.querySelectorAll('[data-close-modal]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const modal = $(btn.dataset.closeModal);
-      if (modal) modal.style.display = 'none';
+      closeModal(btn.dataset.closeModal);
     });
   });
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -1207,7 +1284,7 @@ function wireModals() {
 
   $('withdrawForm')?.addEventListener('submit', e => {
     e.preventDefault();
-    $('withdrawModal').style.display = 'none';
+    closeModal('withdrawModal');
     Toast.show('📤 Withdrawal submitted. Processing within 24 hours.', 'info', 4000);
   });
 }
@@ -1220,6 +1297,17 @@ function wireDepositButtons() {
 function wireWithdrawButtons() {
   document.querySelectorAll('[data-withdraw-btn]').forEach(btn => {
     btn.addEventListener('click', e => { e.preventDefault(); openWithdrawModal(); });
+  });
+}
+
+function wirePlanButtons() {
+  document.querySelectorAll('.plan-purchase-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const plan  = btn.dataset.plan;
+      const price = btn.dataset.price;
+      const hash  = btn.dataset.hash;
+      purchasePlan(plan, price, hash);
+    });
   });
 }
 
@@ -1369,7 +1457,7 @@ function initDepositForm() {
     _resetFileInput();
     if (amountSuffix) amountSuffix.textContent = '—';
     if (amountHint)   amountHint.textContent   = 'Enter the exact amount you sent';
-    $('depositModal').style.display = 'none';
+    closeModal('depositModal');
   });
 }
 
@@ -1434,8 +1522,8 @@ const Notifications = (() => {
     }
 
     const typeColors = {
-      success: '#10b981', warning: '#f97316', error: '#ef4444', info: '#3b82f6',
-      deposit: '#10b981', withdrawal: '#ef4444', mining: '#f59e0b', purchase: '#3b82f6',
+      success: '#22c55e', warning: '#f97316', error: '#ef4444', info: '#3b82f6',
+      deposit: '#22c55e', withdrawal: '#ef4444', mining: '#f59e0b', purchase: '#3b82f6',
       announcement: '#8b5cf6', referral: '#8b5cf6',
     };
     const icons = {
@@ -1623,7 +1711,6 @@ function initNotificationRealtime() {
 
 /* ══════════════════════════════════════════════════════════════
    REALTIME SYNC FOR ADMIN CHANGES
-   Ensures dashboard updates instantly when admin modifies data
 ══════════════════════════════════════════════════════════════ */
 function initAdminChangeRealtime() {
   if (!_supabase || typeof _supabase.channel !== 'function') return;
@@ -1692,6 +1779,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireTransactionFilters();
   wireDepositButtons();
   wireWithdrawButtons();
+  wirePlanButtons();
   wireNotificationBell();
   initNotificationRealtime();
   initAdminChangeRealtime();
@@ -1699,22 +1787,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   initDepositForm();
 
   await refreshAll();
+  updateBTCPrice();
 
   BTCPrice.onChange(() => {
     updatePortfolioValue();
     renderTransactions(_currentTxFilter);
   });
 
+  /* Expose globals */
   window.switchTab          = switchTab;
+  window.toggleSidebar      = toggleSidebar;
   window.purchasePlan       = purchasePlan;
+  window.confirmPurchase    = confirmPurchase;
   window.saveSettings       = saveSettings;
   window.copyToClipboard    = copyToClipboard;
+  window.showToast          = showToast;
   window.Toast              = Toast;
   window.BTCPrice           = BTCPrice;
   window.Auth               = Auth;
+  window.openModal          = openModal;
+  window.closeModal         = closeModal;
   window.openDepositModal   = openDepositModal;
   window.openWithdrawModal  = openWithdrawModal;
   window.approveDeposit     = approveDeposit;
+  window.updateBTCPrice     = updateBTCPrice;
   window.refreshTransactions = async () => {
     _allDeposits     = await loadDeposits();
     _allTransactions = await loadTransactions();
