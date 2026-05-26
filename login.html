@@ -16,7 +16,6 @@
     font-family: 'Segoe UI', system-ui, sans-serif;
     margin: 0;
   }
-
   .auth-wrapper {
     width: 100%;
     max-width: 420px;
@@ -28,19 +27,15 @@
     position: relative;
     overflow: hidden;
   }
-
   .auth-wrapper::before {
     content: '';
     position: absolute;
-    top: -120px;
-    right: -120px;
-    width: 240px;
-    height: 240px;
+    top: -120px; right: -120px;
+    width: 240px; height: 240px;
     background: rgba(245,158,11,0.08);
     border-radius: 50%;
     pointer-events: none;
   }
-
   .auth-logo {
     display: flex;
     align-items: center;
@@ -48,29 +43,15 @@
     margin-bottom: 30px;
     justify-content: center;
   }
-
   .logo-circle {
-    width: 48px;
-    height: 48px;
+    width: 48px; height: 48px;
     border-radius: 12px;
     background: #f59e0b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: bold;
-    color: #080b10;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: bold; color: #080b10;
   }
-
-  .auth-logo h1 {
-    font-size: 28px;
-    font-weight: 800;
-    color: white;
-    margin: 0;
-  }
-
+  .auth-logo h1 { font-size: 28px; font-weight: 800; color: white; margin: 0; }
   .auth-logo span { color: #f59e0b; }
-
   .tabs {
     display: flex;
     background: #1a212c;
@@ -78,125 +59,93 @@
     padding: 5px;
     margin-bottom: 30px;
   }
-
   .tab-btn {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    background: transparent;
-    color: #aaa;
-    font-size: 15px;
-    font-weight: 600;
-    transition: 0.2s;
+    flex: 1; padding: 12px; border: none; border-radius: 10px;
+    cursor: pointer; background: transparent; color: #aaa;
+    font-size: 15px; font-weight: 600; transition: 0.2s;
   }
-
-  .tab-btn.active {
-    background: #f59e0b;
-    color: #080b10;
-  }
-
+  .tab-btn.active { background: #f59e0b; color: #080b10; }
   .form-group { margin-bottom: 18px; }
-
-  .form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 14px;
-    color: #ddd;
-  }
-
+  .form-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #ddd; }
   .form-group input {
-    width: 100%;
-    padding: 15px;
-    border: 1px solid transparent;
-    border-radius: 12px;
-    background: #1b2330;
-    color: white;
-    font-size: 15px;
-    box-sizing: border-box;
-    transition: border-color 0.2s;
-    outline: none;
+    width: 100%; padding: 15px;
+    border: 1px solid transparent; border-radius: 12px;
+    background: #1b2330; color: white; font-size: 15px;
+    box-sizing: border-box; transition: border-color 0.2s; outline: none;
   }
-
   .form-group input:focus { border-color: #f59e0b; }
+  .form-group input.optional { border-color: rgba(245,158,11,0.2); }
+  .form-group input.optional:focus { border-color: #f59e0b; }
+
+  /* Referral code box */
+  .ref-code-wrap {
+    position: relative;
+  }
+  .ref-code-wrap input {
+    padding-left: 44px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px !important;
+  }
+  .ref-code-icon {
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    pointer-events: none;
+  }
+  .optional-label {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .optional-label label { margin-bottom: 0; }
+  .optional-badge {
+    font-size: 10px; font-weight: 700;
+    background: rgba(245,158,11,0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.2);
+    padding: 2px 8px; border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
 
   .auth-btn {
-    width: 100%;
-    padding: 16px;
-    border: none;
-    border-radius: 14px;
-    background: #f59e0b;
-    color: #080b10;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 10px;
-    transition: transform 0.2s, opacity 0.2s;
+    width: 100%; padding: 16px; border: none; border-radius: 14px;
+    background: #f59e0b; color: #080b10;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    margin-top: 10px; transition: transform 0.2s, opacity 0.2s;
   }
-
   .auth-btn:hover { transform: translateY(-2px); }
   .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
   .auth-footer {
-    margin-top: 20px;
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    color: #aaa;
-    align-items: center;
+    margin-top: 20px; display: flex; justify-content: space-between;
+    font-size: 13px; color: #aaa; align-items: center;
   }
-
   .auth-footer a { color: #f59e0b; text-decoration: none; }
-
   #message {
-    margin-top: 18px;
-    text-align: center;
-    font-size: 14px;
-    padding: 10px;
-    border-radius: 8px;
-    display: none;
+    margin-top: 18px; text-align: center; font-size: 14px;
+    padding: 10px; border-radius: 8px; display: none;
   }
-
   #message.success {
-    display: block;
-    color: #22c55e;
-    background: rgba(34,197,94,0.1);
-    border: 1px solid rgba(34,197,94,0.2);
+    display: block; color: #22c55e;
+    background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2);
   }
-
   #message.error {
-    display: block;
-    color: #ef4444;
-    background: rgba(239,68,68,0.1);
-    border: 1px solid rgba(239,68,68,0.2);
+    display: block; color: #ef4444;
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
   }
-
   .back-home {
-    display: block;
-    margin-top: 30px;
-    text-align: center;
-    color: #aaa;
-    text-decoration: none;
-    font-size: 14px;
+    display: block; margin-top: 30px; text-align: center;
+    color: #aaa; text-decoration: none; font-size: 14px;
   }
-
   .back-home:hover { color: #f59e0b; }
-
   .hidden { display: none; }
-
   .loading-spinner {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(8,11,16,0.3);
-    border-top-color: #080b10;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    vertical-align: middle;
-    margin-right: 6px;
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(8,11,16,0.3); border-top-color: #080b10;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    vertical-align: middle; margin-right: 6px;
   }
-
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 <base target="_blank">
@@ -244,6 +193,27 @@
       <label>Password</label>
       <input type="password" id="registerPassword" placeholder="Create password (min 6 chars)">
     </div>
+
+    <!-- REFERRAL CODE FIELD -->
+    <div class="form-group">
+      <div class="optional-label">
+        <label style="color:#ddd;">Referral Code</label>
+        <span class="optional-badge">OPTIONAL</span>
+      </div>
+      <div class="ref-code-wrap">
+        <span class="ref-code-icon">🎟️</span>
+        <input
+          type="text"
+          id="registerRefCode"
+          class="optional"
+          placeholder="Enter referral code (e.g. CVXYZ123)"
+          maxlength="12"
+          autocomplete="off"
+          spellcheck="false"
+        >
+      </div>
+    </div>
+
     <button class="auth-btn" id="registerBtn">Create Account</button>
   </div>
 
@@ -257,13 +227,22 @@
   const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
   const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  /* ─── Redirect if already logged in ─── */
+  /* ─── Check URL for prefilled ref code ─── */
   (async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (session) window.location.href = 'dashboard.html';
+    if (session) { window.location.href = 'dashboard.html'; return; }
+
+    /* Auto-fill ref code from URL param: login.html?ref=CVXYZ123 */
+    const urlParams = new URLSearchParams(window.location.search);
+    const refFromUrl = urlParams.get('ref') || '';
+    if (refFromUrl) {
+      /* Switch to register tab automatically */
+      switchToRegister();
+      const refInput = document.getElementById('registerRefCode');
+      if (refInput) refInput.value = refFromUrl.toUpperCase();
+    }
   })();
 
-  /* ─── Message helper ─── */
   function showMsg(text, type = 'success') {
     const el = document.getElementById('message');
     el.textContent = text;
@@ -279,48 +258,69 @@
   }
 
   /* ─── Tab switching ─── */
-  document.getElementById('loginTab').addEventListener('click', () => {
+  function switchToLogin() {
     document.getElementById('loginTab').classList.add('active');
     document.getElementById('registerTab').classList.remove('active');
     document.getElementById('loginForm').classList.remove('hidden');
     document.getElementById('registerForm').classList.add('hidden');
     document.getElementById('message').className = '';
-  });
+  }
 
-  document.getElementById('registerTab').addEventListener('click', () => {
+  function switchToRegister() {
     document.getElementById('registerTab').classList.add('active');
     document.getElementById('loginTab').classList.remove('active');
     document.getElementById('registerForm').classList.remove('hidden');
     document.getElementById('loginForm').classList.add('hidden');
     document.getElementById('message').className = '';
+  }
+
+  document.getElementById('loginTab').addEventListener('click', switchToLogin);
+  document.getElementById('registerTab').addEventListener('click', switchToRegister);
+
+  /* ─── Referral code auto-uppercase ─── */
+  document.getElementById('registerRefCode').addEventListener('input', function() {
+    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   });
 
-  /* ─── Allow Enter key to submit ─── */
+  /* ─── Enter key submit ─── */
   ['loginEmail', 'loginPassword'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('loginBtn').click();
     });
   });
-
-  ['registerEmail', 'registerPassword'].forEach(id => {
+  ['registerEmail', 'registerPassword', 'registerRefCode'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('registerBtn').click();
     });
   });
 
-  /* ─── Register ─── */
+  /* ─── REGISTER ─── */
   document.getElementById('registerBtn').addEventListener('click', async () => {
     const email    = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value;
+    const refCode  = document.getElementById('registerRefCode').value.trim().toUpperCase();
 
-    if (!email || !password) {
-      showMsg('Please fill in all fields.', 'error'); return;
-    }
-    if (password.length < 6) {
-      showMsg('Password must be at least 6 characters.', 'error'); return;
-    }
+    if (!email || !password) { showMsg('Please fill in all fields.', 'error'); return; }
+    if (password.length < 6) { showMsg('Password must be at least 6 characters.', 'error'); return; }
 
     setLoading('registerBtn', true, 'Create Account');
+
+    /* ─── Validate referral code if entered ─── */
+    let referredByUserId = null;
+    if (refCode) {
+      const { data: refProfile } = await _supabase
+        .from('profiles')
+        .select('id, ref_code')
+        .eq('ref_code', refCode)
+        .single();
+
+      if (!refProfile) {
+        setLoading('registerBtn', false, 'Create Account');
+        showMsg('❌ Invalid referral code. Please check and try again.', 'error');
+        return;
+      }
+      referredByUserId = refProfile.id;
+    }
 
     const { data, error } = await _supabase.auth.signUp({ email, password });
 
@@ -329,27 +329,47 @@
     if (error) {
       showMsg(error.message, 'error');
     } else {
-      /* Create profile row in public.profiles */
       if (data.user) {
-        await _supabase.from('profiles').upsert({
-          id:      data.user.id,
-          email:   data.user.email,
-          balance: 0.00042,          /* demo starting balance */
-          ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
-        });
+        const myRefCode = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const profileData = {
+          id:           data.user.id,
+          email:        data.user.email,
+          btc_balance:  0,
+          usdt_balance: 0,
+          ref_code:     myRefCode,
+        };
+
+        /* Save who referred this user */
+        if (referredByUserId) {
+          profileData.referred_by = referredByUserId;
+        }
+
+        await _supabase.from('profiles').upsert(profileData);
+
+        /* Credit referrer +1 count */
+        if (referredByUserId) {
+          const { data: refProf } = await _supabase
+            .from('profiles')
+            .select('ref_count')
+            .eq('id', referredByUserId)
+            .single();
+
+          const newCount = (Number(refProf?.ref_count) || 0) + 1;
+          await _supabase.from('profiles')
+            .update({ ref_count: newCount })
+            .eq('id', referredByUserId);
+        }
       }
-      showMsg('Account created! Check your email to confirm, then log in.', 'success');
+      showMsg('✅ Account created! Check your email to confirm, then log in.', 'success');
     }
   });
 
-  /* ─── Login ─── */
+  /* ─── LOGIN ─── */
   document.getElementById('loginBtn').addEventListener('click', async () => {
     const email    = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
 
-    if (!email || !password) {
-      showMsg('Please enter your email and password.', 'error'); return;
-    }
+    if (!email || !password) { showMsg('Please enter your email and password.', 'error'); return; }
 
     setLoading('loginBtn', true, 'Login To Dashboard');
 
@@ -360,59 +380,43 @@
     if (error) {
       showMsg(error.message, 'error');
     } else {
-      /* Ensure profile exists for this user */
       const { data: prof } = await _supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+        .from('profiles').select('*').eq('id', data.user.id).single();
 
       if (!prof) {
         await _supabase.from('profiles').upsert({
-          id:      data.user.id,
-          email:   data.user.email,
-          balance: 0.00042,
+          id: data.user.id, email: data.user.email,
+          btc_balance: 0, usdt_balance: 0,
           ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
         });
       } else if (!prof.ref_code) {
-        // Profile exists but missing ref_code — generate and save one permanently
-        const permanentRefCode = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
-        await _supabase.from('profiles').update({ ref_code: permanentRefCode }).eq('id', data.user.id);
+        await _supabase.from('profiles')
+          .update({ ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase() })
+          .eq('id', data.user.id);
       }
 
-      /* Persist session flag so dashboard knows we're logged in */
       if (document.getElementById('rememberMe').checked) {
         localStorage.setItem('cv_remember', '1');
       }
-
       window.location.href = 'dashboard.html';
     }
   });
 
-  const forgotBtn = document.getElementById('forgotPasswordBtn');
-  if (forgotBtn) {
-    forgotBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-
-      const email = document.getElementById('loginEmail')?.value?.trim();
-      if (!email) {
-        alert('Please enter your email address first.');
-        return;
-      }
-
-      try {
-        const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + '/reset-password.html'
-        });
-        if (error) throw error;
-
-        alert('Password reset email sent successfully. Please check your inbox.');
-      } catch (err) {
-        console.error(err);
-        alert('Failed to send reset email: ' + (err?.message || 'Unknown error'));
-      }
-    });
-  }
+  /* ─── Forgot Password ─── */
+  document.getElementById('forgotPasswordBtn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail')?.value?.trim();
+    if (!email) { alert('Please enter your email address first.'); return; }
+    try {
+      const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/reset-password.html'
+      });
+      if (error) throw error;
+      alert('Password reset email sent successfully. Please check your inbox.');
+    } catch (err) {
+      alert('Failed to send reset email: ' + (err?.message || 'Unknown error'));
+    }
+  });
 </script>
 </body>
 </html>
