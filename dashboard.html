@@ -8,10 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₿</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₮</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-
 </head>
 <body>
 
@@ -19,9 +17,9 @@
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar">
   <a href="index.html" class="sidebar-logo">
-    <div class="logo-icon">₿</div>
+    <div class="logo-icon">₮</div>
     <div class="logo-text">Crypto<span>Vault</span></div>
   </a>
 
@@ -71,7 +69,7 @@
   </div>
 </aside>
 
-<<header class="navbar">
+<header class="navbar">
   <div class="navbar-left">
     <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -116,15 +114,16 @@
   </div>
 </header>
 
-<<main class="main-content">
+<main class="main-content">
 
   <!-- TAB: DASHBOARD -->
   <div id="tab-dashboard" class="tab-content">
     <div class="stats-grid mb-28">
+      <!-- CHANGED: Wallet Balance → USDT -->
       <div class="stat-card gold glass">
         <div class="stat-icon">💰</div>
-        <div class="stat-value mono" id="walletBalanceCounter">₿ …</div>
-        <div class="stat-label">Wallet Balance</div>
+        <div class="stat-value mono" id="walletBalanceCounter">$ …</div>
+        <div class="stat-label">Wallet Balance (USDT)</div>
         <div class="stat-change up">No earnings yet</div>
       </div>
       <div class="stat-card green glass">
@@ -133,16 +132,18 @@
         <div class="stat-label">Live Hashrate</div>
         <div class="stat-change up">No active contracts</div>
       </div>
+      <!-- CHANGED: Daily Profit → USDT -->
       <div class="stat-card blue glass">
         <div class="stat-icon">📈</div>
-        <div class="stat-value mono" id="dailyProfitEl">₿ 0.00000000</div>
-        <div class="stat-label">Daily Profit</div>
+        <div class="stat-value mono" id="dailyProfitEl">$ 0.00</div>
+        <div class="stat-label">Daily Profit (USDT)</div>
         <div class="stat-change up">No mining data</div>
       </div>
+      <!-- CHANGED: Total Mined → USDT -->
       <div class="stat-card orange glass">
         <div class="stat-icon">🏆</div>
-        <div class="stat-value mono" id="totalMinedEl">₿ 0.00000000</div>
-        <div class="stat-label">Total Mined</div>
+        <div class="stat-value mono" id="totalMinedEl">$ 0.00</div>
+        <div class="stat-label">Total Mined (USDT)</div>
         <div class="stat-change up">▲ All time</div>
       </div>
     </div>
@@ -152,7 +153,7 @@
         <div class="card-header">
           <div>
             <div class="card-title">Mining Earnings</div>
-            <div class="card-subtitle">Last 12 days • BTC</div>
+            <div class="card-subtitle">Last 12 days • USDT</div>
           </div>
           <div class="tabs">
             <button class="tab-btn active">12D</button>
@@ -164,15 +165,15 @@
         <div style="display:flex;gap:24px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
           <div>
             <div style="font-size:11px;color:var(--text-muted)">Total Earned (12d)</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;" id="chartTotal12d">₿ 0.00000000</div>
+            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;" id="chartTotal12d">$ 0.00</div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-muted)">Avg Daily</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--green);font-weight:500;margin-top:3px;" id="chartAvgDaily">₿ 0.00000000</div>
+            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--green);font-weight:500;margin-top:3px;" id="chartAvgDaily">$ 0.00</div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-muted)">Best Day</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--text-primary);font-weight:500;margin-top:3px;" id="chartBestDay">₿ 0.00000000</div>
+            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--text-primary);font-weight:500;margin-top:3px;" id="chartBestDay">$ 0.00</div>
           </div>
         </div>
       </div>
@@ -187,27 +188,18 @@
           <div style="flex:1;">
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Total Value</div>
             <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--gold)" id="portfolioTotalUSD">$0.00</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">≈ 0.00000000 BTC</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" id="portfolioSubLabel">≈ 0.00 USDT</div>
           </div>
         </div>
-        <div class="portfolio-item">
-          <div class="portfolio-coin">
-            <div class="coin-icon coin-btc">₿</div>
-            <div><div class="coin-name">Bitcoin</div><div class="coin-full">BTC</div></div>
-          </div>
-          <div class="portfolio-right">
-            <div class="portfolio-amount" id="walletBTCAmount">0.00000000</div>
-            <div class="portfolio-usd" id="portfolioBTCusd">$0.00</div>
-          </div>
-        </div>
+        <!-- CHANGED: Only USDT row in portfolio -->
         <div class="portfolio-item">
           <div class="portfolio-coin">
             <div class="coin-icon coin-usdt">₮</div>
             <div><div class="coin-name">Tether</div><div class="coin-full">USDT</div></div>
           </div>
           <div class="portfolio-right">
-            <div class="portfolio-amount" id="walletUSDTAmount">0.00</div>
-            <div class="portfolio-usd">$0.00</div>
+            <div class="portfolio-amount" id="walletUSDTAmount">0.00 USDT</div>
+            <div class="portfolio-usd" id="portfolioUSDTusd">$0.00</div>
           </div>
         </div>
       </div>
@@ -245,7 +237,8 @@
     <div class="card glass">
       <div class="card-header"><div class="card-title">Quick Actions</div></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
-        <button class="btn btn-green" data-modal="depositModal">📥 Deposit BTC</button>
+        <!-- CHANGED: "Deposit USDT" instead of "Deposit BTC" -->
+        <button class="btn btn-green" data-modal="depositModal">📥 Deposit USDT</button>
         <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
         <button class="btn btn-ghost" onclick="switchTab('plans')">⛏️ Buy Mining Plan</button>
         <button class="btn btn-outline" onclick="switchTab('referral')">👥 Refer Friends</button>
@@ -275,7 +268,7 @@
           <div class="mono" style="font-size:16px;font-weight:600;color:var(--text-primary);" id="miningStatPower">—</div>
         </div>
         <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Daily Revenue</h4><p>Estimated at current BTC price</p></div>
+          <div class="settings-info"><h4>Daily Revenue</h4><p>Estimated (USDT)</p></div>
           <div class="mono text-green" style="font-size:16px;font-weight:600;color:var(--green);" id="miningStatDaily">—</div>
         </div>
         <div class="settings-item" style="padding:12px 0;">
@@ -298,56 +291,27 @@
   <!-- TAB: WALLET -->
   <div id="tab-wallet" class="tab-content" style="display:none;">
     <div class="wallet-header mb-24">
-      <div class="wallet-balance-label">Total Wallet Balance</div>
-      <div class="wallet-balance-value" id="walletBigBalance">₿ …</div>
-      <div class="wallet-balance-usd" id="walletBigUSD">≈ $— USD</div>
+      <div class="wallet-balance-label">Total Wallet Balance (USDT)</div>
+      <!-- CHANGED: Shows USDT balance -->
+      <div class="wallet-balance-value" id="walletBigBalance">$ …</div>
+      <div class="wallet-balance-usd" id="walletBigUSD">≈ — USDT</div>
       <div style="display:flex;gap:12px;margin-bottom:24px;">
         <button class="btn btn-green" data-modal="depositModal">📥 Deposit</button>
         <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
       </div>
     </div>
 
+    <!-- CHANGED: Deposit section — USDT only, BTC card removed -->
     <div class="card glass mb-24 deposit-section">
       <div class="card-header">
         <div>
-          <div class="card-title">💰 Deposit Addresses</div>
-          <div class="card-subtitle">Send funds to the address below</div>
+          <div class="card-title">💰 Deposit Address</div>
+          <div class="card-subtitle">Send USDT to the address below</div>
         </div>
         <span class="badge badge-success">Active</span>
       </div>
-      <div class="deposit-methods-grid">
-        <div class="deposit-method-card">
-          <div class="deposit-method-header">
-            <div class="deposit-coin-badge btc">
-              <span class="coin-icon coin-btc">₿</span>
-              <div>
-                <div class="deposit-coin-name">Bitcoin</div>
-                <div class="deposit-coin-network">BTC Network</div>
-              </div>
-            </div>
-            <span class="badge badge-warning">BTC</span>
-          </div>
-          <div class="deposit-qr-area">
-            <div class="qr-placeholder btc-qr" style="background:transparent;border:2px solid rgba(247,147,26,0.2);padding:12px;border-radius:16px;">
-              <img src="btc-qr.png" alt="Bitcoin Deposit QR" style="width:160px;height:160px;object-fit:contain;border-radius:8px;display:block;margin:0 auto;">
-              <span class="qr-label" style="display:block;text-align:center;margin-top:8px;">Scan QR Code</span>
-            </div>
-          </div>
-          <div class="deposit-address-box">
-            <label class="deposit-label">Deposit Address</label>
-            <div class="wallet-address-row deposit-address-row">
-              <div class="wallet-address" id="btcAddress">bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe</div>
-              <button class="copy-btn" onclick="copyToClipboard('bc1qzffpufy57a0r4jpyv7w6qj7w48vzj8jeamusxe','BTC address copied!')" title="Copy Address">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-            </div>
-            <div class="deposit-warning">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>Minimum deposit: 0.0001 BTC. Funds will be credited after 1 network confirmation.</span>
-            </div>
-          </div>
-        </div>
-
+      <!-- Single column — only USDT -->
+      <div style="max-width:520px;margin:0 auto;">
         <div class="deposit-method-card">
           <div class="deposit-method-header">
             <div class="deposit-coin-badge usdt">
@@ -385,22 +349,19 @@
     <div class="grid-2 mb-24">
       <div class="card glass">
         <div class="card-title mb-16">Balances</div>
-        <div class="portfolio-item">
-          <div class="portfolio-coin"><div class="coin-icon coin-btc">₿</div><div><div class="coin-name">Bitcoin</div><div class="coin-full">BTC</div></div></div>
-          <div class="portfolio-right"><div class="portfolio-amount" id="walletBTCBalance">0.00000000 BTC</div><div class="portfolio-usd" id="walletItemUSD">$0.00</div></div>
-        </div>
+        <!-- CHANGED: Only USDT balance row, BTC row removed -->
         <div class="portfolio-item">
           <div class="portfolio-coin"><div class="coin-icon coin-usdt">₮</div><div><div class="coin-name">Tether</div><div class="coin-full">USDT</div></div></div>
-          <div class="portfolio-right"><div class="portfolio-amount" id="walletUSDTBalance">0.00 USDT</div><div class="portfolio-usd">$0.00</div></div>
+          <div class="portfolio-right"><div class="portfolio-amount" id="walletUSDTBalance">0.00 USDT</div><div class="portfolio-usd" id="walletItemUSD">$0.00</div></div>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">
           <div class="flex justify-between text-sm" style="color:var(--text-muted);">
             <span>Total Mining Earnings</span>
-            <span class="mono text-gold" style="color:var(--gold);" id="walletTotalMinedEarnings">₿ 0.00000000</span>
+            <span class="mono text-gold" style="color:var(--gold);" id="walletTotalMinedEarnings">$ 0.00</span>
           </div>
           <div class="flex justify-between text-sm mt-8" style="color:var(--text-muted);">
             <span>Total Referral Earnings</span>
-            <span class="mono" style="color:var(--green);" id="walletTotalReferralEarnings">₿ 0.00000000</span>
+            <span class="mono" style="color:var(--green);" id="walletTotalReferralEarnings">$ 0.00</span>
           </div>
         </div>
       </div>
@@ -409,19 +370,19 @@
         <div class="card-title mb-16">Transaction Summary</div>
         <div class="settings-item" style="padding:10px 0;">
           <div class="settings-info"><h4>Total Deposited</h4></div>
-          <div class="mono" style="color:var(--green);font-weight:600;" id="walletTotalDeposited">₿ 0.00000000</div>
+          <div class="mono" style="color:var(--green);font-weight:600;" id="walletTotalDeposited">$ 0.00</div>
         </div>
         <div class="settings-item" style="padding:10px 0;">
           <div class="settings-info"><h4>Total Withdrawn</h4></div>
-          <div class="mono" style="color:var(--red);font-weight:600;" id="walletTotalWithdrawn">₿ 0.00000000</div>
+          <div class="mono" style="color:var(--red);font-weight:600;" id="walletTotalWithdrawn">$ 0.00</div>
         </div>
         <div class="settings-item" style="padding:10px 0;">
           <div class="settings-info"><h4>Mining Income</h4></div>
-          <div class="mono text-gold" style="color:var(--gold);font-weight:600;" id="walletMiningIncome">₿ 0.00000000</div>
+          <div class="mono text-gold" style="color:var(--gold);font-weight:600;" id="walletMiningIncome">$ 0.00</div>
         </div>
         <div class="settings-item" style="padding:10px 0;border-bottom:none;">
           <div class="settings-info"><h4>Referral Bonuses</h4></div>
-          <div class="mono" style="color:var(--blue);font-weight:600;" id="walletReferralBonuses">₿ 0.00000000</div>
+          <div class="mono" style="color:var(--blue);font-weight:600;" id="walletReferralBonuses">$ 0.00</div>
         </div>
       </div>
     </div>
@@ -461,7 +422,7 @@
   <div id="tab-plans" class="tab-content" style="display:none;">
     <div class="section-header mb-28">
       <h2>Mining <span>Plans</span></h2>
-      <p>Choose a contract that fits your goals. Higher hashrate, higher returns.</p>
+      <p>Choose a contract that fits your goals. Pay in USDT, earn daily rewards.</p>
     </div>
 
     <div class="plans-grid">
@@ -474,40 +435,29 @@
               <linearGradient id="st-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity="0.3"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0.05"/></linearGradient>
               <radialGradient id="st-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#22c55e" stop-opacity="0.15"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0"/></radialGradient>
             </defs>
-            <!-- Chassis body -->
             <rect x="60" y="40" width="280" height="140" rx="8" fill="url(#st-chassis)" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3"/>
-            <!-- Top status bar -->
             <rect x="60" y="40" width="280" height="22" rx="8" fill="#1f2937"/>
             <rect x="60" y="52" width="280" height="10" fill="#1f2937"/>
-            <!-- Status LEDs -->
             <circle cx="78" cy="51" r="3" fill="#22c55e" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2s" repeatCount="indefinite"/></circle>
             <circle cx="92" cy="51" r="3" fill="#22c55e" opacity="0.5"/>
             <circle cx="106" cy="51" r="3" fill="#22c55e" opacity="0.7"/>
-            <!-- Left Fan -->
             <circle cx="135" cy="110" r="38" fill="url(#st-fan)" stroke="#22c55e" stroke-width="2" stroke-opacity="0.4"/>
             <circle cx="135" cy="110" r="30" fill="none" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
             <g stroke="#22c55e" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round">
               <line x1="135" y1="72" x2="135" y2="148"/><line x1="97" y1="110" x2="173" y2="110"/>
               <line x1="108" y1="83" x2="162" y2="137"/><line x1="162" y1="83" x2="108" y2="137"/>
             </g>
-            <!-- Right Fan -->
             <circle cx="265" cy="110" r="38" fill="url(#st-fan)" stroke="#22c55e" stroke-width="2" stroke-opacity="0.4"/>
             <circle cx="265" cy="110" r="30" fill="none" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
             <g stroke="#22c55e" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round">
               <line x1="265" y1="72" x2="265" y2="148"/><line x1="227" y1="110" x2="303" y2="110"/>
               <line x1="238" y1="83" x2="292" y2="137"/><line x1="292" y1="83" x2="238" y2="137"/>
             </g>
-            <!-- Center control panel -->
             <rect x="185" y="75" width="30" height="70" rx="3" fill="#111827" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
             <rect x="190" y="82" width="20" height="4" rx="2" fill="#22c55e" opacity="0.6"/>
             <rect x="190" y="92" width="20" height="4" rx="2" fill="#22c55e" opacity="0.4"/>
             <rect x="190" y="102" width="20" height="4" rx="2" fill="#22c55e" opacity="0.3"/>
-            <!-- Side vents -->
-            <rect x="65" y="165" width="25" height="8" rx="2" fill="#22c55e" opacity="0.2"/>
-            <rect x="310" y="165" width="25" height="8" rx="2" fill="#22c55e" opacity="0.2"/>
-            <!-- Bottom glow -->
             <ellipse cx="200" cy="190" rx="130" ry="10" fill="url(#st-glow)" filter="blur(6px)"/>
-            <!-- AntMiner text -->
             <text x="200" y="62" text-anchor="middle" font-size="8" fill="#22c55e" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
           </svg>
           <div class="plan-image-overlay"></div>
@@ -518,18 +468,18 @@
             <div class="plan-name">Starter</div>
             <div class="plan-desc">Beginner friendly</div>
           </div>
-          <div class="plan-price">$500</div>
+          <div class="plan-price">$500 <span style="font-size:14px;color:var(--green);font-weight:600;">USDT</span></div>
           <div class="plan-period">30 Day Contract</div>
           <div class="plan-divider"></div>
           <div class="plan-stats">
             <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">10 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green">~0.000032 BTC</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green">~$0.96 USDT</span></div>
             <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-green">~10%</span></div>
           </div>
           <div class="plan-divider"></div>
           <ul class="plan-features">
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>10 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Basic Dashboard</li>
             <li class="unavail"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority Support</li>
           </ul>
@@ -546,40 +496,23 @@
               <linearGradient id="sv-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.05"/></linearGradient>
               <radialGradient id="sv-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></radialGradient>
             </defs>
-            <!-- Chassis body -->
             <rect x="55" y="35" width="290" height="150" rx="8" fill="url(#sv-chassis)" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3"/>
-            <!-- Top status bar -->
             <rect x="55" y="35" width="290" height="22" rx="8" fill="#1f2937"/>
             <rect x="55" y="47" width="290" height="10" fill="#1f2937"/>
-            <!-- Status LEDs -->
             <circle cx="73" cy="46" r="3" fill="#3b82f6" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2s" repeatCount="indefinite"/></circle>
             <circle cx="87" cy="46" r="3" fill="#3b82f6" opacity="0.5"/>
             <circle cx="101" cy="46" r="3" fill="#3b82f6" opacity="0.7"/>
-            <!-- Left Fan -->
             <circle cx="140" cy="105" r="40" fill="url(#sv-fan)" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.4"/>
-            <circle cx="140" cy="105" r="32" fill="none" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.2"/>
             <g stroke="#3b82f6" stroke-width="2.5" stroke-opacity="0.3" stroke-linecap="round">
               <line x1="140" y1="65" x2="140" y2="145"/><line x1="100" y1="105" x2="180" y2="105"/>
               <line x1="112" y1="77" x2="168" y2="133"/><line x1="168" y1="77" x2="112" y2="133"/>
             </g>
-            <!-- Right Fan -->
             <circle cx="260" cy="105" r="40" fill="url(#sv-fan)" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.4"/>
-            <circle cx="260" cy="105" r="32" fill="none" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.2"/>
             <g stroke="#3b82f6" stroke-width="2.5" stroke-opacity="0.3" stroke-linecap="round">
               <line x1="260" y1="65" x2="260" y2="145"/><line x1="220" y1="105" x2="300" y2="105"/>
               <line x1="232" y1="77" x2="288" y2="133"/><line x1="288" y1="77" x2="232" y2="133"/>
             </g>
-            <!-- Center control panel -->
-            <rect x="190" y="70" width="20" height="70" rx="3" fill="#111827" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.2"/>
-            <rect x="194" y="78" width="12" height="3" rx="1" fill="#3b82f6" opacity="0.6"/>
-            <rect x="194" y="86" width="12" height="3" rx="1" fill="#3b82f6" opacity="0.4"/>
-            <rect x="194" y="94" width="12" height="3" rx="1" fill="#3b82f6" opacity="0.3"/>
-            <!-- Side vents -->
-            <rect x="60" y="168" width="25" height="8" rx="2" fill="#3b82f6" opacity="0.2"/>
-            <rect x="315" y="168" width="25" height="8" rx="2" fill="#3b82f6" opacity="0.2"/>
-            <!-- Bottom glow -->
             <ellipse cx="200" cy="195" rx="130" ry="10" fill="url(#sv-glow)" filter="blur(6px)"/>
-            <!-- AntMiner text -->
             <text x="200" y="57" text-anchor="middle" font-size="8" fill="#3b82f6" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
           </svg>
           <div class="plan-image-overlay"></div>
@@ -590,18 +523,18 @@
             <div class="plan-name">Silver</div>
             <div class="plan-desc">Growing portfolio</div>
           </div>
-          <div class="plan-price">$2,500</div>
+          <div class="plan-price">$2,500 <span style="font-size:14px;color:var(--blue);font-weight:600;">USDT</span></div>
           <div class="plan-period">90 Day Contract</div>
           <div class="plan-divider"></div>
           <div class="plan-stats">
             <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">50 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-blue">~0.000158 BTC</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-blue">~$4.74 USDT</span></div>
             <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-blue">~15%</span></div>
           </div>
           <div class="plan-divider"></div>
           <ul class="plan-features">
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>50 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Full Dashboard</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Analytics Reports</li>
           </ul>
@@ -619,51 +552,25 @@
               <linearGradient id="gd-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0.05"/></linearGradient>
               <radialGradient id="gd-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.2"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
             </defs>
-            <!-- Top Unit -->
             <rect x="55" y="30" width="290" height="70" rx="6" fill="url(#gd-chassis)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.35"/>
             <rect x="55" y="30" width="290" height="18" rx="6" fill="#1f2937"/>
-            <rect x="55" y="42" width="290" height="6" fill="#1f2937"/>
             <circle cx="73" cy="39" r="2.5" fill="#f59e0b" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.5s" repeatCount="indefinite"/></circle>
-            <circle cx="85" cy="39" r="2.5" fill="#f59e0b" opacity="0.5"/>
-            <circle cx="97" cy="39" r="2.5" fill="#f59e0b" opacity="0.7"/>
-            <!-- Top Left Fan -->
             <circle cx="130" cy="65" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
             <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
               <line x1="130" y1="39" x2="130" y2="91"/><line x1="104" y1="65" x2="156" y2="65"/>
-              <line x1="112" y1="47" x2="148" y2="83"/><line x1="148" y1="47" x2="112" y2="83"/>
             </g>
-            <!-- Top Right Fan -->
             <circle cx="270" cy="65" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
             <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
               <line x1="270" y1="39" x2="270" y2="91"/><line x1="244" y1="65" x2="296" y2="65"/>
-              <line x1="252" y1="47" x2="288" y2="83"/><line x1="288" y1="47" x2="252" y2="83"/>
             </g>
-            <!-- Separator -->
             <rect x="55" y="100" width="290" height="4" rx="2" fill="#f59e0b" opacity="0.15"/>
-            <!-- Bottom Unit -->
             <rect x="55" y="106" width="290" height="70" rx="6" fill="url(#gd-chassis)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.35"/>
             <rect x="55" y="106" width="290" height="18" rx="6" fill="#1f2937"/>
-            <rect x="55" y="118" width="290" height="6" fill="#1f2937"/>
             <circle cx="73" cy="115" r="2.5" fill="#f59e0b" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.5s" begin="0.7s" repeatCount="indefinite"/></circle>
-            <circle cx="85" cy="115" r="2.5" fill="#f59e0b" opacity="0.5"/>
-            <circle cx="97" cy="115" r="2.5" fill="#f59e0b" opacity="0.7"/>
-            <!-- Bottom Left Fan -->
             <circle cx="130" cy="141" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="130" y1="115" x2="130" y2="167"/><line x1="104" y1="141" x2="156" y2="141"/>
-              <line x1="112" y1="123" x2="148" y2="159"/><line x1="148" y1="123" x2="112" y2="159"/>
-            </g>
-            <!-- Bottom Right Fan -->
             <circle cx="270" cy="141" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="270" y1="115" x2="270" y2="167"/><line x1="244" y1="141" x2="296" y2="141"/>
-              <line x1="252" y1="123" x2="288" y2="159"/><line x1="288" y1="123" x2="252" y2="159"/>
-            </g>
-            <!-- Bottom glow -->
             <ellipse cx="200" cy="188" rx="130" ry="10" fill="url(#gd-glow)" filter="blur(6px)"/>
-            <!-- AntMiner text -->
             <text x="200" y="54" text-anchor="middle" font-size="7" fill="#f59e0b" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
-            <text x="200" y="130" text-anchor="middle" font-size="7" fill="#f59e0b" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
           </svg>
           <div class="plan-image-overlay"></div>
         </div>
@@ -673,18 +580,18 @@
             <div class="plan-name">Gold</div>
             <div class="plan-desc">Best value</div>
           </div>
-          <div class="plan-price">$5,000</div>
+          <div class="plan-price">$5,000 <span style="font-size:14px;color:var(--gold);font-weight:600;">USDT</span></div>
           <div class="plan-period">180 Day Contract</div>
           <div class="plan-divider"></div>
           <div class="plan-stats">
             <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">100 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-gold">~0.000315 BTC</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-gold">~$9.45 USDT</span></div>
             <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-gold">~20%</span></div>
           </div>
           <div class="plan-divider"></div>
           <ul class="plan-features">
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>100 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Advanced Dashboard</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority Support</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Auto Reinvest</li>
@@ -702,79 +609,27 @@
               <linearGradient id="pt-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a855f7" stop-opacity="0.3"/><stop offset="100%" stop-color="#a855f7" stop-opacity="0.05"/></linearGradient>
               <radialGradient id="pt-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#a855f7" stop-opacity="0.2"/><stop offset="100%" stop-color="#a855f7" stop-opacity="0"/></radialGradient>
             </defs>
-            <!-- Top Unit -->
             <rect x="55" y="18" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
             <rect x="55" y="18" width="290" height="14" rx="5" fill="#1f2937"/>
             <circle cx="70" cy="25" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" repeatCount="indefinite"/></circle>
-            <circle cx="80" cy="25" r="2" fill="#a855f7" opacity="0.5"/>
-            <circle cx="90" cy="25" r="2" fill="#a855f7" opacity="0.7"/>
             <circle cx="125" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="125" y1="26" x2="125" y2="66"/><line x1="105" y1="46" x2="145" y2="46"/>
-              <line x1="111" y1="32" x2="139" y2="60"/><line x1="139" y1="32" x2="111" y2="60"/>
-            </g>
             <circle cx="200" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="200" y1="26" x2="200" y2="66"/><line x1="180" y1="46" x2="220" y2="46"/>
-              <line x1="186" y1="32" x2="214" y2="60"/><line x1="214" y1="32" x2="186" y2="60"/>
-            </g>
             <circle cx="275" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="275" y1="26" x2="275" y2="66"/><line x1="255" y1="46" x2="295" y2="46"/>
-              <line x1="261" y1="32" x2="289" y2="60"/><line x1="289" y1="32" x2="261" y2="60"/>
-            </g>
-            <!-- Separator 1 -->
             <rect x="55" y="74" width="290" height="3" rx="1" fill="#a855f7" opacity="0.12"/>
-            <!-- Middle Unit -->
             <rect x="55" y="78" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
             <rect x="55" y="78" width="290" height="14" rx="5" fill="#1f2937"/>
             <circle cx="70" cy="85" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" begin="0.4s" repeatCount="indefinite"/></circle>
-            <circle cx="80" cy="85" r="2" fill="#a855f7" opacity="0.5"/>
-            <circle cx="90" cy="85" r="2" fill="#a855f7" opacity="0.7"/>
             <circle cx="125" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="125" y1="86" x2="125" y2="126"/><line x1="105" y1="106" x2="145" y2="106"/>
-              <line x1="111" y1="92" x2="139" y2="120"/><line x1="139" y1="92" x2="111" y2="120"/>
-            </g>
             <circle cx="200" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="200" y1="86" x2="200" y2="126"/><line x1="180" y1="106" x2="220" y2="106"/>
-              <line x1="186" y1="92" x2="214" y2="120"/><line x1="214" y1="92" x2="186" y2="120"/>
-            </g>
             <circle cx="275" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="275" y1="86" x2="275" y2="126"/><line x1="255" y1="106" x2="295" y2="106"/>
-              <line x1="261" y1="92" x2="289" y2="120"/><line x1="289" y1="92" x2="261" y2="120"/>
-            </g>
-            <!-- Separator 2 -->
             <rect x="55" y="134" width="290" height="3" rx="1" fill="#a855f7" opacity="0.12"/>
-            <!-- Bottom Unit -->
             <rect x="55" y="138" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
             <rect x="55" y="138" width="290" height="14" rx="5" fill="#1f2937"/>
             <circle cx="70" cy="145" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" begin="0.8s" repeatCount="indefinite"/></circle>
-            <circle cx="80" cy="145" r="2" fill="#a855f7" opacity="0.5"/>
-            <circle cx="90" cy="145" r="2" fill="#a855f7" opacity="0.7"/>
             <circle cx="125" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="125" y1="146" x2="125" y2="186"/><line x1="105" y1="166" x2="145" y2="166"/>
-              <line x1="111" y1="152" x2="139" y2="180"/><line x1="139" y1="152" x2="111" y2="180"/>
-            </g>
             <circle cx="200" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="200" y1="146" x2="200" y2="186"/><line x1="180" y1="166" x2="220" y2="166"/>
-              <line x1="186" y1="152" x2="214" y2="180"/><line x1="214" y1="152" x2="186" y2="180"/>
-            </g>
             <circle cx="275" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="275" y1="146" x2="275" y2="186"/><line x1="255" y1="166" x2="295" y2="166"/>
-              <line x1="261" y1="152" x2="289" y2="180"/><line x1="289" y1="152" x2="261" y2="180"/>
-            </g>
-            <!-- Bottom glow -->
             <ellipse cx="200" cy="198" rx="130" ry="8" fill="url(#pt-glow)" filter="blur(6px)"/>
-            <!-- AntMiner text -->
-            <text x="200" y="40" text-anchor="middle" font-size="6" fill="#a855f7" opacity="0.4" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
-            <text x="200" y="100" text-anchor="middle" font-size="6" fill="#a855f7" opacity="0.4" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
-            <text x="200" y="160" text-anchor="middle" font-size="6" fill="#a855f7" opacity="0.4" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
           </svg>
           <div class="plan-image-overlay"></div>
         </div>
@@ -784,18 +639,18 @@
             <div class="plan-name">Platinum</div>
             <div class="plan-desc">Maximum returns</div>
           </div>
-          <div class="plan-price">$10,000</div>
+          <div class="plan-price">$10,000 <span style="font-size:14px;color:var(--purple);font-weight:600;">USDT</span></div>
           <div class="plan-period">365 Day Contract</div>
           <div class="plan-divider"></div>
           <div class="plan-stats">
             <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">300 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-purple">~0.000945 BTC</span></div>
+            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-purple">~$28.35 USDT</span></div>
             <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-purple">~25%</span></div>
           </div>
           <div class="plan-divider"></div>
           <ul class="plan-features">
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>300 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily Payouts</li>
+            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>VIP Dashboard</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dedicated Manager</li>
             <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Auto Reinvest + Compound</li>
@@ -811,7 +666,7 @@
     <div class="grid-2-1 mb-24">
       <div class="referral-card glass">
         <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:6px;">Earn 5% <span style="color:var(--gold)">Commission</span></div>
-        <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;max-width:480px;">Share your referral link. Every time someone purchases a mining contract using your link, you earn 5% of their contract value — paid instantly in BTC.</p>
+        <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;max-width:480px;">Share your referral link. Every time someone purchases a mining contract using your link, you earn 5% of their contract value — paid instantly in USDT.</p>
         <div class="referral-link-box">
           <span class="referral-link" id="refLinkDisplay">Loading your unique link…</span>
           <button class="btn btn-primary btn-sm" id="copyRefBtn" disabled style="opacity:0.5;">📋 Copy Link</button>
@@ -834,11 +689,11 @@
         </div>
         <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
           <span style="color:var(--text-muted)">Total Earned</span>
-          <span class="mono text-gold" style="color:var(--gold);" id="refEarningsEl">₿ 0.000000</span>
+          <span class="mono text-gold" style="color:var(--gold);" id="refEarningsEl">$ 0.00 USDT</span>
         </div>
         <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
           <span style="color:var(--text-muted)">This Month</span>
-          <span class="mono" style="color:var(--green);">₿ 0.000000</span>
+          <span class="mono" style="color:var(--green);">$ 0.00 USDT</span>
         </div>
         <div class="flex justify-between text-sm" style="padding:8px 0;">
           <span style="color:var(--text-muted)">Active Referrals</span>
@@ -959,32 +814,31 @@
 </main>
 </div>
 
-<!-- Deposit Modal -->
+<!-- Deposit Modal — USDT only -->
 <div class="modal-overlay" id="depositModal" style="display:none;">
   <div class="modal" style="max-width:540px;">
     <div class="modal-header">
-      <h3>📥 Submit Deposit</h3>
+      <h3>📥 Submit USDT Deposit</h3>
       <button class="modal-close" data-close-modal="depositModal">✕</button>
     </div>
     <form id="depositForm" class="deposit-form-modal">
       <div class="form-group">
-        <label for="depositCoin">Select Coin</label>
+        <label for="depositCoin">Payment Method</label>
         <div class="select-wrapper">
           <select id="depositCoin" name="coin" required>
             <option value="" disabled selected>Choose deposit method</option>
-            <option value="usdt_bep20">USDT (BEP20)</option>
-            <option value="btc">Bitcoin (BTC)</option>
+            <option value="usdt_bep20" selected>USDT (BEP20)</option>
           </select>
           <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
       <div class="form-group">
-        <label for="depositAmount">Amount</label>
+        <label for="depositAmount">Amount (USDT)</label>
         <div class="input-group deposit-input-group">
-          <input type="number" id="depositAmount" name="amount" step="0.00000001" min="0.00000001" placeholder="0.00" required>
-          <span class="input-suffix" id="amountSuffix">—</span>
+          <input type="number" id="depositAmount" name="amount" step="0.01" min="10" placeholder="0.00" required>
+          <span class="input-suffix" id="amountSuffix">USDT</span>
         </div>
-        <div class="deposit-hint" id="amountHint">Enter the exact amount you sent</div>
+        <div class="deposit-hint" id="amountHint">Minimum deposit: 10 USDT</div>
       </div>
       <div class="form-group">
         <label for="depositTxHash">Transaction Hash (TXID)</label>
@@ -1033,32 +887,32 @@
   </div>
 </div>
 
-<!-- Withdraw Modal -->
+<!-- Withdraw Modal — USDT -->
 <div class="modal-overlay" id="withdrawModal" style="display:none;">
   <div class="modal">
     <div class="modal-header">
-      <h3>📤 Withdraw Bitcoin</h3>
+      <h3>📤 Withdraw USDT</h3>
       <button class="modal-close" data-close-modal="withdrawModal">✕</button>
     </div>
     <form id="withdrawForm">
       <div class="form-group">
-        <label>BTC Wallet Address</label>
+        <label>USDT Wallet Address (BEP20)</label>
         <div class="input-group">
-          <span class="input-icon">₿</span>
-          <input type="text" placeholder="bc1q..." required>
+          <span class="input-icon">₮</span>
+          <input type="text" placeholder="0x..." required>
         </div>
       </div>
       <div class="form-group">
-        <label>Amount (BTC)</label>
+        <label>Amount (USDT)</label>
         <div class="input-group">
           <span class="input-icon">💰</span>
-          <input type="number" name="amount" step="0.00000001" min="0.00005" placeholder="0.00000000" required>
-          <span class="input-suffix">BTC</span>
+          <input type="number" name="amount" step="0.01" min="10" placeholder="0.00" required>
+          <span class="input-suffix">USDT</span>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Min: 0.00005 BTC · Fee: 0.00001 BTC</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Min: 10 USDT · Network fee applies</div>
       </div>
       <div style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--red);margin-bottom:20px;">
-        ⚠️ Withdrawals are processed within 24 hours. Double-check your address.
+        ⚠️ Withdrawals are processed within 24 hours. Only send to BEP20 address. Double-check your address.
       </div>
       <button type="submit" class="btn btn-primary btn-full">Confirm Withdrawal</button>
     </form>
@@ -1077,6 +931,7 @@
 </div>
 
 <script src="dashboard.js"></script>
+<script src="dashboard-usdt-patch.js"></script>
 
 <script>
 /* ─── REFERRAL SHARE FUNCTIONS ─── */
@@ -1086,14 +941,13 @@ function shareReferral(platform) {
     alert('Your referral link is still loading. Please wait a moment and try again.');
     return;
   }
-  const text = 'Join me on CryptoVault and start earning Bitcoin with cloud mining! Use my referral link: ' + link;
-
+  const text = 'Join me on CryptoVault and start earning USDT with cloud mining! Use my referral link: ' + link;
   if (platform === 'whatsapp') {
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
   } else if (platform === 'twitter') {
     window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
   } else if (platform === 'email') {
-    window.location.href = 'mailto:?subject=' + encodeURIComponent('Join CryptoVault - Bitcoin Mining') + '&body=' + encodeURIComponent(text);
+    window.location.href = 'mailto:?subject=' + encodeURIComponent('Join CryptoVault - USDT Mining') + '&body=' + encodeURIComponent(text);
   }
 }
 </script>
