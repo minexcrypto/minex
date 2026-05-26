@@ -1,71 +1,109 @@
 /* ══════════════════════════════════════════════════════════════
-   CRYPTOVAULT — USDT PATCH
-   Yeh file dashboard.js ke baad load hogi aur BTC functions
-   ko USDT-first se override karegi.
-   dashboard.html mein <script src="dashboard.js"> ke BAAD
-   <script src="dashboard-usdt-patch.js"> add karo.
+   CRYPTOVAULT — USDT PATCH (Fixed)
+   Hamesha USDT values dikhata hai, BTC kabhi nahi.
 ══════════════════════════════════════════════════════════════ */
 'use strict';
 
-/* ─── Wait for dashboard.js to fully initialize ─── */
-document.addEventListener('DOMContentLoaded', () => {
-  /* Small delay to let Auth + populateUserUI run first */
-  setTimeout(applyUSDTPatch, 800);
-});
+/* ─── Helper ─── */
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
 
-/* ─── MAIN PATCH FUNCTION ─── */
-function applyUSDTPatch() {
+function normTxType(raw) {
+  const t = String(raw || '').trim().toLowerCase();
+  if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposit';
+  if (['withdrawal', 'withdrawals'].includes(t)) return 'withdrawal';
+  if (['mining', 'mining_reward', 'reward'].includes(t)) return 'mining';
+  if (['purchase', 'purchases', 'plan_purchase'].includes(t)) return 'purchase';
+  return t || 'other';
+}
 
-  /* ── 1. Override populateUserUI to show USDT balance ── */
-  const _origPopulateUserUI = window.populateUserUI || function(){};
+/* ─── USDT display karo — har jagah ─── */
+function applyUSDTDisplay() {
+  const profile = window.Auth ? window.Auth.getProfile() : {};
+  const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+  const usdtStr  = '$ ' + usdtBalance.toFixed(2);
+  const usdtLabel = usdtBalance.toFixed(2) + ' USDT';
+  const approxStr = '≈ ' + usdtBalance.toFixed(2) + ' USDT';
 
-  async function populateUserUI_USDT() {
-    /* Call original first */
-    await _origPopulateUserUI();
+  /* Stat card #1 — Wallet Balance */
+  setText('walletBalanceCounter', usdtStr);
 
-    const profile = window.Auth ? window.Auth.getProfile() : {};
-    const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
-    const usdtStr = '$ ' + usdtBalance.toFixed(2);
+  /* Wallet tab — big balance */
+  setText('walletBigBalance', usdtStr);
+  setText('walletBigUSD',    approxStr);
 
-    /* Dashboard stat card #1 — Wallet Balance */
-    const wbc = document.getElementById('walletBalanceCounter');
-    if (wbc) wbc.textContent = usdtStr;
+  /* Wallet item USD */
+  setText('walletItemUSD', usdtStr);
 
-    /* Wallet tab — big balance */
-    const wbb = document.getElementById('walletBigBalance');
-    if (wbb) wbb.textContent = usdtStr;
+  /* Portfolio */
+  setText('walletUSDTAmount',  usdtLabel);
+  setText('portfolioUSDTusd',  usdtStr);
+  setText('portfolioTotalUSD', usdtStr);
+  setText('portfolioSubLabel', approxStr);
 
-    const wbu = document.getElementById('walletBigUSD');
-    if (wbu) wbu.textContent = '≈ ' + usdtBalance.toFixed(2) + ' USDT';
+  /* Wallet balances */
+  setText('walletUSDTBalance', usdtLabel);
+  setText('walletBalanceUSD',  usdtStr);
 
-    /* Portfolio card — USDT amount */
-    const wua = document.getElementById('walletUSDTAmount');
-    if (wua) wua.textContent = usdtBalance.toFixed(2) + ' USDT';
+  /* Stat cards — Daily Profit aur Total Mined (agar BTC me dikha raha to USDT me convert) */
+  _fixBTCStatCard('dailyProfitEl');
+  _fixBTCStatCard('totalMinedEl');
 
-    const puu = document.getElementById('portfolioUSDTusd');
-    if (puu) puu.textContent = '$ ' + usdtBalance.toFixed(2);
+  /* Chart bottom labels */
+  _fixChartLabels();
+}
 
-    /* portfolioTotalUSD */
-    const ptu = document.getElementById('portfolioTotalUSD');
-    if (ptu) ptu.textContent = '$ ' + usdtBalance.toFixed(2);
-
-    /* portfolioSubLabel */
-    const psl = document.getElementById('portfolioSubLabel');
-    if (psl) psl.textContent = '≈ ' + usdtBalance.toFixed(2) + ' USDT';
-
-    /* Wallet tab balances */
-    const wub = document.getElementById('walletUSDTBalance');
-    if (wub) wub.textContent = usdtBalance.toFixed(2) + ' USDT';
-
-    const wiu = document.getElementById('walletItemUSD');
-    if (wiu) wiu.textContent = '$ ' + usdtBalance.toFixed(2);
+/* Agar koi element ₿ se shuru ho raha hai to USDT me convert karo */
+function _fixBTCStatCard(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const txt = el.textContent || '';
+  if (txt.includes('₿') || txt.startsWith('B ') || txt.startsWith('Ƀ')) {
+    const num = parseFloat(txt.replace(/[^0-9.]/g, '')) || 0;
+    const price = window.BTCPrice ? window.BTCPrice.get() : null;
+    if (price && num > 0 && num < 1) {
+      // BTC value lagti hai, convert karo
+      el.textContent = '$ ' + (num * price).toFixed(2);
+    } else if (num === 0) {
+      el.textContent = '$ 0.00';
+    }
   }
+}
 
-  window.populateUserUI = populateUserUI_USDT;
+function _fixChartLabels() {
+  ['chartTotal12d', 'chartAvgDaily', 'chartBestDay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const txt = el.textContent || '';
+    if (txt.includes('₿') || (txt.includes('0.0') && !txt.includes('$'))) {
+      const num = parseFloat(txt.replace(/[^0-9.]/g, '')) || 0;
+      const price = window.BTCPrice ? window.BTCPrice.get() : null;
+      if (price) {
+        el.textContent = '$ ' + (num < 1 ? (num * price).toFixed(2) : num.toFixed(2));
+      } else {
+        el.textContent = '$ ' + (num < 1 ? '0.00' : num.toFixed(2));
+      }
+    }
+  });
+}
 
-  /* ── 2. Override renderWalletSummary to show USDT amounts ── */
+/* ─── populateUserUI override ─── */
+function patchPopulateUserUI() {
+  const _orig = window.populateUserUI || function(){};
+
+  window.populateUserUI = async function() {
+    await _orig();
+    applyUSDTDisplay();
+  };
+}
+
+/* ─── renderWalletSummary override ─── */
+function patchRenderWalletSummary() {
   window.renderWalletSummary = function() {
     const txns = window._allTransactions || [];
+    const price = window.BTCPrice ? window.BTCPrice.get() : null;
 
     const totalDeposited  = txns.filter(t => normTxType(t.type) === 'deposit')
       .reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -76,116 +114,99 @@ function applyUSDTPatch() {
     const referralBonuses = txns.filter(t => t.type === 'referral')
       .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-    /* Convert BTC mining amounts to USDT using live price */
-    const price = window.BTCPrice ? window.BTCPrice.get() : null;
-    const miningUSDT = price ? miningIncome * price : miningIncome;
-    const refUSDT    = price ? referralBonuses * price : referralBonuses;
+    /* Mining amounts BTC me hain to convert karo */
+    const miningUSDT = (price && miningIncome < 1) ? miningIncome * price : miningIncome;
+    const refUSDT    = (price && referralBonuses < 1) ? referralBonuses * price : referralBonuses;
 
-    setText('walletTotalDeposited',  '$ ' + totalDeposited.toFixed(2));
-    setText('walletTotalWithdrawn',  '$ ' + totalWithdrawn.toFixed(2));
-    setText('walletMiningIncome',    '$ ' + miningUSDT.toFixed(2));
-    setText('walletReferralBonuses', '$ ' + refUSDT.toFixed(2));
-    setText('walletTotalMinedEarnings', '$ ' + miningUSDT.toFixed(2));
-    setText('walletTotalReferralEarnings', '$ ' + refUSDT.toFixed(2));
+    setText('walletTotalDeposited',       '$ ' + totalDeposited.toFixed(2));
+    setText('walletTotalWithdrawn',       '$ ' + totalWithdrawn.toFixed(2));
+    setText('walletMiningIncome',         '$ ' + miningUSDT.toFixed(2));
+    setText('walletReferralBonuses',      '$ ' + refUSDT.toFixed(2));
+    setText('walletTotalMinedEarnings',   '$ ' + miningUSDT.toFixed(2));
+    setText('walletTotalReferralEarnings','$ ' + refUSDT.toFixed(2));
   };
+}
 
-  /* ── 3. Override populateDashboardStats to show USDT ── */
-  const _origPopulateDashboardStats = window.populateDashboardStats || function(){};
-
-  window.populateDashboardStats = async function(contracts) {
-    await _origPopulateDashboardStats(contracts);
-
-    const activeContracts = (contracts || []).filter(c => c.active === true);
-    const dailyProfit = activeContracts.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
-
-    /* Convert BTC daily profit to USDT */
-    const price = window.BTCPrice ? window.BTCPrice.get() : null;
-    const dailyUSDT = price ? dailyProfit * price : dailyProfit * 67000;
-    setText('dailyProfitEl', '$ ' + dailyUSDT.toFixed(2));
-
-    /* Total mined in USDT */
-    const user = window.Auth ? window.Auth.getUser() : null;
-    if (user && window._supabase) {
-      /* _allTransactions is already loaded */
-      const txns = window._allTransactions || [];
-      const miningBTC = txns.filter(t => normTxType(t.type) === 'mining')
-        .reduce((s, t) => s + Number(t.amount || 0), 0);
-      const miningUSDT = price ? miningBTC * price : miningBTC * 67000;
-      setText('totalMinedEl', '$ ' + miningUSDT.toFixed(2));
-    } else {
-      setText('totalMinedEl', '$ 0.00');
-    }
-
-    /* chart stats in USDT */
-    updateChartLabelsUSDT();
-  };
-
-  /* ── 4. Update chart bottom labels to USDT ── */
-  function updateChartLabelsUSDT() {
-    const price = window.BTCPrice ? window.BTCPrice.get() : null;
-    if (!price) return;
-
-    const parseAmt = id => {
-      const el = document.getElementById(id);
-      if (!el) return 0;
-      const txt = el.textContent.replace(/[₿$,\s]/g, '');
-      return parseFloat(txt) || 0;
-    };
-
-    const total = parseAmt('chartTotal12d');
-    const avg   = parseAmt('chartAvgDaily');
-    const best  = parseAmt('chartBestDay');
-
-    /* If values look like BTC (very small), convert */
-    if (total < 1) {
-      setText('chartTotal12d', '$ ' + (total * price).toFixed(2));
-      setText('chartAvgDaily',  '$ ' + (avg   * price).toFixed(2));
-      setText('chartBestDay',   '$ ' + (best  * price).toFixed(2));
-    }
-  }
-
-  /* ── 5. updatePortfolioValue → USDT ── */
+/* ─── updatePortfolioValue override ─── */
+function patchUpdatePortfolioValue() {
   window.updatePortfolioValue = function() {
-    const profile  = window.Auth ? window.Auth.getProfile() : {};
-    const usdt     = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
-    const str      = '$ ' + usdt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const profile = window.Auth ? window.Auth.getProfile() : {};
+    const usdt    = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+    const str     = '$ ' + usdt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     setText('portfolioTotalUSD', str);
     setText('walletBalanceUSD',  str);
-
-    const wua = document.getElementById('walletUSDTAmount');
-    if (wua) wua.textContent = usdt.toFixed(2) + ' USDT';
-
-    const puu = document.getElementById('portfolioUSDTusd');
-    if (puu) puu.textContent = str;
+    setText('walletUSDTAmount',  usdt.toFixed(2) + ' USDT');
+    setText('portfolioUSDTusd',  str);
+    setText('walletBalanceCounter', str);
+    setText('walletBigBalance',     str);
   };
+}
 
-  /* ── 6. Re-run patch immediately ── */
-  populateUserUI_USDT();
+/* ─── MutationObserver: DOM change hote hi BTC values replace karo ─── */
+function watchAndReplaceAll() {
+  const targets = [
+    'walletBalanceCounter', 'walletBigBalance', 'walletBigUSD',
+    'walletItemUSD', 'walletUSDTAmount', 'portfolioUSDTusd',
+    'portfolioTotalUSD', 'portfolioSubLabel', 'walletUSDTBalance',
+    'walletBalanceUSD', 'dailyProfitEl', 'totalMinedEl',
+    'chartTotal12d', 'chartAvgDaily', 'chartBestDay'
+  ];
 
-  /* ── 7. Re-apply whenever BTC price updates ── */
+  const observer = new MutationObserver(() => {
+    /* Koi bhi change ho, check karo BTC symbol dikha to nahi */
+    let needsFix = false;
+    targets.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && (el.textContent.includes('₿') || el.textContent.includes('Ƀ'))) {
+        needsFix = true;
+      }
+    });
+    if (needsFix) {
+      applyUSDTDisplay();
+    }
+  });
+
+  targets.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      observer.observe(el, { childList: true, characterData: true, subtree: true });
+    }
+  });
+}
+
+/* ─── MAIN: Patch karo ─── */
+function applyUSDTPatch() {
+  patchPopulateUserUI();
+  patchRenderWalletSummary();
+  patchUpdatePortfolioValue();
+
+  /* Turant display fix karo */
+  applyUSDTDisplay();
+
+  /* BTCPrice update hone par bhi fix karo */
   if (window.BTCPrice) {
     window.BTCPrice.onChange(() => {
-      window.updatePortfolioValue();
+      window.updatePortfolioValue && window.updatePortfolioValue();
       window.renderWalletSummary && window.renderWalletSummary();
-      updateChartLabelsUSDT();
+      _fixChartLabels();
     });
   }
 
-  console.log('[USDT Patch] Applied successfully.');
+  /* DOM watch karo */
+  watchAndReplaceAll();
+
+  /* Thodi der baad ek aur pass — timing issues ke liye */
+  setTimeout(applyUSDTDisplay, 500);
+  setTimeout(applyUSDTDisplay, 1500);
+  setTimeout(applyUSDTDisplay, 3000);
+
+  console.log('[USDT Patch] Applied — USDT hamesha dikhega.');
 }
 
-/* ─── HELPER: normalize tx type (same as dashboard.js) ─── */
-function normTxType(raw) {
-  const t = String(raw || '').trim().toLowerCase();
-  if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposit';
-  if (['withdrawal', 'withdrawals'].includes(t)) return 'withdrawal';
-  if (['mining', 'mining_reward', 'reward'].includes(t)) return 'mining';
-  if (['purchase', 'purchases', 'plan_purchase'].includes(t)) return 'purchase';
-  return t || 'other';
-}
-
-/* ─── HELPER: setText ─── */
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
+/* ─── DOMContentLoaded wait karo, phir patch lagao ─── */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(applyUSDTPatch, 900));
+} else {
+  setTimeout(applyUSDTPatch, 900);
 }
