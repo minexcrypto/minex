@@ -199,6 +199,7 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -373,6 +374,10 @@
           balance: 0.00042,
           ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
         });
+      } else if (!prof.ref_code) {
+        // Profile exists but missing ref_code — generate and save one permanently
+        const permanentRefCode = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        await _supabase.from('profiles').update({ ref_code: permanentRefCode }).eq('id', data.user.id);
       }
 
       /* Persist session flag so dashboard knows we're logged in */
