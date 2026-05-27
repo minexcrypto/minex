@@ -298,7 +298,6 @@ function renderPage(contract) {
   if (_timerInterval) clearInterval(_timerInterval);
   _timerInterval = setInterval(() => updateTimer(contract), 1000);
   updateTimer(contract);
-  updateClaimButtonState(contract);
 
   // Draw Chart
   drawEarningsChart(contract);
@@ -320,29 +319,6 @@ function formatCountdown(ms) {
   return String(hours).padStart(2, '0') + ':' +
     String(minutes).padStart(2, '0') + ':' +
     String(seconds).padStart(2, '0');
-}
-
-function updateClaimButtonState(contract) {
-  const btn = $('claimEarningsBtn');
-  if (!btn || !contract) return;
-
-  const now = new Date();
-  const anchor = getPayoutAnchorDate(contract);
-  const cyclesDue = Math.floor((now - anchor) / MINING_MS_PER_DAY);
-  const canClaim = cyclesDue > 0;
-
-  btn.disabled = !canClaim;
-  btn.classList.toggle('claim-btn-disabled', !canClaim);
-  btn.style.opacity = canClaim ? '1' : '0.42';
-  btn.style.filter = canClaim ? 'none' : 'grayscale(35%)';
-  btn.style.cursor = canClaim ? 'pointer' : 'not-allowed';
-
-  if (canClaim) {
-    btn.textContent = 'Claim Daily Earnings';
-  } else {
-    const left = formatCountdown(getTimeUntilNextPayout(contract));
-    btn.textContent = 'Claimed · Next in ' + left;
-  }
 }
 
 /* ─── LIVE TIMER ─────────────────────────────────────────── */
@@ -367,7 +343,6 @@ function updateTimer(contract) {
 
   setText('planTimerDisplay', display);
   setText('planTimerHours', hours);
-  updateClaimButtonState(contract);
 
   if (timeUntil === 0 && !contract._payoutTriggered) {
     contract._payoutTriggered = true;
@@ -477,28 +452,10 @@ async function triggerPayout(contract) {
 
     Toast.show(`✅ Mining payout credited: $${payoutUSDT.toFixed(2)} USDT`, 'success', 4500);
     renderPage(contract);
-    updateClaimButtonState(contract);
   } catch (err) {
     console.error('[PlanDetail] triggerPayout failed:', err);
     Toast.show('Failed to process payout: ' + err.message, 'error', 5000);
   }
-}
-
-async function claimDailyEarnings() {
-  const btn = $('claimEarningsBtn');
-  if (btn?.disabled) return;
-
-  const contract = await loadContractData();
-  if (!contract) return;
-
-  if (btn) {
-    btn.disabled = true;
-    btn.style.opacity = '0.42';
-    btn.textContent = 'Processing…';
-  }
-
-  await triggerPayout(contract);
-  updateClaimButtonState(contract);
 }
 
 /* ─── EARNINGS CHART ─────────────────────────────────────── */
