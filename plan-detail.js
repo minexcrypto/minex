@@ -140,7 +140,7 @@ const BTCPrice = (() => {
 /* ─── MINING PAYOUT HELPERS (match dashboard.js) ─────────── */
 const MINING_MS_PER_DAY = 24 * 60 * 60 * 1000;
 const PLAN_USDT_PRICES  = { Starter: 500, Silver: 2500, Gold: 5000, Platinum: 10000 };
-const PLAN_DAILY_RATE   = 0.003;
+const PLAN_MONTHLY_RATE = { Starter: 0.10, Silver: 0.15, Gold: 0.20, Platinum: 0.25 };
 
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
@@ -148,13 +148,34 @@ function normalizeTxType(raw) {
   return t || 'other';
 }
 
-function getDailyProfitUsdt(contract) {
-  const stored = Number(contract.daily_profit || 0);
-  if (stored >= 0.5) return stored;
-  const planPrice = Number(contract.plan_price || 0)
+function getDaysInCurrentMonth(refDate = new Date()) {
+  return new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate();
+}
+
+function getPlanPriceUsdt(contract) {
+  return Number(contract.plan_price || 0)
     || PLAN_USDT_PRICES[contract.plan || contract.name] || 0;
-  if (planPrice > 0) return planPrice * PLAN_DAILY_RATE;
-  return stored;
+}
+
+function calcDailyProfitUsdt(planPrice, planName, refDate = new Date()) {
+  if (!planPrice || planPrice <= 0) return 0;
+  const days = getDaysInCurrentMonth(refDate);
+  const monthlyRate = PLAN_MONTHLY_RATE[planName] ?? 0.10;
+  return (planPrice * monthlyRate) / days;
+}
+
+function getDailyProfitUsdt(contract, refDate = new Date()) {
+  const planName = contract.plan || contract.name || '';
+  const planPrice = getPlanPriceUsdt(contract);
+  if (planPrice > 0) return calcDailyProfitUsdt(planPrice, planName, refDate);
+  return Number(contract.daily_profit || 0);
+}
+
+function getMonthlyProfitUsdt(contract, refDate = new Date()) {
+  const planName = contract.plan || contract.name || '';
+  const planPrice = getPlanPriceUsdt(contract);
+  if (planPrice > 0) return planPrice * (PLAN_MONTHLY_RATE[planName] ?? 0.10);
+  return getDailyProfitUsdt(contract, refDate) * getDaysInCurrentMonth(refDate);
 }
 
 function getPayoutAnchorDate(contract) {
@@ -230,8 +251,10 @@ function renderPage(contract) {
   const totalEarned = dailyProfit * daysActive;
   const totalEarnedStr = formatUsdtDaily(totalEarned);
   const dailyProfitUSD = '';
-  const projectedMonthly = dailyProfit * 30;
+  const projectedMonthly = getMonthlyProfitUsdt(contract);
   const projectedMonthlyStr = formatUsdtDaily(projectedMonthly);
+  const monthLabel = new Date().toLocaleString('en-US', { month: 'long' });
+  const daysInMonth = getDaysInCurrentMonth();
 
   // Hero Section
   setText('planHeroName', planName + ' Plan');
@@ -256,7 +279,7 @@ function renderPage(contract) {
 
   // Daily Earnings Card
   setText('planDailyEarnings', dailyProfitStr);
-  setText('planDailyEarningsUSD', dailyProfitUSD);
+  setText('planDailyEarningsUSD', dailyProfitUSD || ('~$' + dailyProfit.toFixed(2) + '/day · ' + monthLabel + ' (' + daysInMonth + ' days)'));
 
   // Chart Stats
   setText('planChartTotal', totalEarnedStr);
@@ -275,9 +298,51 @@ function renderPage(contract) {
   if (_timerInterval) clearInterval(_timerInterval);
   _timerInterval = setInterval(() => updateTimer(contract), 1000);
   updateTimer(contract);
+  updateClaimButtonState(contract);
 
   // Draw Chart
   drawEarningsChart(contract);
+}
+
+function getTimeUntilNextPayout(contract) {
+  const base = getPayoutAnchorDate(contract);
+  const now = new Date();
+  const elapsed = now - base;
+  const cycles = Math.floor(elapsed / MINING_MS_PER_DAY);
+  const nextPayout = new Date(base.getTime() + (cycles + 1) * MINING_MS_PER_DAY);
+  return Math.max(0, nextPayout - now);
+}
+
+function formatCountdown(ms) {
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+  const seconds = Math.floor((ms % (60 * 1000)) / 1000);
+  return String(hours).padStart(2, '0') + ':' +
+    String(minutes).padStart(2, '0') + ':' +
+    String(seconds).padStart(2, '0');
+}
+
+function updateClaimButtonState(contract) {
+  const btn = $('claimEarningsBtn');
+  if (!btn || !contract) return;
+
+  const now = new Date();
+  const anchor = getPayoutAnchorDate(contract);
+  const cyclesDue = Math.floor((now - anchor) / MINING_MS_PER_DAY);
+  const canClaim = cyclesDue > 0;
+
+  btn.disabled = !canClaim;
+  btn.classList.toggle('claim-btn-disabled', !canClaim);
+  btn.style.opacity = canClaim ? '1' : '0.42';
+  btn.style.filter = canClaim ? 'none' : 'grayscale(35%)';
+  btn.style.cursor = canClaim ? 'pointer' : 'not-allowed';
+
+  if (canClaim) {
+    btn.textContent = 'Claim Daily Earnings';
+  } else {
+    const left = formatCountdown(getTimeUntilNextPayout(contract));
+    btn.textContent = 'Claimed · Next in ' + left;
+  }
 }
 
 /* ─── LIVE TIMER ─────────────────────────────────────────── */
@@ -302,6 +367,7 @@ function updateTimer(contract) {
 
   setText('planTimerDisplay', display);
   setText('planTimerHours', hours);
+  updateClaimButtonState(contract);
 
   if (timeUntil === 0 && !contract._payoutTriggered) {
     contract._payoutTriggered = true;
@@ -411,6 +477,7 @@ async function triggerPayout(contract) {
 
     Toast.show(`✅ Mining payout credited: $${payoutUSDT.toFixed(2)} USDT`, 'success', 4500);
     renderPage(contract);
+    updateClaimButtonState(contract);
   } catch (err) {
     console.error('[PlanDetail] triggerPayout failed:', err);
     Toast.show('Failed to process payout: ' + err.message, 'error', 5000);
@@ -418,9 +485,20 @@ async function triggerPayout(contract) {
 }
 
 async function claimDailyEarnings() {
+  const btn = $('claimEarningsBtn');
+  if (btn?.disabled) return;
+
   const contract = await loadContractData();
   if (!contract) return;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.42';
+    btn.textContent = 'Processing…';
+  }
+
   await triggerPayout(contract);
+  updateClaimButtonState(contract);
 }
 
 /* ─── EARNINGS CHART ─────────────────────────────────────── */
