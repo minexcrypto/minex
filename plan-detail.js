@@ -137,6 +137,41 @@ const BTCPrice = (() => {
   };
 })();
 
+/* ─── MINING PAYOUT HELPERS (match dashboard.js) ─────────── */
+const MINING_MS_PER_DAY = 24 * 60 * 60 * 1000;
+const PLAN_USDT_PRICES  = { Starter: 500, Silver: 2500, Gold: 5000, Platinum: 10000 };
+const PLAN_DAILY_RATE   = 0.003;
+
+function normalizeTxType(raw) {
+  const t = String(raw || '').trim().toLowerCase();
+  if (['mining', 'mining_reward', 'reward'].includes(t)) return 'mining';
+  return t || 'other';
+}
+
+function getDailyProfitUsdt(contract) {
+  const stored = Number(contract.daily_profit || 0);
+  if (stored >= 0.5) return stored;
+  const planPrice = Number(contract.plan_price || 0)
+    || PLAN_USDT_PRICES[contract.plan || contract.name] || 0;
+  if (planPrice > 0) return planPrice * PLAN_DAILY_RATE;
+  return stored;
+}
+
+function getPayoutAnchorDate(contract) {
+  const createdAt = new Date(contract.created_at || Date.now());
+  if (contract.last_payout_at) return new Date(contract.last_payout_at);
+  return createdAt;
+}
+
+function computeAlignedLastPayoutAt(contract, cyclesDue) {
+  const anchor = getPayoutAnchorDate(contract);
+  return new Date(anchor.getTime() + cyclesDue * MINING_MS_PER_DAY).toISOString();
+}
+
+function formatUsdtDaily(amount) {
+  return amount > 0 ? '$ ' + amount.toFixed(2) + ' USDT' : '—';
+}
+
 /* ─── GET CONTRACT FROM URL ──────────────────────────────── */
 function getContractIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -179,8 +214,8 @@ function renderPage(contract) {
 
   const planName = contract.plan || contract.name || 'Mining Contract';
   const hashrate = contract.hashrate != null ? contract.hashrate.toFixed(1) : '—';
-  const dailyProfit = Number(contract.daily_profit || 0);
-  const dailyProfitStr = dailyProfit > 0 ? dailyProfit.toFixed(8) + ' BTC' : '—';
+  const dailyProfit = getDailyProfitUsdt(contract);
+  const dailyProfitStr = formatUsdtDaily(dailyProfit);
   const progress = Math.min(100, Math.max(0, Number(contract.progress || 0)));
   const daysLeft = contract.days_left != null ? contract.days_left : '∞';
 
@@ -193,13 +228,10 @@ function renderPage(contract) {
   const elapsedMs = now - startDate;
   const daysActive = Math.max(0, elapsedMs / msPerDay);
   const totalEarned = dailyProfit * daysActive;
-  const totalEarnedStr = totalEarned > 0 ? totalEarned.toFixed(8) + ' BTC' : '0.00000000 BTC';
-
-  const btcPrice = BTCPrice.get();
-  const totalEarnedUSD = btcPrice != null ? '≈ $' + (totalEarned * btcPrice).toFixed(2) + ' USD' : '';
-  const dailyProfitUSD = btcPrice != null ? '≈ $' + (dailyProfit * btcPrice).toFixed(2) + ' USD' : '';
+  const totalEarnedStr = formatUsdtDaily(totalEarned);
+  const dailyProfitUSD = '';
   const projectedMonthly = dailyProfit * 30;
-  const projectedMonthlyStr = projectedMonthly > 0 ? projectedMonthly.toFixed(8) + ' BTC' : '—';
+  const projectedMonthlyStr = formatUsdtDaily(projectedMonthly);
 
   // Hero Section
   setText('planHeroName', planName + ' Plan');
@@ -250,15 +282,12 @@ function renderPage(contract) {
 
 /* ─── LIVE TIMER ─────────────────────────────────────────── */
 function updateTimer(contract) {
-  const base = contract.last_payout_at
-    ? new Date(contract.last_payout_at)
-    : new Date(contract.created_at || Date.now());
+  const base = getPayoutAnchorDate(contract);
   const now = new Date();
-  const msPerDay = 24 * 60 * 60 * 1000;
   const elapsed = now - base;
 
-  const cycles = Math.floor(elapsed / msPerDay);
-  const nextPayout = new Date(base.getTime() + (cycles + 1) * msPerDay);
+  const cycles = Math.floor(elapsed / MINING_MS_PER_DAY);
+  const nextPayout = new Date(base.getTime() + (cycles + 1) * MINING_MS_PER_DAY);
   let timeUntil = nextPayout - now;
   if (timeUntil < 0) timeUntil = 0;
 
@@ -280,21 +309,63 @@ function updateTimer(contract) {
   }
 }
 
+async function repairContractAnchor(contract, miningTxns) {
+  if (!contract?.created_at || !_supabase) return contract;
+
+  const user = Auth.getUser();
+  if (!user) return contract;
+
+  const now = new Date();
+  const createdAt = new Date(contract.created_at);
+  const elapsedCycles = Math.floor((now - createdAt) / MINING_MS_PER_DAY);
+  if (elapsedCycles <= 0) return contract;
+
+  const daily = getDailyProfitUsdt(contract);
+  if (!daily || daily < 0.5) return contract;
+
+  const paidSinceStart = (miningTxns || [])
+    .filter(t => normalizeTxType(t.type) === 'mining')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  const cyclesPaid = Math.min(elapsedCycles, Math.floor(paidSinceStart / daily + 0.0001));
+  const correctAnchor = cyclesPaid > 0
+    ? new Date(createdAt.getTime() + cyclesPaid * MINING_MS_PER_DAY).toISOString()
+    : null;
+
+  const last = contract.last_payout_at ? new Date(contract.last_payout_at) : null;
+  const owedCycles = elapsedCycles - cyclesPaid;
+  const cyclesFromLast = last ? Math.floor((now - last) / MINING_MS_PER_DAY) : elapsedCycles;
+  const wronglyReset = last && owedCycles > 0 && cyclesFromLast < owedCycles
+    && (now - last) < MINING_MS_PER_DAY * 2;
+
+  if (!wronglyReset && !(correctAnchor && last && Math.abs(last - new Date(correctAnchor)) > 3600000)) {
+    return contract;
+  }
+
+  const patch = { last_payout_at: correctAnchor, daily_profit: daily };
+  if (!contract.plan_price && PLAN_USDT_PRICES[contract.plan]) {
+    patch.plan_price = PLAN_USDT_PRICES[contract.plan];
+  }
+
+  const { error } = await _supabase.from('contracts').update(patch).eq('id', contract.id);
+  if (!error) {
+    contract.last_payout_at = correctAnchor;
+    contract.daily_profit = daily;
+  }
+  return contract;
+}
+
 async function triggerPayout(contract) {
   try {
     const user = Auth.getUser();
     if (!user || !_supabase) return;
 
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const now      = new Date();
-    const base     = contract.last_payout_at
-      ? new Date(contract.last_payout_at)
-      : new Date(contract.created_at || Date.now());
-    const diffMs   = now - base;
-    const cycles   = Math.floor(diffMs / msPerDay);
+    const now   = new Date();
+    const base  = getPayoutAnchorDate(contract);
+    const cycles = Math.floor((now - base) / MINING_MS_PER_DAY);
     if (cycles <= 0) return;
 
-    const dailyProfit = Number(contract.daily_profit || 0); // USDT
+    const dailyProfit = getDailyProfitUsdt(contract);
     if (!dailyProfit || dailyProfit <= 0) return;
 
     const payoutUSDT = dailyProfit * cycles;
@@ -327,17 +398,19 @@ async function triggerPayout(contract) {
       });
     if (txErr) throw txErr;
 
-    const newLastPayout = now.toISOString();
+    const newLastPayout = computeAlignedLastPayoutAt(contract, cycles);
     const { error: cErr } = await _supabase
       .from('contracts')
-      .update({ last_payout_at: newLastPayout })
+      .update({ last_payout_at: newLastPayout, daily_profit: dailyProfit })
       .eq('id', contract.id);
     if (cErr) throw cErr;
 
     contract.last_payout_at = newLastPayout;
+    contract.daily_profit = dailyProfit;
     contract._payoutTriggered = false;
 
     Toast.show(`✅ Mining payout credited: $${payoutUSDT.toFixed(2)} USDT`, 'success', 4500);
+    renderPage(contract);
   } catch (err) {
     console.error('[PlanDetail] triggerPayout failed:', err);
     Toast.show('Failed to process payout: ' + err.message, 'error', 5000);
@@ -479,8 +552,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireDropdowns();
   wireLogout();
 
-  const contract = await loadContractData();
+  let contract = await loadContractData();
   if (contract) {
+    const user = Auth.getUser();
+    if (user && _supabase) {
+      const { data: txns } = await _supabase
+        .from('transactions')
+        .select('amount,type,created_at')
+        .eq('user_id', user.id)
+        .in('type', ['mining', 'mining_reward', 'reward']);
+      contract = await repairContractAnchor(contract, txns || []);
+      contract = await loadContractData() || contract;
+    }
     renderPage(contract);
   }
 
