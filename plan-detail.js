@@ -250,13 +250,15 @@ function renderPage(contract) {
 
 /* ─── LIVE TIMER ─────────────────────────────────────────── */
 function updateTimer(contract) {
-  const start = new Date(contract.created_at || Date.now());
+  const base = contract.last_payout_at
+    ? new Date(contract.last_payout_at)
+    : new Date(contract.created_at || Date.now());
   const now = new Date();
   const msPerDay = 24 * 60 * 60 * 1000;
-  const elapsed = now - start;
+  const elapsed = now - base;
 
   const cycles = Math.floor(elapsed / msPerDay);
-  const nextPayout = new Date(start.getTime() + (cycles + 1) * msPerDay);
+  const nextPayout = new Date(base.getTime() + (cycles + 1) * msPerDay);
   let timeUntil = nextPayout - now;
   if (timeUntil < 0) timeUntil = 0;
 
@@ -271,6 +273,81 @@ function updateTimer(contract) {
 
   setText('planTimerDisplay', display);
   setText('planTimerHours', hours);
+
+  if (timeUntil === 0 && !contract._payoutTriggered) {
+    contract._payoutTriggered = true;
+    triggerPayout(contract);
+  }
+}
+
+async function triggerPayout(contract) {
+  try {
+    const user = Auth.getUser();
+    if (!user || !_supabase) return;
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const now      = new Date();
+    const base     = contract.last_payout_at
+      ? new Date(contract.last_payout_at)
+      : new Date(contract.created_at || Date.now());
+    const diffMs   = now - base;
+    const cycles   = Math.floor(diffMs / msPerDay);
+    if (cycles <= 0) return;
+
+    const dailyProfit = Number(contract.daily_profit || 0); // USDT
+    if (!dailyProfit || dailyProfit <= 0) return;
+
+    const payoutUSDT = dailyProfit * cycles;
+
+    const { data: profileData, error: profErr } = await _supabase
+      .from('profiles')
+      .select('usdt_balance')
+      .eq('id', user.id)
+      .single();
+    if (profErr) throw profErr;
+
+    const currentUSDT = Number(profileData?.usdt_balance || 0);
+    const newUSDT     = currentUSDT + payoutUSDT;
+
+    const { error: balErr } = await _supabase
+      .from('profiles')
+      .update({ usdt_balance: newUSDT })
+      .eq('id', user.id);
+    if (balErr) throw balErr;
+
+    const { error: txErr } = await _supabase
+      .from('transactions')
+      .insert({
+        user_id:    user.id,
+        type:       'mining',
+        amount:     payoutUSDT,
+        coin:       'usdt',
+        status:     'success',
+        created_at: now.toISOString(),
+      });
+    if (txErr) throw txErr;
+
+    const newLastPayout = now.toISOString();
+    const { error: cErr } = await _supabase
+      .from('contracts')
+      .update({ last_payout_at: newLastPayout })
+      .eq('id', contract.id);
+    if (cErr) throw cErr;
+
+    contract.last_payout_at = newLastPayout;
+    contract._payoutTriggered = false;
+
+    Toast.show(`✅ Mining payout credited: $${payoutUSDT.toFixed(2)} USDT`, 'success', 4500);
+  } catch (err) {
+    console.error('[PlanDetail] triggerPayout failed:', err);
+    Toast.show('Failed to process payout: ' + err.message, 'error', 5000);
+  }
+}
+
+async function claimDailyEarnings() {
+  const contract = await loadContractData();
+  if (!contract) return;
+  await triggerPayout(contract);
 }
 
 /* ─── EARNINGS CHART ─────────────────────────────────────── */
