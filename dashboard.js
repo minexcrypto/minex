@@ -1400,6 +1400,112 @@ async function approveDeposit(deposit) {
 /* ══════════════════════════════════════════════════════════════
    MINING PAYOUT ENGINE — AUTO-CREDIT USDT
 ══════════════════════════════════════════════════════════════ */
+const MINING_MS_PER_DAY = 24 * 60 * 60 * 1000;
+const PLAN_USDT_PRICES  = { Starter: 500, Silver: 2500, Gold: 5000, Platinum: 10000 };
+const PLAN_DAILY_RATE   = 0.003; // ~0.30% per day
+
+/** Daily profit in USDT (fixes old contracts that still store BTC-scale values). */
+function getDailyProfitUsdt(contract) {
+  const stored = Number(contract.daily_profit || 0);
+  if (stored >= 0.5) return stored;
+
+  const planPrice = Number(contract.plan_price || 0)
+    || PLAN_USDT_PRICES[contract.plan || contract.name] || 0;
+  if (planPrice > 0) return planPrice * PLAN_DAILY_RATE;
+
+  return stored;
+}
+
+function getPayoutAnchorDate(contract) {
+  const createdAt = new Date(contract.created_at || Date.now());
+  if (contract.last_payout_at) return new Date(contract.last_payout_at);
+  return createdAt;
+}
+
+/** After N cycles, anchor = start + N×24h (NOT "now") — keeps original purchase schedule. */
+function computeAlignedLastPayoutAt(contract, cyclesDue, now = new Date()) {
+  const anchor = getPayoutAnchorDate(contract);
+  return new Date(anchor.getTime() + cyclesDue * MINING_MS_PER_DAY).toISOString();
+}
+
+/**
+ * Old users: last_payout_at was set to "now" on deploy, so timer restarted.
+ * Reset anchor from mining tx history + created_at so missed days can still pay out.
+ */
+async function repairLegacyMiningContracts(contracts, miningTxns) {
+  if (!_supabase) return contracts;
+
+  const user = Auth.getUser();
+  if (!user) return contracts;
+
+  const now = new Date();
+  const active = contracts.filter(c => c.active === true);
+
+  for (const c of active) {
+    if (!c.created_at) continue;
+
+    const createdAt = new Date(c.created_at);
+    const elapsedCycles = Math.floor((now - createdAt) / MINING_MS_PER_DAY);
+    if (elapsedCycles <= 0) continue;
+
+    const daily = getDailyProfitUsdt(c);
+    if (!daily || daily < 0.5) continue;
+
+    const contractStart = createdAt.getTime();
+    const paidSinceStart = (miningTxns || [])
+      .filter(t => {
+        if (normalizeTxType(t.type) !== 'mining') return false;
+        const txTime = new Date(t.created_at).getTime();
+        return txTime >= contractStart - 60000;
+      })
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    const cyclesPaid = Math.min(elapsedCycles, Math.floor(paidSinceStart / daily + 0.0001));
+    const correctAnchor = cyclesPaid > 0
+      ? new Date(createdAt.getTime() + cyclesPaid * MINING_MS_PER_DAY).toISOString()
+      : null;
+
+    const last = c.last_payout_at ? new Date(c.last_payout_at) : null;
+    const cyclesFromLast = last ? Math.floor((now - last) / MINING_MS_PER_DAY) : elapsedCycles;
+    const owedCycles = elapsedCycles - cyclesPaid;
+
+    // Timer reset bug: last_payout recent but contract is older and days still owed
+    const wronglyReset = last
+      && owedCycles > 0
+      && cyclesFromLast < owedCycles
+      && (now - last) < MINING_MS_PER_DAY * 2;
+
+    const needsRepair = wronglyReset
+      || (correctAnchor && last && Math.abs(last - new Date(correctAnchor)) > 3600000)
+      || (!last && elapsedCycles > 0 && cyclesPaid < elapsedCycles);
+
+    if (!needsRepair) continue;
+
+    const patch = {
+      last_payout_at: correctAnchor,
+      daily_profit: daily,
+    };
+    if (!c.plan_price && PLAN_USDT_PRICES[c.plan]) {
+      patch.plan_price = PLAN_USDT_PRICES[c.plan];
+    }
+
+    const { error } = await _supabase
+      .from('contracts')
+      .update(patch)
+      .eq('id', c.id)
+      .eq('user_id', user.id);
+
+    if (!error) {
+      c.last_payout_at = correctAnchor;
+      c.daily_profit   = daily;
+      if (patch.plan_price) c.plan_price = patch.plan_price;
+      console.log('[Mining] Repaired payout anchor for contract', c.id);
+    }
+  }
+
+  return contracts;
+}
+
 let _isProcessingMiningPayout = false;
 
 async function processDailyMiningPayout(passedContracts = null) {
@@ -1411,11 +1517,10 @@ async function processDailyMiningPayout(passedContracts = null) {
 
   _isProcessingMiningPayout = true;
   try {
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const now      = new Date();
+    const now = new Date();
 
-    // Use provided contracts if available, otherwise load fresh
     let contracts = Array.isArray(passedContracts) ? passedContracts : await loadContracts();
+    contracts = await repairLegacyMiningContracts(contracts, _allTransactions);
     const active  = contracts.filter(c => c.active === true);
     if (!active.length) return;
 
@@ -1426,12 +1531,12 @@ async function processDailyMiningPayout(passedContracts = null) {
       const createdAt = c.created_at ? new Date(c.created_at) : null;
       if (!createdAt) continue;
 
-      const lastPayout = c.last_payout_at ? new Date(c.last_payout_at) : createdAt;
-      const diffMs     = now - lastPayout;
-      const cyclesDue  = Math.floor(diffMs / msPerDay);
+      const anchor    = getPayoutAnchorDate(c);
+      const diffMs    = now - anchor;
+      const cyclesDue = Math.floor(diffMs / MINING_MS_PER_DAY);
       if (cyclesDue <= 0) continue;
 
-      const dailyProfit = Number(c.daily_profit || 0); // in USDT
+      const dailyProfit = getDailyProfitUsdt(c);
       if (!dailyProfit || dailyProfit <= 0) continue;
 
       const payoutForContract = dailyProfit * cyclesDue;
@@ -1445,8 +1550,9 @@ async function processDailyMiningPayout(passedContracts = null) {
 
       contractsToUpdate.push({
         id: c.id,
-        last_payout_at: now.toISOString(),
+        last_payout_at: computeAlignedLastPayoutAt(c, cyclesDue, now),
         progress: newProgress,
+        daily_profit: dailyProfit,
       });
     }
 
@@ -1480,12 +1586,15 @@ async function processDailyMiningPayout(passedContracts = null) {
 
     // Update contracts metadata
     for (const upd of contractsToUpdate) {
+      const patch = {
+        last_payout_at: upd.last_payout_at,
+        progress:       upd.progress,
+      };
+      if (upd.daily_profit != null) patch.daily_profit = upd.daily_profit;
+
       await _supabase
         .from('contracts')
-        .update({
-          last_payout_at: upd.last_payout_at,
-          progress:       upd.progress,
-        })
+        .update(patch)
         .eq('id', upd.id);
 
       // Also patch the in-memory instance if present
@@ -1784,7 +1893,8 @@ async function refreshAll() {
   renderMiningStats(contracts);
   renderWalletSummary();
   updatePortfolioValue();
-  // Ensure mining payouts are processed before showing stats
+  // Repair old anchors, then credit any missed 24h cycles
+  contracts = await repairLegacyMiningContracts(contracts, txns);
   await processDailyMiningPayout(contracts);
   populateDashboardStats(contracts);
 
