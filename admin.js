@@ -730,9 +730,44 @@ const TransactionsModule = {
   },
   async deleteTransaction(id){
     if(!confirm('Delete this transaction?'))return;
+
+    const { data: tx, error: fetchErr } = await sb
+      .from('transactions')
+      .select('id,user_id,type,coin,amount,status')
+      .eq('id', id)
+      .maybeSingle();
+    if(fetchErr){ AdminUI.toast('Load failed: '+fetchErr.message,'error'); return; }
+
+    // Roll back wallet balance for successful mining/deposit/withdrawal USDT transactions
+    if(tx && tx.user_id && tx.status === 'success'){
+      const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
+      const amt    = Number(tx.amount || 0);
+      if(isUSDT && amt > 0){
+        const sign =
+          tx.type === 'deposit'  ? -1 :
+          tx.type === 'withdrawal' ? +1 :
+          tx.type === 'mining'   ? -1 :
+          tx.type === 'referral' ? -1 : 0;
+        if(sign !== 0){
+          const { data: prof } = await sb
+            .from('profiles')
+            .select('usdt_balance')
+            .eq('id', tx.user_id)
+            .maybeSingle();
+          if(prof){
+            const current = Number(prof.usdt_balance || 0);
+            const nextBal = current + sign * amt;
+            await sb.from('profiles')
+              .update({ usdt_balance: nextBal < 0 ? 0 : nextBal })
+              .eq('id', tx.user_id);
+          }
+        }
+      }
+    }
+
     const{error}=await sb.from('transactions').delete().eq('id',id);
     if(error){ AdminUI.toast('Delete failed: '+error.message,'error'); return; }
-    await logAdminAction('delete_transaction','transactions',id,null,null);
+    await logAdminAction('delete_transaction','transactions',id,tx,null);
     this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deleted.','warning');
   },
   export(){
