@@ -1330,6 +1330,48 @@ function downloadCSV(filename, rows){
   const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
 }
 
+function ensureEditOldUserBulkButton() {
+  const editSection = document.querySelector('[data-admin-section="edit-old-user"]');
+  const oldUsersSection = document.querySelector('[data-admin-section="old-users"]');
+
+  if (oldUsersSection) {
+    oldUsersSection.querySelectorAll('button').forEach(btn => {
+      const txt = (btn.textContent || '').trim().toLowerCase();
+      if (txt.includes('edit user') || txt.includes('bulk edit') || txt.includes('edit all filtered')) {
+        btn.remove();
+      }
+    });
+  }
+
+  if (!editSection) return;
+  const filters = editSection.querySelector('.filters');
+  if (!filters) return;
+
+  const actionRow = document.createElement('div');
+  actionRow.dataset.eouActionRow = '1';
+  actionRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;';
+
+  const loadBtn = document.createElement('button');
+  loadBtn.className = 'admin-btn admin-btn-primary';
+  loadBtn.type = 'button';
+  loadBtn.textContent = '🔍 Load Users';
+  loadBtn.addEventListener('click', () => EditOldUserModule.loadUsers());
+
+  const bulkBtn = document.createElement('button');
+  bulkBtn.className = 'admin-btn admin-btn-outline';
+  bulkBtn.type = 'button';
+  bulkBtn.textContent = '✏️ Bulk Edit';
+  bulkBtn.addEventListener('click', () => EditOldUserModule.openBulkEditForm());
+
+  const search = editSection.querySelector('#editOldUserSearchInput');
+  const plan = editSection.querySelector('#editOldUserPlanFilter');
+  filters.innerHTML = '';
+  if (search) filters.appendChild(search);
+  if (plan) filters.appendChild(plan);
+  actionRow.append(loadBtn, bulkBtn);
+  filters.appendChild(actionRow);
+}
+
 /* ══════════════════════════════════════════════════════════════
    §20  PROFILE FETCH HELPER
 ══════════════════════════════════════════════════════════════ */
@@ -1475,6 +1517,7 @@ console.log('[CryptoVault] admin.js enterprise loaded.');
 
 document.addEventListener('DOMContentLoaded',async()=>{
   initNavigation(); initLoginForm(); initModals();
+  ensureEditOldUserBulkButton();
   if(!initSupabaseClient()){ show('#adminLoginScreen'); hide('#adminAppShell'); return; }
   let alreadyLoggedIn=false;
   try{ alreadyLoggedIn=await AdminAuth.check(); }catch(err){ console.warn('[Admin] Session check error:',err.message); }
