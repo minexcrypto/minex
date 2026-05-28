@@ -725,7 +725,7 @@ const UsersModule = {
     AdminUI.toast('Password reset link sent to '+u.email,'success');
   },
   export(){
-    const headers=['ID','Email','Name','BTC','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
+    const headers=['ID','Email','Name','USDT Balance','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
     const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.usdt_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
     downloadCSV('users.csv',[headers,...rows]);
   }
@@ -768,12 +768,12 @@ const NewUsersModule = {
       if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
       return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
     }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">BTC Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
+    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
   export(){
     const dateFilter=$('#newUserDateFilter')?.value||'today';
     const rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    const headers=['ID','Email','Name','User ID','BTC','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
+    const headers=['ID','Email','Name','User ID','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
     const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
     downloadCSV('new_users.csv',[headers,...data]);
   }
@@ -816,12 +816,12 @@ const OldUsersModule = {
       if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
       return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
     }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">BTC Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
+    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
   export(){
     const dateFilter=$('#oldUserDateFilter')?.value||'all-time';
     const rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    const headers=['ID','Email','Name','User ID','BTC','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
+    const headers=['ID','Email','Name','User ID','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
     const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
     downloadCSV('old_users.csv',[headers,...data]);
   },
@@ -930,7 +930,7 @@ const EditOldUserModule = {
           <label>Coin</label>
           <select id="eouBulkTxCoin">
             <option value="usdt_bep20">USDT</option>
-            <option value="btc">BTC</option>
+            
           </select>
         </div>
       </div>
@@ -1215,7 +1215,7 @@ const TransactionsModule = {
     setHTML(body,`
       <div class="form-group"><label>User ID</label><input type="text" id="ntUserId" placeholder="uuid"></div>
       <div class="form-group"><label>Transaction Name / Type</label><input type="text" id="ntType" placeholder="Deposit, Withdrawal, Bonus, Manual Adjust..."></div>
-      <div class="form-group"><label>Coin</label><select id="ntCoin"><option value="btc">BTC</option><option value="usdt_bep20">USDT</option></select></div>
+      <div class="form-group"><label>Coin</label><select id="ntCoin"><option value="usdt_bep20">USDT</option></select></div>
       <div class="form-group"><label>Amount</label><input type="number" id="ntAmount" step="0.00000001"></div>
       <div class="form-group"><label>Status</label><select id="ntStatus"><option value="success">Success</option><option value="pending">Pending</option><option value="failed">Failed</option></select></div>
       <button class="admin-btn admin-btn-primary" onclick="TransactionsModule.createTransaction()">? Create</button>
@@ -1304,7 +1304,7 @@ const ContractsModule = {
       <div class="form-group"><label>User ID</label><input type="text" id="ncUserId" placeholder="uuid"></div>
       <div class="form-group"><label>Plan Name</label><input type="text" id="ncPlan" placeholder="Gold"></div>
       <div class="form-group"><label>Hashrate (TH/s)</label><input type="number" id="ncHashrate" step="0.1"></div>
-      <div class="form-group"><label>Daily Profit (BTC)</label><input type="number" id="ncDaily" step="0.00000001"></div>
+      <div class="form-group"><label>Daily Profit (USDT)</label><input type="number" id="ncDaily" step="0.00000001"></div>
       <button class="admin-btn admin-btn-primary" onclick="ContractsModule.createContract()">? Create</button>
     `);
     show('#entityModal');
@@ -1761,6 +1761,7 @@ Object.assign(window,{
   OverviewModule,PriceService,NotificationsModule,ReferralModule,SecurityLogsModule,GlobalSearch,
   logAdminAction,closeEntityModal
 });
+
 
 
 
