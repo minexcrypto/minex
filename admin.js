@@ -8,7 +8,7 @@
 (() => {
   const path = (window.location.pathname || '/').toLowerCase();
   const isAdminRoute = path.endsWith('/admin') || path.endsWith('/admin.html');
-  if (!isAdminRoute) window.location.replace('/dashboard.html');
+  if (!isAdminRoute) window.location.replace('dashboard.html');
 })();
 
 /* ══════════════════════════════════════════════════════════════
@@ -216,20 +216,20 @@ const TD = 'padding:12px 16px;font-size:13px;color:#94a3b8;border-bottom:1px sol
 ══════════════════════════════════════════════════════════════ */
 const AdminAuth = {
   user: null,
+  _roleAuth: window.CVAuthRole,
   async check() {
-    if(!sb) return false;
+    if(!sb || !this._roleAuth) return false;
     try{
-      const{data,error}=await sb.auth.getUser();
-      if(error||!data?.user) return false;
-      if(!(await this._isAdmin(data.user))) return 'forbidden';
-      this.user=data.user;
-      this._fillUI(data.user);
+      const { session, user, role } = await this._roleAuth.getSessionWithRole(sb);
+      if(!session || !user) return false;
+      if(role !== 'admin') return 'forbidden';
+      this.user=user;
+      this._fillUI(user);
       return true;
     }catch{return false;}
   },
-  async login(email,password){ if(!sb)throw new Error('Supabase client not ready.'); const{data,error}=await sb.auth.signInWithPassword({email,password}); if(error)throw new Error(error.message); if(!(await this._isAdmin(data.user))){await sb.auth.signOut().catch(()=>{}); throw new Error('Access denied.');} this.user=data.user; this._fillUI(data.user); return data.user; },
-  async logout(){ if(sb)await sb.auth.signOut().catch(()=>{}); this.user=null; hide('#adminAppShell'); show('#adminLoginScreen'); setHTML('#adminLoginError',''); },
-  async _isAdmin(user){ if(user?.app_metadata?.role==='admin')return true; try{const{data}=await sb.from('admins').select('id').eq('id',user.id).maybeSingle(); if(data)return true;}catch{} try{const{data}=await sb.from('profiles').select('is_admin').eq('id',user.id).maybeSingle(); if(data?.is_admin===true)return true;}catch{} return false; },
+  async login(email,password){ if(!sb || !this._roleAuth)throw new Error('Supabase client not ready.'); const{data,error}=await sb.auth.signInWithPassword({email,password}); if(error)throw new Error(error.message); const role = await this._roleAuth.resolveUserRole(sb, data.user); if(role!=='admin'){await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); throw new Error('Access denied.');} this.user=data.user; this._fillUI(data.user); return data.user; },
+  async logout(){ if(sb)await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); this.user=null; window.location.replace('login.html'); },
   _fillUI(user){ setText('#adminUserEmail', user.email||''); },
 };
 
@@ -1724,9 +1724,9 @@ document.addEventListener('DOMContentLoaded',async()=>{
     forbiddenUser=authState==='forbidden';
   }catch(err){ console.warn('[Admin] Session check error:',err.message); }
   if(forbiddenUser){
-    show('#adminLoginScreen');
-    hide('#adminAppShell');
-    setHTML('#adminLoginError','Access denied. Admin account required.');
+    await sb.auth.signOut().catch(()=>{});
+    AdminAuth._roleAuth.clearRole();
+    window.location.replace('login.html');
     return;
   }
   if(alreadyLoggedIn){ hide('#adminLoginScreen'); show('#adminAppShell'); try{await _bootPanel();}catch(err){ AdminUI.banner('⚠ Panel boot error: '+err.message,'error');} }
