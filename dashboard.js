@@ -66,6 +66,14 @@ function showToast(msg, type, duration) { Toast.show(msg, type, duration); }
 /* ─── DOM HELPERS ────────────────────────────────────────── */
 function $(id)            { return document.getElementById(id); }
 function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
+function toNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+function toUsdt(value, fallback = 0) {
+  const n = toNumber(value, fallback);
+  return n < 0 ? 0 : n;
+}
 
 function escapeHtml(text) {
   if (!text) return '';
@@ -348,7 +356,6 @@ const Auth = (() => {
           .upsert({
             id:           session.user.id,
             email:        session.user.email,
-            btc_balance:  0,
             usdt_balance: 0,
             ref_code,
           })
@@ -357,7 +364,6 @@ const Auth = (() => {
         _profile = newProf || {
           id: session.user.id,
           email: session.user.email,
-          btc_balance: 0,
           usdt_balance: 0,
           ref_code,
         };
@@ -524,30 +530,20 @@ async function populateUserUI() {
   document.querySelectorAll('.user-name-display').forEach(el  => { el.textContent = name; });
   document.querySelectorAll('.user-email-display').forEach(el => { el.textContent = email; });
 
-  const btcBalance  = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0;
-  const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
-
-  const btcStr = '₿ ' + btcBalance.toFixed(8);
-  const walletDisplay = usdtBalance > 0
-    ? ('$' + usdtBalance.toFixed(2) + ' USDT')
-    : btcStr;
+  const usdtBalance = toUsdt(profile.usdt_balance);
+  const walletDisplay = '$' + usdtBalance.toFixed(2) + ' USDT';
   setText('walletBalanceCounter', walletDisplay);
   setText('walletBigBalance',     walletDisplay);
-  setText('walletBigUSD',         '≈ — USD');
-  setText('walletItemUSD',        '—');
-  setText('portfolioBTCusd',      '—');
+  setText('walletBigUSD',         walletDisplay);
+  setText('walletItemUSD',        walletDisplay);
+  setText('portfolioBTCusd',      walletDisplay);
   setText('usdtBalanceEl',        usdtBalance.toFixed(2) + ' USDT');
 
   BTCPrice.onChange(({ price, change }) => {
-    const btcUsd = (btcBalance * price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const pctStr = change != null
       ? ((change >= 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(2) + '%')
       : '';
     const pctClass = change != null ? (change >= 0 ? 'ticker-up' : 'ticker-down') : '';
-
-    setText('walletBigUSD',   '≈ $' + btcUsd + ' USD');
-    setText('walletItemUSD',  '$' + btcUsd);
-    setText('portfolioBTCusd','$' + btcUsd);
 
     const tickerPrice  = $('tickerPrice');
     const tickerChange = document.querySelector('.ticker-change');
@@ -669,22 +665,12 @@ function renderTransactions(filter) {
 
   const txRows = _allTransactions.map(tx => {
     const txType = normalizeTxType(tx.type);
-    const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
-    const coinLbl = isUSDT ? 'USDT' : 'BTC';
-    const decimals = isUSDT ? 2 : 8;
+    const coinLbl = 'USDT';
+    const decimals = 2;
     const amt = Number(tx.amount || 0);
     const isOut = amt < 0 || txType === 'withdrawal' || txType === 'purchase';
-    const amtStr = (isOut ? '-' : '+') + Math.abs(amt).toFixed(decimals) + ' ' + coinLbl;
-
-    let usdVal;
-    if (isUSDT) {
-      usdVal = (isOut ? '-' : '+') + '$' + Math.abs(amt).toFixed(2);
-    } else {
-      const price = BTCPrice.get();
-      usdVal = price != null
-        ? (isOut ? '-' : '+') + '$' + (Math.abs(amt) * price).toFixed(2)
-        : '—';
-    }
+    const amtStr = (isOut ? '-' : '+') + Math.abs(amt).toFixed(decimals) + ' USDT';
+    const usdVal = (isOut ? '-' : '+') + '$' + Math.abs(amt).toFixed(2);
 
     return {
       desc:   _txLabel(tx.type),
@@ -701,17 +687,10 @@ function renderTransactions(filter) {
   const pendingDepRows = _allDeposits
     .filter(d => d.status === 'pending')
     .map(d => {
-      const isUSDT  = d.coin === 'usdt_bep20';
-      const coinLbl = isUSDT ? 'USDT' : 'BTC';
+      const coinLbl = 'USDT';
       const amt     = Number(d.amount || 0);
-      const amtStr  = '+' + amt.toFixed(isUSDT ? 2 : 8) + ' ' + coinLbl;
-      let usdVal;
-      if (isUSDT) {
-        usdVal = '+$' + amt.toFixed(2);
-      } else {
-        const price = BTCPrice.get();
-        usdVal = price != null ? '+$' + (amt * price).toFixed(2) : '—';
-      }
+      const amtStr  = '+' + amt.toFixed(2) + ' USDT';
+      const usdVal  = '+$' + amt.toFixed(2);
       return {
         desc:   'Deposit (Pending)',
         coin:   coinLbl,
@@ -817,16 +796,15 @@ function renderRecentActivity() {
 
   const txRows = _allTransactions.map(tx => {
     const txType = normalizeTxType(tx.type);
-    const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
-    const symbol = isUSDT ? 'USDT' : '₿';
-    const decimals = isUSDT ? 2 : 8;
+    const symbol = 'USDT';
+    const decimals = 2;
     const amt = Number(tx.amount || 0);
     const isOut = amt < 0 || txType === 'withdrawal' || txType === 'purchase';
     return {
       icon:   _txIcon(txType),
       desc:   _txLabel(tx.type),
       date:   _fmtDate(tx.created_at),
-      amount: (isOut ? '-' : '+') + symbol + Math.abs(amt).toFixed(decimals),
+      amount: (isOut ? '-' : '+') + Math.abs(amt).toFixed(decimals) + ' USDT',
       isOut:  isOut,
       createdAt: tx.created_at,
     };
@@ -835,14 +813,11 @@ function renderRecentActivity() {
   const pendingDepRows = _allDeposits
     .filter(d => d.status === 'pending')
     .map(d => {
-      const isUSDT = d.coin === 'usdt_bep20';
-      const symbol = isUSDT ? 'USDT' : '₿';
-      const decimals = isUSDT ? 2 : 8;
       return {
         icon:   '⏳',
         desc:   'Deposit (Pending)',
         date:   _fmtDate(d.created_at),
-        amount: '+' + symbol + Number(d.amount || 0).toFixed(decimals),
+        amount: '+' + Number(d.amount || 0).toFixed(2) + ' USDT',
         isOut:  false,
         createdAt: d.created_at,
       };
@@ -1003,16 +978,14 @@ function renderWalletSummary() {
   const referralBonuses = txns.filter(t => t.type === 'referral')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-  setText('walletTotalDeposited',  '₿ ' + totalDeposited.toFixed(8));
-  setText('walletTotalWithdrawn',  '₿ ' + totalWithdrawn.toFixed(8));
-  setText('walletMiningIncome',    '₿ ' + miningIncome.toFixed(8));
-  setText('walletReferralBonuses', '₿ ' + referralBonuses.toFixed(8));
+  setText('walletTotalDeposited',  '$ ' + totalDeposited.toFixed(2) + ' USDT');
+  setText('walletTotalWithdrawn',  '$ ' + totalWithdrawn.toFixed(2) + ' USDT');
+  setText('walletMiningIncome',    '$ ' + miningIncome.toFixed(2) + ' USDT');
+  setText('walletReferralBonuses', '$ ' + referralBonuses.toFixed(2) + ' USDT');
 
   const profile    = Auth.getProfile();
-  const btcBalance = typeof profile.btc_balance === 'number' ? profile.btc_balance : 0;
-  setText('walletBTCAmount', btcBalance.toFixed(8) + ' BTC');
-
-  const usdtBalance = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
+  const usdtBalance = toUsdt(profile.usdt_balance);
+  setText('walletBTCAmount', usdtBalance.toFixed(2) + ' USDT');
   setText('walletUSDTAmount', usdtBalance.toFixed(2) + ' USDT');
 }
 
@@ -1049,9 +1022,9 @@ function initEarningsChart(transactions) {
   const total12d = data.reduce((s, v) => s + v, 0);
   const avgDaily = total12d / days;
   const bestDay  = Math.max(...data);
-  setText('chartTotal12d', hasData ? '₿ ' + total12d.toFixed(8) : '₿ 0.00000000');
-  setText('chartAvgDaily', hasData ? '₿ ' + avgDaily.toFixed(8) : '₿ 0.00000000');
-  setText('chartBestDay',  hasData ? '₿ ' + bestDay.toFixed(8)  : '₿ 0.00000000');
+  setText('chartTotal12d', hasData ? '$ ' + total12d.toFixed(2) + ' USDT' : '$ 0.00 USDT');
+  setText('chartAvgDaily', hasData ? '$ ' + avgDaily.toFixed(2) + ' USDT' : '$ 0.00 USDT');
+  setText('chartBestDay',  hasData ? '$ ' + bestDay.toFixed(2) + ' USDT' : '$ 0.00 USDT');
 
   if (!hasData) {
     _drawEmptyChart(canvas, 'No mining earnings yet');
@@ -1095,11 +1068,8 @@ function initDonut(profile) {
   canvas.height = size;
   const cx = size / 2, cy = size / 2, r = 44, rw = 16;
 
-  const btc  = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0;
-  const usdt = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
-  const price = BTCPrice.get() || 0;
-  const btcUsd = btc * price;
-  const total  = btcUsd + usdt;
+  const usdt = toUsdt(profile.usdt_balance);
+  const total  = usdt;
 
   if (total <= 0) {
     ctx.beginPath();
@@ -1114,8 +1084,7 @@ function initDonut(profile) {
   }
 
   const segments = [];
-  if (btcUsd > 0) segments.push({ pct: btcUsd / total, color: '#f7931a' });
-  if (usdt   > 0) segments.push({ pct: usdt   / total, color: '#26a17b' });
+  if (usdt > 0) segments.push({ pct: 1, color: '#26a17b' });
 
   let start = -Math.PI / 2;
   segments.forEach(seg => {
@@ -1129,12 +1098,11 @@ function initDonut(profile) {
     start += angle + 0.03;
   });
 
-  const btcPct = total > 0 ? ((btcUsd / total) * 100).toFixed(0) : '0';
   ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 13px Arial';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('BTC', cx, cy - 6);
+  ctx.fillText('USDT', cx, cy - 6);
   ctx.font = '10px Arial'; ctx.fillStyle = '#94a3b8';
-  ctx.fillText(btcPct + '%', cx, cy + 8);
+  ctx.fillText('$ ' + usdt.toFixed(2), cx, cy + 8);
 }
 
 function _drawLineChart(canvas, data, lineColor, fillColor) {
@@ -1204,19 +1172,10 @@ function _drawEmptyChart(canvas, label) {
 ══════════════════════════════════════════════════════════════ */
 function updatePortfolioValue() {
   const profile  = Auth.getProfile();
-  const btc      = typeof profile.btc_balance  === 'number' ? profile.btc_balance  : 0;
-  const usdt     = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
-  const price    = BTCPrice.get();
-
-  if (price != null) {
-    const total = (btc * price) + usdt;
-    const str   = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    setText('walletBalanceUSD', str);
-    setText('portfolioTotalUSD', str);
-  } else {
-    setText('walletBalanceUSD',  '—');
-    setText('portfolioTotalUSD', '—');
-  }
+  const usdt     = toUsdt(profile.usdt_balance);
+  const str      = '$' + usdt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USDT';
+  setText('walletBalanceUSD', str);
+  setText('portfolioTotalUSD', str);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1484,8 +1443,8 @@ async function confirmPurchase() {
 
 async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, durationDays = null, monthlyRate = null) {
   const latestProfile = await Auth.refreshProfile();
-  const balance = typeof latestProfile?.usdt_balance === 'number' ? latestProfile.usdt_balance : 0;
-  const cost    = parseFloat(priceUsd);
+  const balance = toUsdt(latestProfile?.usdt_balance);
+  const cost    = toUsdt(priceUsd);
   const plan    = getPlanConfig(planName);
   const rate    = Number.isFinite(Number(monthlyRate)) ? Number(monthlyRate) : getPlanMonthlyRate(planName, plan?.monthlyRate);
   const daily   = cost > 0 && rate > 0 ? (cost * rate) / 30 : (Number.isFinite(Number(dailyUsd)) ? Number(dailyUsd) : getPlanDailyProfitUsd(planName, cost));
@@ -1551,7 +1510,7 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
     }
     console.log('[CryptoVault] transaction insert success');
 
-    const newBalance = balance - cost;
+    const newBalance = Math.max(0, balance - cost);
     const { error: balErr } = await _supabase
       .from('profiles')
       .update({ usdt_balance: newBalance })
@@ -1599,16 +1558,13 @@ async function approveDeposit(deposit) {
 
   const { data: prof, error: profErr } = await _supabase
     .from('profiles')
-    .select('btc_balance, usdt_balance')
+    .select('usdt_balance')
     .eq('id', deposit.user_id)
     .single();
   if (profErr) throw profErr;
 
-  const btc = Number(prof?.btc_balance || 0);
-  const usdt = Number(prof?.usdt_balance || 0);
-  const profilePatch = coin === 'usdt_bep20' || coin === 'usdt'
-    ? { usdt_balance: usdt + amount }
-    : { btc_balance: btc + amount };
+  const usdt = toUsdt(prof?.usdt_balance);
+  const profilePatch = { usdt_balance: usdt + amount };
 
   const { error: balErr } = await _supabase
     .from('profiles')
@@ -1770,18 +1726,10 @@ function initDepositForm() {
 
   if (!form) return;
 
-  coinSelect?.addEventListener('change', () => {
-    const val = coinSelect.value;
-    if (val === 'usdt_bep20') {
-      if (amountSuffix) amountSuffix.textContent = 'USDT';
-      if (amountHint)   amountHint.textContent   = 'Minimum deposit: 10 USDT';
-      if (amountInput)  { amountInput.placeholder = '0.00'; amountInput.step = '0.01'; amountInput.min = '10'; }
-    } else if (val === 'btc') {
-      if (amountSuffix) amountSuffix.textContent = 'BTC';
-      if (amountHint)   amountHint.textContent   = 'Minimum deposit: 0.0001 BTC';
-      if (amountInput)  { amountInput.placeholder = '0.00000000'; amountInput.step = '0.00000001'; amountInput.min = '0.0001'; }
-    }
-  });
+  if (coinSelect) coinSelect.value = 'usdt_bep20';
+  if (amountSuffix) amountSuffix.textContent = 'USDT';
+  if (amountHint)   amountHint.textContent   = 'Minimum deposit: 10 USDT';
+  if (amountInput)  { amountInput.placeholder = '0.00'; amountInput.step = '0.01'; amountInput.min = '10'; }
 
   if (uploadArea && fileInput) {
     uploadArea.addEventListener('click', e => {
@@ -1834,12 +1782,11 @@ function initDepositForm() {
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const coin    = coinSelect?.value || '';
+    const coin    = 'usdt_bep20';
     const amount  = amountInput?.value || '';
     const txHash  = $('depositTxHash')?.value.trim() || '';
     const hasFile = fileInput?.files?.length > 0;
 
-    if (!coin)                            { Toast.show('Select a coin',                   'error'); return; }
     if (!amount || parseFloat(amount)<=0) { Toast.show('Enter a valid amount',             'error'); return; }
     if (!txHash)                          { Toast.show('Enter the transaction hash',       'error'); return; }
     if (!hasFile)                         { Toast.show('Upload a payment screenshot',       'error'); return; }
@@ -1871,7 +1818,7 @@ function initDepositForm() {
       .insert({
         user_id:        user.id,
         user_email:     user.email,
-        coin,
+        coin:           'usdt_bep20',
         amount:         parseFloat(amount),
         tx_hash:        txHash,
         screenshot_url: urlData?.publicUrl || '',
@@ -1887,15 +1834,14 @@ function initDepositForm() {
       return;
     }
 
-    const coinLabel = coin === 'usdt_bep20' ? 'USDT (BEP20)' : 'BTC';
-    Toast.show(`✅ Deposit submitted! ${amount} ${coinLabel} — pending review.`, 'success', 5000);
+    Toast.show(`✅ Deposit submitted! ${amount} USDT — pending review.`, 'success', 5000);
 
     if (dep) _allDeposits.unshift(dep);
     renderTransactions(_currentTxFilter);
 
     form.reset();
     _resetFileInput();
-    if (amountSuffix) amountSuffix.textContent = '—';
+    if (amountSuffix) amountSuffix.textContent = 'USDT';
     if (amountHint)   amountHint.textContent   = 'Enter the exact amount you sent';
     closeModal('depositModal');
   });
@@ -2274,3 +2220,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log('CryptoVault dashboard initialized — real data only.');
 });
+
