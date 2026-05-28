@@ -1326,7 +1326,9 @@ function openPlanDetailModal(contractId) {
   const msPerDay      = 24 * 60 * 60 * 1000;
   const elapsedMs     = now - startDate;
   const daysActive    = Math.max(0, Math.min(elapsedMs / msPerDay, durationDays || elapsedMs / msPerDay));
-  const totalEarned   = dailyProfit * daysActive;
+  const totalEarned   = Number.isFinite(Number(contract.total_earned))
+    ? Number(contract.total_earned)
+    : dailyProfit * daysActive;
   const totalEarnedStr= totalEarned > 0 ? '$ ' + totalEarned.toFixed(2) + ' USDT' : '$ 0.00 USDT';
   const totalEarnedUSD= '$' + totalEarned.toFixed(2) + ' USDT';
   const durationText  = durationDays ? 'Duration: ' + durationDays + ' days' : 'Duration: —';
@@ -1406,17 +1408,9 @@ function _updatePlanDetailTimer(contract) {
     return;
   }
 
-  const start   = new Date(contract.created_at || Date.now());
   const now     = new Date();
-  const msPerDay= 24 * 60 * 60 * 1000;
-  const elapsed = now - start;
-
-  // Har 24 ghante ka cycle — agla payout kab hoga
-  const cycles    = Math.floor(elapsed / msPerDay);
-  const nextPayout= new Date(start.getTime() + (cycles + 1) * msPerDay);
-  let timeUntil   = nextPayout - now;
-
-  if (timeUntil < 0) timeUntil = 0;
+  const nextPayout = contract?.next_payout_at ? new Date(contract.next_payout_at) : new Date((contract.last_payout_at ? new Date(contract.last_payout_at) : new Date(contract.created_at || Date.now())).getTime() + 24 * 60 * 60 * 1000);
+  const timeUntil   = Math.max(0, nextPayout - now);
 
   const hours   = Math.floor(timeUntil / (60 * 60 * 1000));
   const minutes = Math.floor((timeUntil % (60 * 60 * 1000)) / (60 * 1000));
@@ -1514,7 +1508,7 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
     console.log('[CryptoVault] contract creation started', { planName, cost, hashrate, daily, days, monthlyRate });
     Toast.show('Processing…', 'info', 2000);
 
-    const contractPayload = {
+  const contractPayload = {
       user_id:        user.id,
       plan:           planName,
       plan_price:     cost,
@@ -1522,6 +1516,9 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
       active:         true,
       daily_profit:   daily,
       progress:       0,
+      last_payout_at: null,
+      next_payout_at: new Date(Date.now() + (24 * 60 * 60 * 1000)).toISOString(),
+      total_earned:   0,
       created_at:     new Date().toISOString(),
     };
 
