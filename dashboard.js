@@ -604,8 +604,10 @@ async function populateUserUI() {
 
   const sName  = $('settingName');
   const sEmail = $('settingEmail');
+  const sUserId = $('settingUserId');
   if (sName)  sName.value  = profile.name  || '';
   if (sEmail) sEmail.value = email;
+  if (sUserId) sUserId.value = profile.user_id || '—';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1615,6 +1617,37 @@ async function saveSettings() {
   }
 }
 
+async function changePasswordWithOldPassword(e) {
+  e.preventDefault();
+  if (!_supabase) { Toast.show('Service unavailable.', 'error'); return; }
+
+  const user = Auth.getUser();
+  const oldPassword = String($('oldPassword')?.value || '');
+  const newPassword = String($('newPassword')?.value || '');
+  const confirmNewPassword = String($('confirmNewPassword')?.value || '');
+  const email = user?.email || Auth.getProfile()?.email || '';
+
+  if (!user || !email) { Toast.show('Auth required. Please log in again.', 'error'); return; }
+  if (!oldPassword || !newPassword || !confirmNewPassword) { Toast.show('Please fill all password fields.', 'error'); return; }
+  if (newPassword.length < 6) { Toast.show('New password must be at least 6 characters.', 'error'); return; }
+  if (newPassword !== confirmNewPassword) { Toast.show('New password and confirm password do not match.', 'error'); return; }
+  if (oldPassword === newPassword) { Toast.show('New password must be different from current password.', 'warning'); return; }
+
+  try {
+    const { error: verifyErr } = await _supabase.auth.signInWithPassword({ email, password: oldPassword });
+    if (verifyErr) { Toast.show('Current password is incorrect.', 'error'); return; }
+
+    const { error: updateErr } = await _supabase.auth.updateUser({ password: newPassword });
+    if (updateErr) throw updateErr;
+
+    $('changePasswordForm')?.reset();
+    closeModal('changePasswordModal');
+    Toast.show('Password updated successfully.', 'success', 4500);
+  } catch (err) {
+    Toast.show('Password update failed: ' + (err?.message || 'Unknown error'), 'error', 5000);
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════
    WIRE INTERACTIONS
 ══════════════════════════════════════════════════════════════ */
@@ -1677,6 +1710,7 @@ function wireModals() {
   });
 
   $('withdrawForm')?.addEventListener('submit', submitWithdrawalForm);
+  $('changePasswordForm')?.addEventListener('submit', changePasswordWithOldPassword);
 }
 
 async function submitWithdrawalForm(e) {
@@ -1690,8 +1724,9 @@ async function submitWithdrawalForm(e) {
   const available = Number(profile?.usdt_balance || 0);
 
   if (!/^0x[a-fA-F0-9]{40}$/.test(address)) { Toast.show('Enter a valid BEP20 wallet address.', 'error'); return; }
-  if (!Number.isFinite(amount) || amount < 10) { Toast.show('Minimum withdrawal is 10 USDT.', 'error'); return; }
+  if (!Number.isFinite(amount) || amount < 50) { Toast.show('Minimum withdrawal is 50 USDT.', 'error'); return; }
   if (amount > available) { Toast.show('Insufficient USDT balance.', 'error'); return; }
+  const netAmount = amount * 0.7;
 
   const { error } = await _supabase.from('withdrawals').insert({
     user_id: user.id,
@@ -1706,7 +1741,7 @@ async function submitWithdrawalForm(e) {
 
   $('withdrawForm')?.reset();
   closeModal('withdrawModal');
-  Toast.show('Withdrawal submitted. Processing within 24 hours.', 'success', 4500);
+  Toast.show(`Withdrawal submitted. 30% charge applied, estimated receivable: ${netAmount.toFixed(2)} USDT.`, 'success', 5000);
   await Notifications.load();
   await refreshAll();
 }
