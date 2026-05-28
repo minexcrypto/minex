@@ -209,7 +209,17 @@ const TD = 'padding:12px 16px;font-size:13px;color:#94a3b8;border-bottom:1px sol
 ══════════════════════════════════════════════════════════════ */
 const AdminAuth = {
   user: null,
-  async check() { if(!sb)return false; try{ const{data,error}=await sb.auth.getUser(); if(error||!data?.user)return false; if(!(await this._isAdmin(data.user)))return false; this.user=data.user; this._fillUI(data.user); return true; }catch{return false;} },
+  async check() {
+    if(!sb) return false;
+    try{
+      const{data,error}=await sb.auth.getUser();
+      if(error||!data?.user) return false;
+      if(!(await this._isAdmin(data.user))) return 'forbidden';
+      this.user=data.user;
+      this._fillUI(data.user);
+      return true;
+    }catch{return false;}
+  },
   async login(email,password){ if(!sb)throw new Error('Supabase client not ready.'); const{data,error}=await sb.auth.signInWithPassword({email,password}); if(error)throw new Error(error.message); if(!(await this._isAdmin(data.user))){await sb.auth.signOut().catch(()=>{}); throw new Error('Access denied.');} this.user=data.user; this._fillUI(data.user); return data.user; },
   async logout(){ if(sb)await sb.auth.signOut().catch(()=>{}); this.user=null; hide('#adminAppShell'); show('#adminLoginScreen'); setHTML('#adminLoginError',''); },
   async _isAdmin(user){ if(user?.app_metadata?.role==='admin')return true; try{const{data}=await sb.from('admins').select('id').eq('id',user.id).maybeSingle(); if(data)return true;}catch{} try{const{data}=await sb.from('profiles').select('is_admin').eq('id',user.id).maybeSingle(); if(data?.is_admin===true)return true;}catch{} return false; },
@@ -1700,7 +1710,16 @@ document.addEventListener('DOMContentLoaded',async()=>{
   ensureEditOldUserBulkButton();
   if(!initSupabaseClient()){ show('#adminLoginScreen'); hide('#adminAppShell'); return; }
   let alreadyLoggedIn=false;
-  try{ alreadyLoggedIn=await AdminAuth.check(); }catch(err){ console.warn('[Admin] Session check error:',err.message); }
+  let forbiddenUser=false;
+  try{
+    const authState=await AdminAuth.check();
+    alreadyLoggedIn=authState===true;
+    forbiddenUser=authState==='forbidden';
+  }catch(err){ console.warn('[Admin] Session check error:',err.message); }
+  if(forbiddenUser){
+    window.location.href='dashboard.html';
+    return;
+  }
   if(alreadyLoggedIn){ hide('#adminLoginScreen'); show('#adminAppShell'); try{await _bootPanel();}catch(err){ AdminUI.banner('⚠ Panel boot error: '+err.message,'error');} }
   else{ show('#adminLoginScreen'); hide('#adminAppShell'); }
 });
