@@ -87,31 +87,74 @@ function normalizeTxType(raw) {
 }
 
 const PLAN_MS_PER_DAY = 24 * 60 * 60 * 1000;
-const PLAN_CONFIG = {
-  Starter:  { priceUsd: 500,   hashrate: 10,  durationDays: 1460, monthlyRate: 0.05, icon: '🌱', color: 'var(--green)' },
-  Silver:   { priceUsd: 2500,  hashrate: 50,  durationDays: 1095, monthlyRate: 0.10, icon: '🥈', color: 'var(--blue)' },
-  Gold:     { priceUsd: 5000,  hashrate: 100, durationDays: 730,  monthlyRate: 0.15, icon: '🥇', color: 'var(--gold)' },
-  Platinum: { priceUsd: 10000, hashrate: 300, durationDays: 365,  monthlyRate: 0.20, icon: '💎', color: 'var(--purple)' },
+const PLAN_CONFIG_FALLBACK = {
+  starter:  { priceUsd: 500,   hashrate: 10,  durationDays: 1460, monthlyRate: 0.05, icon: '🌱', color: 'var(--green)' },
+  silver:   { priceUsd: 2500,  hashrate: 50,  durationDays: 1095, monthlyRate: 0.10, icon: '🥈', color: 'var(--blue)' },
+  gold:     { priceUsd: 5000,  hashrate: 100, durationDays: 730,  monthlyRate: 0.15, icon: '🥇', color: 'var(--gold)' },
+  platinum: { priceUsd: 10000, hashrate: 300, durationDays: 365,  monthlyRate: 0.20, icon: '💎', color: 'var(--purple)' },
 };
 
+let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
+
+function normalizePlanKey(planName) {
+  return String(planName || '').trim().toLowerCase();
+}
+
 function getPlanConfig(planName) {
-  return PLAN_CONFIG[String(planName || '').trim()] || null;
+  return PLAN_CONFIG[normalizePlanKey(planName)] || null;
+}
+
+function normalizeMonthlyRate(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n > 1 ? n / 100 : n;
+}
+
+function getPlanPriceFromSource(source, fallback = null) {
+  const price = Number(source?.priceUsd ?? source?.plan_price ?? source?.price ?? source?.amount ?? fallback);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function getPlanMonthlyRateFromSource(source, fallback = null) {
+  const rate = normalizeMonthlyRate(source?.monthlyRate ?? source?.plan_monthly_rate ?? source?.monthly_return_pct ?? source?.monthly_return ?? fallback);
+  return rate ?? null;
+}
+
+function getPlanDurationFromSource(source, fallback = null) {
+  const days = Number(source?.durationDays ?? source?.plan_duration_days ?? source?.duration_days ?? fallback);
+  return Number.isFinite(days) && days > 0 ? Math.floor(days) : null;
+}
+
+function getContractPriceUsd(contract) {
+  const planCfg = getPlanConfig(contract?.plan || contract?.name);
+  return getPlanPriceFromSource(contract, planCfg?.priceUsd) ?? 0;
+}
+
+function getContractMonthlyRate(contract) {
+  const planCfg = getPlanConfig(contract?.plan || contract?.name);
+  return getPlanMonthlyRateFromSource(contract, planCfg?.monthlyRate) ?? 0;
+}
+
+function getContractDurationDays(contract) {
+  const planCfg = getPlanConfig(contract?.plan || contract?.name);
+  return getPlanDurationFromSource(contract, planCfg?.durationDays) ?? 0;
 }
 
 function getPlanDurationDays(planName, fallbackDays = null) {
-  return getPlanConfig(planName)?.durationDays ?? (Number.isFinite(Number(fallbackDays)) ? Number(fallbackDays) : null);
+  return getPlanDurationFromSource(getPlanConfig(planName), fallbackDays);
 }
 
 function getPlanPriceUsd(planName, fallbackPrice = null) {
-  return getPlanConfig(planName)?.priceUsd ?? (Number.isFinite(Number(fallbackPrice)) ? Number(fallbackPrice) : null);
+  return getPlanPriceFromSource(getPlanConfig(planName), fallbackPrice);
 }
 
 function getPlanHashrate(planName, fallbackHashrate = null) {
-  return getPlanConfig(planName)?.hashrate ?? (Number.isFinite(Number(fallbackHashrate)) ? Number(fallbackHashrate) : null);
+  const plan = getPlanConfig(planName);
+  return Number.isFinite(Number(plan?.hashrate ?? fallbackHashrate)) ? Number(plan?.hashrate ?? fallbackHashrate) : null;
 }
 
 function getPlanMonthlyRate(planName, fallbackRate = null) {
-  return getPlanConfig(planName)?.monthlyRate ?? (Number.isFinite(Number(fallbackRate)) ? Number(fallbackRate) : 0);
+  return getPlanMonthlyRateFromSource(getPlanConfig(planName), fallbackRate) ?? 0;
 }
 
 function getPlanDailyProfitUsd(planName, priceUsd = null) {
@@ -126,7 +169,9 @@ function getPlanMonthlyProfitUsd(planName, priceUsd = null) {
 }
 
 function getContractDurationDays(contract) {
-  return getPlanDurationDays(contract?.plan || contract?.name, contract?.days_left ?? contract?.plan_duration_days);
+  const direct = getPlanDurationFromSource(contract);
+  if (direct) return direct;
+  return getPlanDurationDays(contract?.plan || contract?.name, contract?.plan_duration_days ?? contract?.duration_days ?? contract?.durationDays);
 }
 
 function getContractExpiryDate(contract) {
@@ -137,16 +182,67 @@ function getContractExpiryDate(contract) {
 }
 
 function getContractRemainingDays(contract, refDate = new Date()) {
-  const expiryDate = getContractExpiryDate(contract);
-  if (!expiryDate) return contract?.days_left != null ? Number(contract.days_left) : null;
-  const remainingMs = expiryDate.getTime() - refDate.getTime();
-  if (remainingMs <= 0) return 0;
-  return Math.max(1, Math.ceil(remainingMs / PLAN_MS_PER_DAY));
+  const durationDays = getContractDurationDays(contract);
+  if (!durationDays) return contract?.days_left != null ? Number(contract.days_left) : null;
+  const createdAt = new Date(contract?.created_at || Date.now());
+  const elapsedDays = Math.max(0, (refDate.getTime() - createdAt.getTime()) / PLAN_MS_PER_DAY);
+  const remaining = durationDays - elapsedDays;
+  if (remaining <= 0) return 0;
+  return Math.max(1, Math.ceil(remaining));
 }
 
 function isContractExpired(contract, refDate = new Date()) {
   const expiryDate = getContractExpiryDate(contract);
   return !!expiryDate && refDate.getTime() >= expiryDate.getTime();
+}
+
+function getContractProgressPercent(contract, refDate = new Date()) {
+  const durationDays = getContractDurationDays(contract);
+  if (!durationDays) return Math.min(100, Math.max(0, Number(contract?.progress || 0)));
+  const createdAt = new Date(contract?.created_at || Date.now());
+  const elapsedDays = Math.max(0, (refDate.getTime() - createdAt.getTime()) / PLAN_MS_PER_DAY);
+  return Math.min(100, Math.max(0, (elapsedDays / durationDays) * 100));
+}
+
+function getContractDailyProfitUsd(contract) {
+  const daily = Number(contract?.daily_profit);
+  if (Number.isFinite(daily) && daily > 0) return daily;
+  const price = getContractPriceUsd(contract);
+  const monthlyRate = getContractMonthlyRate(contract);
+  return price > 0 && monthlyRate > 0 ? (price * monthlyRate) / 30 : 0;
+}
+
+function getContractMonthlyProfitUsd(contract) {
+  const price = getContractPriceUsd(contract);
+  const monthlyRate = getContractMonthlyRate(contract);
+  return price > 0 && monthlyRate > 0 ? price * monthlyRate : getContractDailyProfitUsd(contract) * 30;
+}
+
+async function loadPlanCatalog() {
+  if (!_supabase) return PLAN_CONFIG;
+  try {
+    const { data, error } = await _supabase
+      .from('plans')
+      .select('*');
+    if (error || !Array.isArray(data) || !data.length) return PLAN_CONFIG;
+
+    const next = { ...PLAN_CONFIG_FALLBACK };
+    data.forEach(row => {
+      const key = normalizePlanKey(row?.name || row?.plan_name || row?.title || row?.slug);
+      if (!key) return;
+      next[key] = {
+        ...next[key],
+        priceUsd: getPlanPriceFromSource(row, next[key]?.priceUsd) ?? next[key]?.priceUsd,
+        hashrate: Number(row?.hashrate ?? row?.hash_rate ?? next[key]?.hashrate ?? 0) || next[key]?.hashrate,
+        durationDays: getPlanDurationFromSource(row, next[key]?.durationDays) ?? next[key]?.durationDays,
+        monthlyRate: getPlanMonthlyRateFromSource(row, next[key]?.monthlyRate) ?? next[key]?.monthlyRate,
+      };
+    });
+    PLAN_CONFIG = next;
+  } catch (err) {
+    console.warn('[CryptoVault] loadPlanCatalog failed:', err.message);
+  }
+  return PLAN_CONFIG;
 }
 
 function normalizeContractLifecycle(contract) {
@@ -494,7 +590,7 @@ async function populateDashboardStats(contracts) {
   setText('liveHashrate',  totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('liveHashrate2', totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
 
-  const dailyProfit = activeContracts.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
+  const dailyProfit = activeContracts.reduce((s, c) => s + getContractDailyProfitUsd(c), 0);
   setText('dailyProfitEl', '$ ' + dailyProfit.toFixed(2) + ' USDT');
 
   const statChangeHashrate = document.getElementById('statChangeHashrate');
@@ -785,12 +881,12 @@ function renderContracts(contracts) {
   }
 
   container.innerHTML = active.map(c => {
-    const progress    = c.progress != null ? Math.min(100, Math.max(0, Number(c.progress))) : 0;
+    const progress    = getContractProgressPercent(c);
     const remaining   = getContractRemainingDays(c);
     const daysLeft    = remaining != null ? remaining + ' days left' : 'Unlimited';
-    const hashrate    = c.hashrate  != null ? c.hashrate.toFixed(1) + ' TH/s' : '—';
-    const dailyProfit = c.daily_profit != null
-      ? '$ ' + Number(c.daily_profit).toFixed(2) + ' USDT'
+    const hashrate    = c.hashrate  != null ? Number(c.hashrate).toFixed(1) + ' TH/s' : '—';
+    const dailyProfit = getContractDailyProfitUsd(c) > 0
+      ? '$ ' + getContractDailyProfitUsd(c).toFixed(2) + ' USDT'
       : '—';
     const planName    = c.plan || c.name || 'Mining Contract';
 
@@ -817,7 +913,7 @@ function renderMiningStats(contracts) {
 
   const totalHash    = active.reduce((s, c) => s + Number(c.hashrate    || 0), 0);
   const totalPower   = active.reduce((s, c) => s + Number(c.power_watts || 0), 0);
-  const dailyProfit  = active.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
+  const dailyProfit  = active.reduce((s, c) => s + getContractDailyProfitUsd(c), 0);
   const monthlyProj  = dailyProfit * 30;
 
   setText('miningStatHashrate',  totalHash   > 0 ? totalHash.toFixed(1)   + ' TH/s' : '0 TH/s');
@@ -841,7 +937,7 @@ function renderContractProgress(active) {
   }
 
   container.innerHTML = active.map(c => {
-    const progress = Math.min(100, Math.max(0, Number(c.progress || 0)));
+    const progress = getContractProgressPercent(c);
     const remaining = getContractRemainingDays(c);
     const daysLeft = remaining != null ? remaining + ' days left' : 'Unlimited';
     const planName = c.plan || c.name || 'Contract';
@@ -1184,12 +1280,13 @@ function openPlanDetailModal(contractId) {
   if (!modal || !body) return;
 
   const planName      = escapeHtml(contract.plan || contract.name || 'Mining Contract');
-  const hashrate      = contract.hashrate != null ? contract.hashrate.toFixed(1) + ' TH/s' : '—';
-  const dailyProfit   = Number(contract.daily_profit || 0);
+  const hashrate      = contract.hashrate != null ? Number(contract.hashrate).toFixed(1) + ' TH/s' : '—';
+  const dailyProfit   = getContractDailyProfitUsd(contract);
   const dailyProfitStr= dailyProfit > 0 ? '$ ' + dailyProfit.toFixed(2) + ' USDT' : '—';
-  const progress      = Math.min(100, Math.max(0, Number(contract.progress || 0)));
+  const progress      = getContractProgressPercent(contract);
   const remainingDays = getContractRemainingDays(contract);
   const daysLeft      = remainingDays != null ? remainingDays + ' days' : 'Unlimited';
+  const durationDays  = getContractDurationDays(contract);
 
   const startDate     = contract.created_at ? new Date(contract.created_at) : new Date();
   const startDateStr  = startDate.toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
@@ -1198,12 +1295,11 @@ function openPlanDetailModal(contractId) {
   const now           = new Date();
   const msPerDay      = 24 * 60 * 60 * 1000;
   const elapsedMs     = now - startDate;
-  const durationDays  = getContractDurationDays(contract);
   const daysActive    = Math.max(0, Math.min(elapsedMs / msPerDay, durationDays || elapsedMs / msPerDay));
   const totalEarned   = dailyProfit * daysActive;
   const totalEarnedStr= totalEarned > 0 ? '$ ' + totalEarned.toFixed(2) + ' USDT' : '$ 0.00 USDT';
   const totalEarnedUSD= '$' + totalEarned.toFixed(2) + ' USDT';
-  const dailyProfitUSD= '$' + dailyProfit.toFixed(2) + ' USDT';
+  const durationText  = durationDays ? 'Duration: ' + durationDays + ' days' : 'Duration: —';
 
   title.textContent = planName + ' Plan';
 
@@ -1244,9 +1340,9 @@ function openPlanDetailModal(contractId) {
         </div>
         <div class="plan-detail-timer-display" id="planDetailTimer">00:00:00</div>
         <div class="plan-detail-timer-info">
-          <span>Aane wale <b>24 ghante</b> mein aapko milega:</span>
+          <span>Daily Earnings</span>
           <span class="plan-detail-timer-amount">${dailyProfitStr}</span>
-          <span style="font-size:12px;">${dailyProfitUSD}</span>
+          <span style="font-size:12px;">${durationText}</span>
         </div>
       </div>
 
@@ -1319,10 +1415,13 @@ function purchasePlan(planName, priceUsd, hashrate, dailyUsd = null, durationDay
   if (!modal || !body) return;
 
   const plan = getPlanConfig(planName);
-  const price = Number.isFinite(Number(priceUsd)) ? Number(priceUsd) : getPlanPriceUsd(planName, 0);
-  const hash  = Number.isFinite(Number(hashrate)) ? Number(hashrate) : getPlanHashrate(planName, 0);
-  const daily = Number.isFinite(Number(dailyUsd)) ? Number(dailyUsd) : getPlanDailyProfitUsd(planName, price);
-  const days  = Number.isFinite(Number(durationDays)) ? Number(durationDays) : getPlanDurationDays(planName, plan?.durationDays);
+  const price = getPlanPriceUsd(planName, priceUsd) ?? Number(priceUsd) ?? 0;
+  const hash  = getPlanHashrate(planName, hashrate) ?? Number(hashrate) ?? 0;
+  const days  = getPlanDurationDays(planName, durationDays) ?? Number(durationDays) ?? 0;
+  const dailyFallback = Number(dailyUsd);
+  const rate  = getPlanMonthlyRate(planName, plan?.monthlyRate)
+    || (price > 0 && Number.isFinite(dailyFallback) && dailyFallback > 0 ? (dailyFallback * 30) / price : 0);
+  const daily = price > 0 && rate > 0 ? (price * rate) / 30 : (Number.isFinite(dailyFallback) && dailyFallback > 0 ? dailyFallback : getPlanDailyProfitUsd(planName, price));
   const monthly = getPlanMonthlyProfitUsd(planName, price);
   const daysText = days ? `${days} Days` : 'Unlimited';
   const icon  = plan?.icon || '⛏️';
@@ -1347,7 +1446,7 @@ function purchasePlan(planName, priceUsd, hashrate, dailyUsd = null, durationDay
     </div>
   `;
 
-  _pendingPurchase = { planName, priceUsd: price, hashrate: hash, daily, days, monthlyRate: plan?.monthlyRate ?? getPlanMonthlyRate(planName, 0) };
+  _pendingPurchase = { planName, priceUsd: price, hashrate: hash, daily, days, monthlyRate: rate };
   openModal('purchaseModal');
 }
 
@@ -1364,9 +1463,9 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
   const balance = typeof latestProfile?.usdt_balance === 'number' ? latestProfile.usdt_balance : 0;
   const cost    = parseFloat(priceUsd);
   const plan    = getPlanConfig(planName);
-  const daily   = Number.isFinite(Number(dailyUsd)) ? Number(dailyUsd) : getPlanDailyProfitUsd(planName, cost);
-  const days    = Number.isFinite(Number(durationDays)) ? Number(durationDays) : getPlanDurationDays(planName, plan?.durationDays);
   const rate    = Number.isFinite(Number(monthlyRate)) ? Number(monthlyRate) : getPlanMonthlyRate(planName, plan?.monthlyRate);
+  const daily   = cost > 0 && rate > 0 ? (cost * rate) / 30 : (Number.isFinite(Number(dailyUsd)) ? Number(dailyUsd) : getPlanDailyProfitUsd(planName, cost));
+  const days    = Number.isFinite(Number(durationDays)) ? Number(durationDays) : getPlanDurationDays(planName, plan?.durationDays);
 
   if (balance < cost) {
     Toast.show(
@@ -1397,11 +1496,14 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
         user_id:        user.id,
         plan:           planName,
         plan_price:     cost,
+        plan_monthly_rate: rate,
+        plan_duration_days: days,
         hashrate:       Number(hashrate),
         active:         true,
         daily_profit:   daily,
         progress:       0,
         days_left:      days,
+        expires_at:     new Date(Date.now() + (days * PLAN_MS_PER_DAY)).toISOString(),
         last_payout_at: null,
         created_at:     new Date().toISOString(),
       });
@@ -2080,6 +2182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initAdminChangeRealtime();
 
   initDepositForm();
+  await loadPlanCatalog();
 
   await refreshAll();
   updateBTCPrice();
