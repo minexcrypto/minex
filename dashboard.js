@@ -86,6 +86,89 @@ function normalizeTxType(raw) {
   return t || 'other';
 }
 
+const PLAN_MS_PER_DAY = 24 * 60 * 60 * 1000;
+const PLAN_CONFIG = {
+  Starter:  { priceUsd: 500,   hashrate: 10,  durationDays: 1460, monthlyRate: 0.05, icon: '🌱', color: 'var(--green)' },
+  Silver:   { priceUsd: 2500,  hashrate: 50,  durationDays: 1095, monthlyRate: 0.10, icon: '🥈', color: 'var(--blue)' },
+  Gold:     { priceUsd: 5000,  hashrate: 100, durationDays: 730,  monthlyRate: 0.15, icon: '🥇', color: 'var(--gold)' },
+  Platinum: { priceUsd: 10000, hashrate: 300, durationDays: 365,  monthlyRate: 0.20, icon: '💎', color: 'var(--purple)' },
+};
+
+function getPlanConfig(planName) {
+  return PLAN_CONFIG[String(planName || '').trim()] || null;
+}
+
+function getPlanDurationDays(planName, fallbackDays = null) {
+  return getPlanConfig(planName)?.durationDays ?? (Number.isFinite(Number(fallbackDays)) ? Number(fallbackDays) : null);
+}
+
+function getPlanPriceUsd(planName, fallbackPrice = null) {
+  return getPlanConfig(planName)?.priceUsd ?? (Number.isFinite(Number(fallbackPrice)) ? Number(fallbackPrice) : null);
+}
+
+function getPlanHashrate(planName, fallbackHashrate = null) {
+  return getPlanConfig(planName)?.hashrate ?? (Number.isFinite(Number(fallbackHashrate)) ? Number(fallbackHashrate) : null);
+}
+
+function getPlanMonthlyRate(planName, fallbackRate = null) {
+  return getPlanConfig(planName)?.monthlyRate ?? (Number.isFinite(Number(fallbackRate)) ? Number(fallbackRate) : 0);
+}
+
+function getPlanDailyProfitUsd(planName, priceUsd = null) {
+  const price = Number.isFinite(Number(priceUsd)) ? Number(priceUsd) : getPlanPriceUsd(planName, 0);
+  const monthlyRate = getPlanMonthlyRate(planName, 0);
+  return price > 0 ? (price * monthlyRate) / 30 : 0;
+}
+
+function getPlanMonthlyProfitUsd(planName, priceUsd = null) {
+  const price = Number.isFinite(Number(priceUsd)) ? Number(priceUsd) : getPlanPriceUsd(planName, 0);
+  return price > 0 ? price * getPlanMonthlyRate(planName, 0) : 0;
+}
+
+function getContractDurationDays(contract) {
+  return getPlanDurationDays(contract?.plan || contract?.name, contract?.days_left ?? contract?.plan_duration_days);
+}
+
+function getContractExpiryDate(contract) {
+  const createdAt = new Date(contract?.created_at || Date.now());
+  const durationDays = getContractDurationDays(contract);
+  if (!durationDays || !Number.isFinite(createdAt.getTime())) return null;
+  return new Date(createdAt.getTime() + durationDays * PLAN_MS_PER_DAY);
+}
+
+function getContractRemainingDays(contract, refDate = new Date()) {
+  const expiryDate = getContractExpiryDate(contract);
+  if (!expiryDate) return contract?.days_left != null ? Number(contract.days_left) : null;
+  const remainingMs = expiryDate.getTime() - refDate.getTime();
+  if (remainingMs <= 0) return 0;
+  return Math.max(1, Math.ceil(remainingMs / PLAN_MS_PER_DAY));
+}
+
+function isContractExpired(contract, refDate = new Date()) {
+  const expiryDate = getContractExpiryDate(contract);
+  return !!expiryDate && refDate.getTime() >= expiryDate.getTime();
+}
+
+function normalizeContractLifecycle(contract) {
+  if (!contract) return contract;
+  const plan = contract.plan || contract.name || '';
+  const priceUsd = getPlanPriceUsd(plan, contract.plan_price);
+  const monthlyRate = getPlanMonthlyRate(plan, contract.plan_monthly_rate);
+  const durationDays = getContractDurationDays(contract);
+  const expiresAt = getContractExpiryDate(contract);
+  const expired = isContractExpired(contract);
+  const remainingDays = getContractRemainingDays(contract);
+  return {
+    ...contract,
+    plan_price: priceUsd ?? contract.plan_price ?? null,
+    plan_monthly_rate: monthlyRate ?? contract.plan_monthly_rate ?? null,
+    plan_duration_days: durationDays ?? contract.plan_duration_days ?? null,
+    expires_at: expiresAt ? expiresAt.toISOString() : contract.expires_at || null,
+    days_left: expired ? 0 : (remainingDays ?? contract.days_left ?? null),
+    active: contract.active === true && !expired,
+  };
+}
+
 /* ─── COPY UTILITY ───────────────────────────────────────── */
 function copyToClipboard(text, msg = 'Copied!') {
   if (navigator.clipboard?.writeText) {
@@ -297,7 +380,7 @@ async function loadContracts() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
   if (error) { console.error('loadContracts:', error); return []; }
-  return data || [];
+  return (data || []).map(normalizeContractLifecycle);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -406,13 +489,13 @@ async function populateUserUI() {
    UI — DASHBOARD STATS
 ══════════════════════════════════════════════════════════════ */
 async function populateDashboardStats(contracts) {
-  const activeContracts = contracts.filter(c => c.active === true);
+  const activeContracts = contracts.filter(c => c.active === true && !isContractExpired(c));
   const totalHashrate = activeContracts.reduce((s, c) => s + Number(c.hashrate || 0), 0);
   setText('liveHashrate',  totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('liveHashrate2', totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
 
   const dailyProfit = activeContracts.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
-  setText('dailyProfitEl', '₿ ' + dailyProfit.toFixed(8));
+  setText('dailyProfitEl', '$ ' + dailyProfit.toFixed(2) + ' USDT');
 
   const statChangeHashrate = document.getElementById('statChangeHashrate');
   const statChangeContracts = document.getElementById('statChangeContracts');
@@ -429,9 +512,9 @@ async function populateDashboardStats(contracts) {
     const totalMined = (miningTxns || [])
       .filter(t => normalizeTxType(t.type) === 'mining')
       .reduce((s, t) => s + Number(t.amount || 0), 0);
-    setText('totalMinedEl', '₿ ' + totalMined.toFixed(8));
+    setText('totalMinedEl', '$ ' + totalMined.toFixed(2) + ' USDT');
   } else {
-    setText('totalMinedEl', '₿ 0.00000000');
+    setText('totalMinedEl', '$ 0.00 USDT');
   }
 }
 
@@ -688,7 +771,7 @@ function renderContracts(contracts) {
   const container = $('contractsContainer');
   if (!container) return;
 
-  const active = contracts.filter(c => c.active === true);
+  const active = contracts.filter(c => c.active === true && !isContractExpired(c));
   window._activeContracts = active; // 👈 modal ke liye store kar rahe hain
 
   if (!active.length) {
@@ -703,10 +786,11 @@ function renderContracts(contracts) {
 
   container.innerHTML = active.map(c => {
     const progress    = c.progress != null ? Math.min(100, Math.max(0, Number(c.progress))) : 0;
-    const daysLeft    = c.days_left != null ? c.days_left + ' days left' : 'Unlimited';
+    const remaining   = getContractRemainingDays(c);
+    const daysLeft    = remaining != null ? remaining + ' days left' : 'Unlimited';
     const hashrate    = c.hashrate  != null ? c.hashrate.toFixed(1) + ' TH/s' : '—';
     const dailyProfit = c.daily_profit != null
-      ? Number(c.daily_profit).toFixed(8) + ' BTC'
+      ? '$ ' + Number(c.daily_profit).toFixed(2) + ' USDT'
       : '—';
     const planName    = c.plan || c.name || 'Mining Contract';
 
@@ -729,7 +813,7 @@ function renderContracts(contracts) {
    UI — MINING TAB STATS
 ══════════════════════════════════════════════════════════════ */
 function renderMiningStats(contracts) {
-  const active = contracts.filter(c => c.active === true);
+  const active = contracts.filter(c => c.active === true && !isContractExpired(c));
 
   const totalHash    = active.reduce((s, c) => s + Number(c.hashrate    || 0), 0);
   const totalPower   = active.reduce((s, c) => s + Number(c.power_watts || 0), 0);
@@ -738,8 +822,8 @@ function renderMiningStats(contracts) {
 
   setText('miningStatHashrate',  totalHash   > 0 ? totalHash.toFixed(1)   + ' TH/s' : '0 TH/s');
   setText('miningStatPower',     totalPower  > 0 ? totalPower.toFixed(0)  + ' W'    : '0 W');
-  setText('miningStatDaily',     '₿ ' + dailyProfit.toFixed(8));
-  setText('miningStatMonthly',   '₿ ' + monthlyProj.toFixed(8));
+  setText('miningStatDaily',     '$ ' + dailyProfit.toFixed(2) + ' USDT');
+  setText('miningStatMonthly',   '$ ' + monthlyProj.toFixed(2) + ' USDT');
 
   renderContractProgress(active);
 }
@@ -758,7 +842,8 @@ function renderContractProgress(active) {
 
   container.innerHTML = active.map(c => {
     const progress = Math.min(100, Math.max(0, Number(c.progress || 0)));
-    const daysLeft = c.days_left != null ? c.days_left + ' days left' : 'Unlimited';
+    const remaining = getContractRemainingDays(c);
+    const daysLeft = remaining != null ? remaining + ' days left' : 'Unlimited';
     const planName = c.plan || c.name || 'Contract';
     const hashrate = c.hashrate != null ? c.hashrate.toFixed(1) : '—';
     return `
@@ -1088,6 +1173,7 @@ let _planDetailTimerInterval = null;
 function openPlanDetailModal(contractId) {
   const contract = (window._activeContracts || []).find(c => c.id === contractId || c.id == contractId);
   if (!contract) { Toast.show('Contract not found', 'error'); return; }
+  if (isContractExpired(contract)) { Toast.show('This contract has expired.', 'warning'); return; }
 
   // Purana timer band karo
   if (_planDetailTimerInterval) { clearInterval(_planDetailTimerInterval); _planDetailTimerInterval = null; }
@@ -1100,9 +1186,10 @@ function openPlanDetailModal(contractId) {
   const planName      = escapeHtml(contract.plan || contract.name || 'Mining Contract');
   const hashrate      = contract.hashrate != null ? contract.hashrate.toFixed(1) + ' TH/s' : '—';
   const dailyProfit   = Number(contract.daily_profit || 0);
-  const dailyProfitStr= dailyProfit > 0 ? dailyProfit.toFixed(8) + ' BTC' : '—';
+  const dailyProfitStr= dailyProfit > 0 ? '$ ' + dailyProfit.toFixed(2) + ' USDT' : '—';
   const progress      = Math.min(100, Math.max(0, Number(contract.progress || 0)));
-  const daysLeft      = contract.days_left != null ? contract.days_left + ' days' : 'Unlimited';
+  const remainingDays = getContractRemainingDays(contract);
+  const daysLeft      = remainingDays != null ? remainingDays + ' days' : 'Unlimited';
 
   const startDate     = contract.created_at ? new Date(contract.created_at) : new Date();
   const startDateStr  = startDate.toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
@@ -1111,14 +1198,12 @@ function openPlanDetailModal(contractId) {
   const now           = new Date();
   const msPerDay      = 24 * 60 * 60 * 1000;
   const elapsedMs     = now - startDate;
-  const daysActive    = Math.max(0, elapsedMs / msPerDay);
+  const durationDays  = getContractDurationDays(contract);
+  const daysActive    = Math.max(0, Math.min(elapsedMs / msPerDay, durationDays || elapsedMs / msPerDay));
   const totalEarned   = dailyProfit * daysActive;
-  const totalEarnedStr= totalEarned > 0 ? totalEarned.toFixed(8) + ' BTC' : '0.00000000 BTC';
-
-  // USDT equivalent (agar BTC price available hai)
-  const btcPrice      = BTCPrice.get();
-  const totalEarnedUSD= btcPrice != null ? '≈ $' + (totalEarned * btcPrice).toFixed(2) + ' USD' : '';
-  const dailyProfitUSD= btcPrice != null ? '≈ $' + (dailyProfit * btcPrice).toFixed(2) + ' USD' : '';
+  const totalEarnedStr= totalEarned > 0 ? '$ ' + totalEarned.toFixed(2) + ' USDT' : '$ 0.00 USDT';
+  const totalEarnedUSD= '$' + totalEarned.toFixed(2) + ' USDT';
+  const dailyProfitUSD= '$' + dailyProfit.toFixed(2) + ' USDT';
 
   title.textContent = planName + ' Plan';
 
@@ -1189,6 +1274,12 @@ function openPlanDetailModal(contractId) {
 }
 
 function _updatePlanDetailTimer(contract) {
+  if (isContractExpired(contract)) {
+    const timerEl = $('planDetailTimer');
+    if (timerEl) timerEl.textContent = '00:00:00';
+    return;
+  }
+
   const start   = new Date(contract.created_at || Date.now());
   const now     = new Date();
   const msPerDay= 24 * 60 * 60 * 1000;
@@ -1222,28 +1313,33 @@ function closePlanDetailModal() {
   closeModal('planDetailModal');
 }
 
-function purchasePlan(planName, priceUsd, hashrate) {
+function purchasePlan(planName, priceUsd, hashrate, dailyUsd = null, durationDays = null) {
   const modal = $('purchaseModal');
   const body  = $('purchaseModalBody');
   if (!modal || !body) return;
 
-  const daily = (Number(hashrate) * 0.0000032).toFixed(8);
-  const days  = _planDays(planName);
+  const plan = getPlanConfig(planName);
+  const price = Number.isFinite(Number(priceUsd)) ? Number(priceUsd) : getPlanPriceUsd(planName, 0);
+  const hash  = Number.isFinite(Number(hashrate)) ? Number(hashrate) : getPlanHashrate(planName, 0);
+  const daily = Number.isFinite(Number(dailyUsd)) ? Number(dailyUsd) : getPlanDailyProfitUsd(planName, price);
+  const days  = Number.isFinite(Number(durationDays)) ? Number(durationDays) : getPlanDurationDays(planName, plan?.durationDays);
+  const monthly = getPlanMonthlyProfitUsd(planName, price);
   const daysText = days ? `${days} Days` : 'Unlimited';
-  const icon  = planName === 'Starter' ? '🌱' : planName === 'Silver' ? '🥈' : planName === 'Gold' ? '🥇' : '💎';
-  const color = planName === 'Starter' ? 'var(--green)' : planName === 'Silver' ? 'var(--blue)' : planName === 'Gold' ? 'var(--gold)' : 'var(--purple)';
+  const icon  = plan?.icon || '⛏️';
+  const color = plan?.color || 'var(--gold)';
 
   body.innerHTML = `
     <div style="text-align:center;margin-bottom:20px;">
       <div style="font-size:48px;margin-bottom:8px;">${icon}</div>
       <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;">${planName} Plan</div>
-      <div style="color:var(--text-muted);font-size:14px;">${hashrate} TH/s · ${daysText}</div>
+      <div style="color:var(--text-muted);font-size:14px;">${hash} TH/s · ${daysText}</div>
     </div>
     <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
-      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Price</span><span style="font-weight:700;">$${priceUsd}</span></div>
-      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Hashrate</span><span style="font-weight:700;">${hashrate} TH/s</span></div>
-      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Daily Profit</span><span style="font-weight:700;color:${color};">~${daily} BTC</span></div>
-      <div class="flex justify-between"><span style="color:var(--text-muted);">Est. Monthly</span><span style="font-weight:700;color:var(--gold);">~${(daily * 30).toFixed(8)} BTC</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Price</span><span style="font-weight:700;">$${price.toLocaleString('en-US')}</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Hashrate</span><span style="font-weight:700;">${hash} TH/s</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Duration</span><span style="font-weight:700;color:${color};">${daysText}</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Daily Profit</span><span style="font-weight:700;color:${color};">~$${daily.toFixed(2)} USDT</span></div>
+      <div class="flex justify-between"><span style="color:var(--text-muted);">Est. Monthly</span><span style="font-weight:700;color:var(--gold);">~$${monthly.toFixed(2)} USDT</span></div>
     </div>
     <div style="display:flex;gap:12px;">
       <button class="btn btn-ghost btn-full" onclick="closeModal('purchaseModal')">Cancel</button>
@@ -1251,22 +1347,26 @@ function purchasePlan(planName, priceUsd, hashrate) {
     </div>
   `;
 
-  _pendingPurchase = { planName, priceUsd: parseFloat(priceUsd), hashrate: Number(hashrate), daily, days };
+  _pendingPurchase = { planName, priceUsd: price, hashrate: hash, daily, days, monthlyRate: plan?.monthlyRate ?? getPlanMonthlyRate(planName, 0) };
   openModal('purchaseModal');
 }
 
 async function confirmPurchase() {
   if (!_pendingPurchase) return;
-  const { planName, priceUsd, hashrate } = _pendingPurchase;
+  const { planName, priceUsd, hashrate, daily, days, monthlyRate } = _pendingPurchase;
   closeModal('purchaseModal');
   _pendingPurchase = null;
-  await _executePurchase(planName, priceUsd, hashrate);
+  await _executePurchase(planName, priceUsd, hashrate, daily, days, monthlyRate);
 }
 
-async function _executePurchase(planName, priceUsd, hashrate) {
+async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, durationDays = null, monthlyRate = null) {
   const latestProfile = await Auth.refreshProfile();
   const balance = typeof latestProfile?.usdt_balance === 'number' ? latestProfile.usdt_balance : 0;
   const cost    = parseFloat(priceUsd);
+  const plan    = getPlanConfig(planName);
+  const daily   = Number.isFinite(Number(dailyUsd)) ? Number(dailyUsd) : getPlanDailyProfitUsd(planName, cost);
+  const days    = Number.isFinite(Number(durationDays)) ? Number(durationDays) : getPlanDurationDays(planName, plan?.durationDays);
+  const rate    = Number.isFinite(Number(monthlyRate)) ? Number(monthlyRate) : getPlanMonthlyRate(planName, plan?.monthlyRate);
 
   if (balance < cost) {
     Toast.show(
@@ -1294,14 +1394,16 @@ async function _executePurchase(planName, priceUsd, hashrate) {
     const { error: contractErr } = await _supabase
       .from('contracts')
       .insert({
-        user_id:      user.id,
-        plan:         planName,
-        hashrate:     Number(hashrate),
-        active:       true,
-        daily_profit: Number(hashrate) * 0.0000032,
-        progress:     0,
-        days_left:    _planDays(planName),
-        created_at:   new Date().toISOString(),
+        user_id:        user.id,
+        plan:           planName,
+        plan_price:     cost,
+        hashrate:       Number(hashrate),
+        active:         true,
+        daily_profit:   daily,
+        progress:       0,
+        days_left:      days,
+        last_payout_at: null,
+        created_at:     new Date().toISOString(),
       });
     if (contractErr) throw contractErr;
 
@@ -1332,7 +1434,7 @@ async function _executePurchase(planName, priceUsd, hashrate) {
 }
 
 function _planDays(name) {
-  return null; // Unlimited — no expiry
+  return getPlanDurationDays(name);
 }
 
 async function approveDeposit(deposit) {
@@ -1497,7 +1599,9 @@ function wirePlanButtons() {
       const plan  = btn.dataset.plan;
       const price = btn.dataset.price;
       const hash  = btn.dataset.hash;
-      purchasePlan(plan, price, hash);
+      const daily = btn.dataset.daily;
+      const days  = btn.dataset.duration;
+      purchasePlan(plan, price, hash, daily, days);
     });
   });
 }
