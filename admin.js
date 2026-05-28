@@ -987,14 +987,17 @@ const GlobalSearch = {
 const NewUsersModule = {
    _rows:[], _page:1, _pageSize:25, _dateRange:'all',
    goPage(n){ this._page=n; this._renderPage(); },
-   async load(range='all'){
+   async load(range='today'){
      this._dateRange=range;
      const container=document.getElementById('newUsersTableWrap'); if(!container||!sb)return;
      setHTML(container,AdminUI.loading('Loading new users…'));
      try{
-       const dateFilter=new Date(Date.now()-7*24*60*60*1000).toISOString();
-       const{data,error}=await sb.from('profiles').select('id,email,name,user_id,btc_balance,usdt_balance,is_active,is_admin,is_banned,is_suspended,ref_code,created_at').gte('created_at',dateFilter).order('created_at',{ascending:false}).limit(1000);
-       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
+       let dateFilter;
+       if(range==='today'){ dateFilter=new Date(new Date().setHours(0,0,0,0)).toISOString(); this._dateRange='today'; }
+       else if(range==='last-week'){ dateFilter=new Date(Date.now()-7*24*60*60*1000).toISOString(); this._dateRange='last-week'; }
+       else if(range==='last-month'){ dateFilter=new Date(Date.now()-30*24*60*60*1000).toISOString(); this._dateRange='last-month'; }
+       let q=sb.from('profiles').select('id,email,name,user_id,btc_balance,usdt_balance,is_active,is_admin,is_banned,is_suspended,ref_code,created_at').gte('created_at',dateFilter).order('created_at',{ascending:false}).limit(1000);
+       const{data,error}=await q; if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
      }catch(err){ setHTML(container,AdminUI.error('Could not load new users: '+err.message)); }
    },
    _renderPage(){
@@ -1007,9 +1010,9 @@ const NewUsersModule = {
      const html=rows.map(u=>{
        const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
        let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
-return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-size:12px;color:#94a3b8">${joined}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td></tr>`;
-      }).join('');
-      setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Joined</th><th style="${TH}">Status</th></tr></thead><tbody>${html}</tbody></table>`);
+       return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-size:12px;color:#94a3b8">${joined}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td></tr>`;
+     }).join('');
+     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Joined</th><th style="${TH}">Status</th></tr></thead><tbody>${html}</tbody></table>`);
    },
    export(){
      const headers=['ID','Email','Name','User ID','Active','Admin','Banned','Suspended','Ref Code','Created'];
@@ -1020,36 +1023,38 @@ return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;f
 window.NewUsersModule=NewUsersModule;
 
 /* ══════════════════════════════════════════════════════════════
-    §20  OLD USERS MODULE
+   §20  OLD USERS MODULE
  ══════════════════════════════════════════════════════════════ */
 const OldUsersModule = {
-  _rows:[], _page:1, _pageSize:25, _dateRange:'all',
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(range='all'){
-    this._dateRange=range;
-    const container=document.getElementById('oldUsersTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading old users…'));
-    try{
-      const dateFilter=new Date(Date.now()-30*24*60*60*1000).toISOString();
-      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,btc_balance,usdt_balance,is_active,is_admin,is_banned,is_suspended,ref_code,created_at').lte('created_at',dateFilter).order('created_at',{ascending:false}).limit(1000);
-      if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
-    }catch(err){ setHTML(container,AdminUI.error('Could not load old users: '+err.message)); }
-  },
-  _renderPage(){
-    const container=document.getElementById('oldUsersTableWrap'); const filter=$('#oldUserSearchInput')?.value?.toLowerCase()||'';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.id||'')).toLowerCase().includes(filter));
-    paginate(rows,this._pageSize,this._page,'oldUsersPagination',(pageRows)=>this._render(container,pageRows),'OldUsersModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No old users found.')); return; }
-    const html=rows.map(u=>{
-      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
-      let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-size:12px;color:#94a3b8">${joined}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Joined</th><th style="${TH}">Status</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-export(){
+   _rows:[], _page:1, _pageSize:25, _dateRange:'all',
+   goPage(n){ this._page=n; this._renderPage(); },
+   async load(range='all-time'){
+     this._dateRange=range;
+     const container=document.getElementById('oldUsersTableWrap'); if(!container||!sb)return;
+     setHTML(container,AdminUI.loading('Loading old users…'));
+     try{
+       let q=sb.from('profiles').select('id,email,name,user_id,btc_balance,usdt_balance,is_active,is_admin,is_banned,is_suspended,ref_code,created_at').order('created_at',{ascending:false}).limit(1000);
+       if(range==='last-week'){ const dateFilter=new Date(Date.now()-7*24*60*60*1000).toISOString(); q=q.lte('created_at',dateFilter); this._dateRange='last-week'; }
+       else if(range==='last-month'){ const dateFilter=new Date(Date.now()-30*24*60*60*1000).toISOString(); q=q.lte('created_at',dateFilter); this._dateRange='last-month'; }
+       else { this._dateRange='all-time'; }
+       const{data,error}=await q; if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
+     }catch(err){ setHTML(container,AdminUI.error('Could not load old users: '+err.message)); }
+   },
+   _renderPage(){
+     const container=document.getElementById('oldUsersTableWrap'); const filter=$('#oldUserSearchInput')?.value?.toLowerCase()||'';
+     let rows=this._rows; if(filter)rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.id||'')).toLowerCase().includes(filter));
+     paginate(rows,this._pageSize,this._page,'oldUsersPagination',(pageRows)=>this._render(container,pageRows),'OldUsersModule');
+   },
+   _render(container,rows){
+     if(!rows.length){ setHTML(container,AdminUI.empty('No old users found.')); return; }
+     const html=rows.map(u=>{
+       const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
+       let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
+       return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-size:12px;color:#94a3b8">${joined}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td></tr>`;
+     }).join('');
+     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Joined</th><th style="${TH}">Status</th></tr></thead><tbody>${html}</tbody></table>`);
+   },
+   export(){
      const headers=['ID','Email','Name','User ID','Active','Admin','Banned','Suspended','Ref Code','Created'];
      const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
      downloadCSV('old_users.csv',[headers,...rows]);
@@ -1092,10 +1097,12 @@ function initFilters(){
    on('#userSearchInput','input',()=>{ UsersModule._page=1; UsersModule._renderPage(); });
    on('#logSearchInput','input',()=>{ SecurityLogsModule._page=1; SecurityLogsModule._renderPage(); });
    on('#newUserSearchInput','input',()=>{ NewUsersModule._page=1; NewUsersModule._renderPage(); });
+   on('#newUserDateFilter','change',e=>{ NewUsersModule.load(e.target.value||'today'); });
    on('#oldUserSearchInput','input',()=>{ OldUsersModule._page=1; OldUsersModule._renderPage(); });
-   on('#globalSearchBtn','click',()=>GlobalSearch.execute());
+   on('#oldUserDateFilter','change',e=>{ OldUsersModule.load(e.target.value||'all-time'); });
+   on('#globalSearchBtn','click',()=>{ GlobalSearch.execute(); });
    on('#globalSearchInput','keydown',e=>{ if(e.key==='Enter')GlobalSearch.execute(); });
-}
+ }
 
 function initNotificationForm(){
    on('#notifTarget','change',e=>{ const grp=document.getElementById('notifUserGroup'); if(grp)grp.style.display=e.target.value==='specific'?'':'none'; });
@@ -1190,8 +1197,8 @@ async function loadSection(name){
      case 'referrals': await ReferralModule.load(); break;
      case 'notifications': await NotificationsModule.load(); break;
      case 'logs': await SecurityLogsModule.load(); break;
-     case 'new-users': await NewUsersModule.load(); break;
-     case 'old-users': await OldUsersModule.load(); break;
+     case 'new-users': await NewUsersModule.load('today'); break;
+     case 'old-users': await OldUsersModule.load('all-time'); break;
    }
 }
 
