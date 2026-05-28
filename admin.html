@@ -41,6 +41,8 @@
                 <a href="#" class="nav-link" data-admin-tab="referrals">🔗 Referrals</a>
                 <a href="#" class="nav-link" data-admin-tab="notifications">🔔 Notifications</a>
                 <a href="#" class="nav-link" data-admin-tab="logs">🛡 Security Logs</a>
+                <a href="#" class="nav-link" data-admin-tab="new-users">👤 New User</a>
+                <a href="#" class="nav-link" data-admin-tab="old-users">📅 Old User</a>
             </nav>
             <div class="sidebar-footer">
                 <span id="adminUserEmail"></span>
@@ -195,6 +197,26 @@
                 </div>
                 <div class="table-container" id="logsTableWrap"></div>
                 <div class="pagination-bar" id="logsPagination"></div>
+            </div>
+
+            <!-- NEW USERS -->
+            <div data-admin-section="new-users" class="tab-content">
+                <div class="filters">
+                    <input type="text" id="newUserSearchInput" placeholder="Search new users...">
+                    <button class="admin-btn admin-btn-outline" onclick="NewUsersModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="newUsersTableWrap"></div>
+                <div class="pagination-bar" id="newUsersPagination"></div>
+            </div>
+
+            <!-- OLD USERS -->
+            <div data-admin-section="old-users" class="tab-content">
+                <div class="filters">
+                    <input type="text" id="oldUserSearchInput" placeholder="Search old users...">
+                    <button class="admin-btn admin-btn-outline" onclick="OldUsersModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="oldUsersTableWrap"></div>
+                <div class="pagination-bar" id="oldUsersPagination"></div>
             </div>
         </main>
     </div>
