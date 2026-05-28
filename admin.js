@@ -1060,6 +1060,69 @@ const OldUsersModule = {
      downloadCSV('old_users.csv',[headers,...rows]);
    }
 };
+
+  openEditModal(){
+    const body=document.getElementById('oldUserEditModalBody');
+    const title=document.getElementById('oldUserEditModalTitle');
+    if(title)title.textContent='Edit Old User';
+    setHTML(body,`
+      <div class="form-group"><label>User Email / ID</label><input type="text" id="ouEditSearch" placeholder="Enter email or user ID..."></div>
+      <div id="ouEditFormWrap" style="display:none;">
+        <div class="form-group"><label>Name</label><input type="text" id="ouEditName"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="ouEditEmail"></div>
+        <div class="form-group"><label>Phone</label><input type="text" id="ouEditPhone"></div>
+        <div class="form-group"><label>Country</label><input type="text" id="ouEditCountry"></div>
+        <div class="form-group"><label>Level</label><input type="text" id="ouEditLevel" placeholder="Standard / Gold / Platinum"></div>
+        <div class="form-group"><label>Status</label><select id="ouEditStatus"><option value="active">Active</option><option value="suspended">Suspended</option><option value="banned">Banned</option></select></div>
+        <div class="form-group"><label>BTC Balance</label><input type="number" id="ouEditBtc" step="0.00000001"></div>
+        <div class="form-group"><label>USDT Balance</label><input type="number" id="ouEditUsdt" step="0.01"></div>
+        <button class="admin-btn admin-btn-primary" onclick="OldUsersModule.saveEdit()">💾 Save Changes</button>
+      </div>
+      <div style="margin-top:12px;"><button class="admin-btn admin-btn-outline" onclick="OldUsersModule.searchEditUser()">🔍 Search User</button></div>
+    `);
+    show('#oldUserEditModal');
+  },
+  async searchEditUser(){
+    const search=document.getElementById('ouEditSearch')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const{data,error}=await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+    if(error||!data||!data.length){ AdminUI.toast('User not found.','error'); return; }
+    const u=data[0];
+    document.getElementById('ouEditName').value=u.name||'';
+    document.getElementById('ouEditEmail').value=u.email||'';
+    document.getElementById('ouEditPhone').value=u.phone||'';
+    document.getElementById('ouEditCountry').value=u.country||'';
+    document.getElementById('ouEditLevel').value=u.level||'';
+    document.getElementById('ouEditStatus').value=u.is_banned?'banned':u.is_suspended?'suspended':'active';
+    document.getElementById('ouEditBtc').value=u.btc_balance||0;
+    document.getElementById('ouEditUsdt').value=u.usdt_balance||0;
+    document.getElementById('ouEditFormWrap').style.display='';
+    document.getElementById('ouEditFormWrap').dataset.userId=u.id;
+    AdminUI.toast('User loaded. Edit fields and save.','success');
+  },
+  async saveEdit(){
+    const wrap=document.getElementById('ouEditFormWrap');
+    const userId=wrap?.dataset?.userId;
+    if(!userId){ AdminUI.toast('Search a user first.','warning'); return; }
+    const name=document.getElementById('ouEditName')?.value?.trim();
+    const email=document.getElementById('ouEditEmail')?.value?.trim();
+    const phone=document.getElementById('ouEditPhone')?.value?.trim();
+    const country=document.getElementById('ouEditCountry')?.value?.trim();
+    const level=document.getElementById('ouEditLevel')?.value?.trim();
+    const status=document.getElementById('ouEditStatus')?.value;
+    const btc_balance=parseFloat(document.getElementById('ouEditBtc')?.value||0);
+    const usdt_balance=parseFloat(document.getElementById('ouEditUsdt')?.value||0);
+    const patch={name,email,phone,country,level,btc_balance,usdt_balance};
+    if(status==='active'){ patch.is_active=true; patch.is_banned=false; patch.is_suspended=false; }
+    if(status==='suspended'){ patch.is_active=false; patch.is_suspended=true; patch.is_banned=false; }
+    if(status==='banned'){ patch.is_active=false; patch.is_banned=true; patch.is_suspended=false; }
+    const{error}=await sb.from('profiles').update(patch).eq('id',userId);
+    if(error){ AdminUI.toast('Save failed: '+error.message,'error'); return; }
+    await logAdminAction('edit_old_user','profiles',userId,null,patch);
+    AdminUI.toast('Old user updated successfully.','success');
+    this.closeEditModal(); this.load(this._dateRange);
+  },
+  closeEditModal(){ hide('#oldUserEditModal'); },
 window.OldUsersModule=OldUsersModule;
 
 /* ══════════════════════════════════════════════════════════════
@@ -1183,6 +1246,7 @@ function initNavigation(){
 function initModals(){
    on('#entityModal','click',e=>{ if(e.target===e.currentTarget) closeEntityModal(); });
    on('#userDetailModal','click',e=>{ if(e.target===e.currentTarget) UsersModule.closeModal(); });
+   on('#oldUserEditModal','click',e=>{ if(e.target===e.currentTarget) OldUsersModule.closeEditModal(); });
 }
 
 async function loadSection(name){
