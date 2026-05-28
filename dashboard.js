@@ -132,7 +132,7 @@ function getContractPriceUsd(contract) {
 
 function getContractMonthlyRate(contract) {
   const planCfg = getPlanConfig(contract?.plan || contract?.name);
-  return getPlanMonthlyRateFromSource(contract, planCfg?.monthlyRate) ?? 0;
+  return Number(planCfg?.monthlyRate || 0) || 0;
 }
 
 function getContractDurationDays(contract) {
@@ -180,7 +180,7 @@ function getContractExpiryDate(contract) {
 
 function getContractRemainingDays(contract, refDate = new Date()) {
   const durationDays = getContractDurationDays(contract);
-  if (!durationDays) return contract?.days_left != null ? Number(contract.days_left) : null;
+  if (!durationDays) return null;
   const createdAt = new Date(contract?.created_at || Date.now());
   const elapsedDays = Math.max(0, (refDate.getTime() - createdAt.getTime()) / PLAN_MS_PER_DAY);
   const remaining = durationDays - elapsedDays;
@@ -289,16 +289,10 @@ function normalizeContractLifecycle(contract) {
   if (!contract) return contract;
   const plan = contract.plan || contract.name || '';
   const priceUsd = getPlanPriceUsd(plan, contract.plan_price);
-  const monthlyRate = getPlanMonthlyRate(plan, contract.plan_monthly_rate);
-  const durationDays = getContractDurationDays(contract);
-  const expired = isContractExpired(contract);
-  const remainingDays = getContractRemainingDays(contract);
   return {
     ...contract,
     plan_price: priceUsd ?? contract.plan_price ?? null,
-    plan_monthly_rate: monthlyRate ?? contract.plan_monthly_rate ?? null,
-    days_left: expired ? 0 : (remainingDays ?? contract.days_left ?? null),
-    active: contract.active === true && !expired,
+    active: contract.active === true && !isContractExpired(contract),
   };
 }
 
@@ -1524,13 +1518,10 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
       user_id:        user.id,
       plan:           planName,
       plan_price:     cost,
-      plan_monthly_rate: rate,
       hashrate:       Number(hashrate),
       active:         true,
       daily_profit:   daily,
       progress:       0,
-      days_left:      days,
-      last_payout_at: null,
       created_at:     new Date().toISOString(),
     };
 
