@@ -218,6 +218,49 @@ function getContractMonthlyProfitUsd(contract) {
   return price > 0 && monthlyRate > 0 ? price * monthlyRate : getContractDailyProfitUsd(contract) * 30;
 }
 
+function getContractHashrate(contract) {
+  const direct = Number(contract?.hashrate ?? contract?.hash_rate ?? 0);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const plan = getPlanConfig(contract?.plan || contract?.name);
+  const planHash = Number(plan?.hashrate ?? 0);
+  return Number.isFinite(planHash) && planHash > 0 ? planHash : 0;
+}
+
+function getMiningSummary(contracts = [], refDate = new Date()) {
+  const activeContracts = (contracts || []).filter(c => c?.active === true && !isContractExpired(c, refDate));
+  const count = activeContracts.length;
+  const totalHashrate = activeContracts.reduce((sum, contract) => sum + getContractHashrate(contract), 0);
+  const totalPower = totalHashrate * 32;
+  const dailyProfit = activeContracts.reduce((sum, contract) => sum + getContractDailyProfitUsd(contract), 0);
+  const monthlyProjection = dailyProfit * 30;
+  const efficiency = totalHashrate > 0 ? (dailyProfit / totalHashrate) : 0;
+  return { activeContracts, count, totalHashrate, totalPower, dailyProfit, monthlyProjection, efficiency };
+}
+
+function formatActiveContractCount(count) {
+  if (!count) return 'No active contracts';
+  return count === 1 ? '1 Active Contract' : `${count} Active Contracts`;
+}
+
+function updateMiningHeaderSubtitle(text) {
+  const title = [...document.querySelectorAll('#tab-mining .card-title')]
+    .find(el => (el.textContent || '').trim() === 'Active Mining Contracts');
+  const subtitle = title?.closest('.card-header')?.querySelector('.card-subtitle');
+  if (subtitle) subtitle.textContent = text;
+}
+
+function updateMiningCardStates(summary) {
+  const liveCard = document.getElementById('liveHashrate')?.closest('.stat-card');
+  const dailyCard = document.getElementById('dailyProfitEl')?.closest('.stat-card');
+  const liveStatus = liveCard?.querySelector('.stat-change');
+  const dailyStatus = dailyCard?.querySelector('.stat-change');
+
+  if (liveStatus) liveStatus.textContent = summary.count ? formatActiveContractCount(summary.count) : 'No active contracts';
+  if (dailyStatus) dailyStatus.textContent = summary.dailyProfit > 0 ? 'Daily mining income active' : 'No active contracts';
+
+  updateMiningHeaderSubtitle(summary.count ? 'Your active mining contracts' : 'No active contracts');
+}
+
 async function loadPlanCatalog() {
   if (!_supabase) return PLAN_CONFIG;
   try {
@@ -585,18 +628,17 @@ async function populateUserUI() {
    UI — DASHBOARD STATS
 ══════════════════════════════════════════════════════════════ */
 async function populateDashboardStats(contracts) {
-  const activeContracts = contracts.filter(c => c.active === true && !isContractExpired(c));
-  const totalHashrate = activeContracts.reduce((s, c) => s + Number(c.hashrate || 0), 0);
-  setText('liveHashrate',  totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
-  setText('liveHashrate2', totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  const summary = getMiningSummary(contracts);
+  setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('liveHashrate2', summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
 
-  const dailyProfit = activeContracts.reduce((s, c) => s + getContractDailyProfitUsd(c), 0);
-  setText('dailyProfitEl', '$ ' + dailyProfit.toFixed(2) + ' USDT');
+  setText('dailyProfitEl', '$ ' + summary.dailyProfit.toFixed(2) + ' USDT');
+  updateMiningCardStates(summary);
 
   const statChangeHashrate = document.getElementById('statChangeHashrate');
   const statChangeContracts = document.getElementById('statChangeContracts');
-  if (statChangeHashrate)  statChangeHashrate.textContent  = activeContracts.length + ' active contract' + (activeContracts.length !== 1 ? 's' : '');
-  if (statChangeContracts) statChangeContracts.textContent = activeContracts.length + ' active';
+  if (statChangeHashrate)  statChangeHashrate.textContent  = formatActiveContractCount(summary.count);
+  if (statChangeContracts) statChangeContracts.textContent = summary.count ? 'Mining income active' : 'No active contracts';
 
   const user = Auth.getUser();
   if (user && _supabase) {
@@ -867,8 +909,10 @@ function renderContracts(contracts) {
   const container = $('contractsContainer');
   if (!container) return;
 
-  const active = contracts.filter(c => c.active === true && !isContractExpired(c));
+  const summary = getMiningSummary(contracts);
+  const active = summary.activeContracts;
   window._activeContracts = active; // 👈 modal ke liye store kar rahe hain
+  updateMiningCardStates(summary);
 
   if (!active.length) {
     container.innerHTML = `
@@ -909,19 +953,16 @@ function renderContracts(contracts) {
    UI — MINING TAB STATS
 ══════════════════════════════════════════════════════════════ */
 function renderMiningStats(contracts) {
-  const active = contracts.filter(c => c.active === true && !isContractExpired(c));
+  const summary = getMiningSummary(contracts);
 
-  const totalHash    = active.reduce((s, c) => s + Number(c.hashrate    || 0), 0);
-  const totalPower   = active.reduce((s, c) => s + Number(c.power_watts || 0), 0);
-  const dailyProfit  = active.reduce((s, c) => s + getContractDailyProfitUsd(c), 0);
-  const monthlyProj  = dailyProfit * 30;
+  setText('miningStatHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('miningStatPower',     summary.totalPower > 0 ? summary.totalPower.toFixed(0) + ' W' : '0 W');
+  setText('miningStatDaily',     '$ ' + summary.dailyProfit.toFixed(2) + ' USDT');
+  setText('miningStatMonthly',   '$ ' + summary.monthlyProjection.toFixed(2) + ' USDT');
+  setText('miningStatEfficiency', summary.totalHashrate > 0 ? summary.efficiency.toFixed(3) + ' USDT/TH' : '—');
 
-  setText('miningStatHashrate',  totalHash   > 0 ? totalHash.toFixed(1)   + ' TH/s' : '0 TH/s');
-  setText('miningStatPower',     totalPower  > 0 ? totalPower.toFixed(0)  + ' W'    : '0 W');
-  setText('miningStatDaily',     '$ ' + dailyProfit.toFixed(2) + ' USDT');
-  setText('miningStatMonthly',   '$ ' + monthlyProj.toFixed(2) + ' USDT');
-
-  renderContractProgress(active);
+  updateMiningCardStates(summary);
+  renderContractProgress(summary.activeContracts);
 }
 
 function renderContractProgress(active) {
@@ -1036,7 +1077,8 @@ function initHashrateChart(contracts) {
   const canvas = $('hashrateChart');
   if (!canvas) return;
 
-  const active = contracts.filter(c => c.active === true);
+  const summary = getMiningSummary(contracts);
+  const active = summary.activeContracts;
   if (!active.length) {
     _drawEmptyChart(canvas, 'No active contracts');
     setText('hashrateStatPeak', '—');
@@ -1045,14 +1087,14 @@ function initHashrateChart(contracts) {
     return;
   }
 
-  const totalHash = active.reduce((s, c) => s + Number(c.hashrate || 0), 0);
+  const totalHash = summary.totalHashrate;
   const flatData  = Array(24).fill(totalHash);
 
   _drawLineChart(canvas, flatData, '#22c55e', 'rgba(34,197,94,0.2)');
 
   setText('hashrateStatPeak', totalHash.toFixed(1) + ' TH/s');
   setText('hashrateStatAvg',  totalHash.toFixed(1) + ' TH/s');
-  setText('hashrateStatEff',  '100%');
+  setText('hashrateStatEff',  summary.efficiency.toFixed(3) + ' USDT/TH');
 }
 
 function initDonut(profile) {
