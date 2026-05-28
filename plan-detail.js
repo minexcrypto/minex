@@ -228,7 +228,7 @@ function getContractExpiryDate(contract) {
 
 function getContractRemainingDays(contract, refDate = new Date()) {
   const expiry = getContractExpiryDate(contract);
-  if (!expiry) return Number(contract.days_left || 0) || null;
+  if (!expiry) return null;
   const remainingMs = expiry.getTime() - refDate.getTime();
   if (remainingMs <= 0) return 0;
   return Math.max(1, Math.ceil(remainingMs / MINING_MS_PER_DAY));
@@ -433,11 +433,11 @@ function formatCountdown(ms) {
 /* ─── LIVE TIMER ─────────────────────────────────────────── */
 function updateTimer(contract) {
   if (isContractExpired(contract)) {
-    const timerEl = $('planDetailTimer');
+      const timerEl = $('planDetailTimer');
     if (timerEl) timerEl.textContent = '00:00:00';
     if (contract && contract.id && !contract._timerExpiredHandled) {
       contract._timerExpiredHandled = true;
-      _supabase?.from('contracts').update({ active: false, days_left: 0 }).eq('id', contract.id).catch(() => {});
+      _supabase?.from('contracts').update({ active: false }).eq('id', contract.id).catch(() => {});
       contract.active = false;
     }
     return;
@@ -529,11 +529,10 @@ async function triggerPayout(contract) {
       if (isContractExpired(contract, now) && contract.active !== false) {
         const { error: expireErr } = await _supabase
           .from('contracts')
-          .update({ active: false, days_left: 0 })
+          .update({ active: false })
           .eq('id', contract.id);
         if (!expireErr) {
           contract.active = false;
-          contract.days_left = 0;
         }
       }
       return;
