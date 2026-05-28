@@ -44,6 +44,7 @@
                 <a href="#" class="nav-link" data-admin-tab="logs">🛡 Security Logs</a>
                 <a href="#" class="nav-link" data-admin-tab="new-users">👤 New User</a>
                 <a href="#" class="nav-link" data-admin-tab="old-users">📅 Old User</a>
+                <a href="#" class="nav-link" data-admin-tab="edit-old-user">✏️ Edit Old User</a>
             </nav>
             <div class="sidebar-footer">
                 <span id="adminUserEmail"></span>
@@ -213,6 +214,36 @@
                  </div>
                 <div class="table-container" id="newUsersTableWrap"></div>
                 <div class="pagination-bar" id="newUsersPagination"></div>
+            </div>
+
+<!-- EDIT OLD USER -->
+             <div data-admin-section="edit-old-user" class="tab-content">
+                 <div class="filters">
+                     <input type="text" id="editOldUserSearchInput" placeholder="Search user by email or ID...">
+                     <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.loadUser()">🔍 Load User</button>
+                 </div>
+                 <div id="editOldUserFormWrap" style="display:none;">
+                     <div class="card" style="margin-bottom:20px;">
+                         <div class="card-header"><div class="card-title">✏️ Edit User Details</div></div>
+                         <div style="padding:16px;">
+                             <div class="grid-2">
+                                 <div class="form-group"><label>Name</label><input type="text" id="eouName"></div>
+                                 <div class="form-group"><label>Email</label><input type="email" id="eouEmail"></div>
+                                 <div class="form-group"><label>Phone</label><input type="text" id="eouPhone"></div>
+                                 <div class="form-group"><label>Country</label><input type="text" id="eouCountry"></div>
+                                 <div class="form-group"><label>Level</label><input type="text" id="eouLevel" placeholder="Standard / Gold / Platinum"></div>
+                                 <div class="form-group"><label>Status</label><select id="eouStatus"><option value="active">Active</option><option value="suspended">Suspended</option><option value="banned">Banned</option></select></div>
+                                 <div class="form-group"><label>BTC Balance</label><input type="number" id="eouBtc" step="0.00000001"></div>
+                                 <div class="form-group"><label>USDT Balance</label><input type="number" id="eouUsdt" step="0.01"></div>
+                             </div>
+                             <div style="margin-top:16px;">
+                                 <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.saveUser()">💾 Save Changes</button>
+                                 <button class="admin-btn admin-btn-outline" onclick="EditOldUserModule.clearForm()" style="margin-left:8px;">❌ Clear</button>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+                 <div class="table-container" id="editOldUserTableWrap"></div>
             </div>
 
 <!-- OLD USERS -->
