@@ -4,6 +4,13 @@
 ══════════════════════════════════════════════════════════════ */
 'use strict';
 
+/* Admin page should run only on /admin or /admin.html */
+(() => {
+  const path = (window.location.pathname || '/').toLowerCase();
+  const isAdminRoute = path.endsWith('/admin') || path.endsWith('/admin.html');
+  if (!isAdminRoute) window.location.replace('/dashboard.html');
+})();
+
 /* ══════════════════════════════════════════════════════════════
    §1  SUPABASE CLIENT
 ══════════════════════════════════════════════════════════════ */
