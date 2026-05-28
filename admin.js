@@ -1279,7 +1279,7 @@ const ContractsModule = {
     const container=document.getElementById('contractsTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading contracts…'));
     try{
-      const{data,error}=await sb.from('contracts').select('id,user_id,plan,hashrate,daily_profit,active,progress,created_at').order('created_at',{ascending:false}).limit(1000);
+      const{data,error}=await sb.from('contracts').select('id,user_id,plan,hashrate,daily_profit,active,progress,created_at,last_payout_at,next_payout_at,total_earned').order('created_at',{ascending:false}).limit(1000);
       if(error)throw error; this._rows=data||[];
       const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
       this._profileMap=await _fetchProfiles(userIds);
@@ -1316,7 +1316,19 @@ const ContractsModule = {
   async createContract(){
     const userId=$('#ncUserId')?.value?.trim(); const plan=$('#ncPlan')?.value?.trim(); const hashrate=parseFloat($('#ncHashrate')?.value||0); const daily=parseFloat($('#ncDaily')?.value||0);
     if(!userId||!plan){ AdminUI.toast('User ID and plan required.','error'); return; }
-    const{data,error}=await sb.from('contracts').insert({user_id:userId,plan,hashrate,daily_profit:daily,active:true,progress:0,created_at:new Date().toISOString()}).select().single();
+    const createdAt = new Date().toISOString();
+    const{data,error}=await sb.from('contracts').insert({
+      user_id:userId,
+      plan,
+      hashrate,
+      daily_profit:daily,
+      active:true,
+      progress:0,
+      last_payout_at:null,
+      next_payout_at:new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      total_earned:0,
+      created_at:createdAt
+    }).select().single();
     if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
     await logAdminAction('create_contract','contracts',data.id,null,data);
     AdminUI.toast('Contract created.','success'); hide('#entityModal'); this.load();
@@ -1360,8 +1372,20 @@ const ContractsModule = {
     this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deleted.','warning');
   },
   export(){
-    const headers=['ID','User ID','Plan','Hashrate','Daily Profit','Active','Days Left','Progress','Created'];
-    const rows=this._rows.map(r=>[r.id,r.user_id||'',r.plan||'',r.hashrate||0,r.daily_profit||0,r.active?'Yes':'No',r.progress||0,r.created_at||'']);
+    const headers=['ID','User ID','Plan','Hashrate','Daily Profit','Active','Progress','Created','Last Payout','Next Payout','Total Earned'];
+    const rows=this._rows.map(r=>[
+      r.id,
+      r.user_id||'',
+      r.plan||'',
+      r.hashrate||0,
+      r.daily_profit||0,
+      r.active?'Yes':'No',
+      r.progress||0,
+      r.created_at||'',
+      r.last_payout_at||'',
+      r.next_payout_at||'',
+      r.total_earned||0
+    ]);
     downloadCSV('contracts.csv',[headers,...rows]);
   }
 };
