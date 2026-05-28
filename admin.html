@@ -199,22 +199,32 @@
                 <div class="pagination-bar" id="logsPagination"></div>
             </div>
 
-            <!-- NEW USERS -->
-            <div data-admin-section="new-users" class="tab-content">
-                <div class="filters">
-                    <input type="text" id="newUserSearchInput" placeholder="Search new users...">
-                    <button class="admin-btn admin-btn-outline" onclick="NewUsersModule.export()">📥 CSV</button>
-                </div>
+<!-- NEW USERS -->
+             <div data-admin-section="new-users" class="tab-content">
+                 <div class="filters">
+                     <select id="newUserDateFilter">
+                         <option value="today" selected>Today</option>
+                         <option value="last-week">Last Week</option>
+                         <option value="last-month">Last Month</option>
+                     </select>
+                     <input type="text" id="newUserSearchInput" placeholder="Search new users...">
+                     <button class="admin-btn admin-btn-outline" onclick="NewUsersModule.export()">📥 CSV</button>
+                 </div>
                 <div class="table-container" id="newUsersTableWrap"></div>
                 <div class="pagination-bar" id="newUsersPagination"></div>
             </div>
 
-            <!-- OLD USERS -->
-            <div data-admin-section="old-users" class="tab-content">
-                <div class="filters">
-                    <input type="text" id="oldUserSearchInput" placeholder="Search old users...">
-                    <button class="admin-btn admin-btn-outline" onclick="OldUsersModule.export()">📥 CSV</button>
-                </div>
+<!-- OLD USERS -->
+             <div data-admin-section="old-users" class="tab-content">
+                 <div class="filters">
+                     <select id="oldUserDateFilter">
+                         <option value="last-week">Last Week</option>
+                         <option value="last-month">Last Month</option>
+                         <option value="all-time" selected>All Time</option>
+                     </select>
+                     <input type="text" id="oldUserSearchInput" placeholder="Search old users...">
+                     <button class="admin-btn admin-btn-outline" onclick="OldUsersModule.export()">📥 CSV</button>
+                 </div>
                 <div class="table-container" id="oldUsersTableWrap"></div>
                 <div class="pagination-bar" id="oldUsersPagination"></div>
             </div>
