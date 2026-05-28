@@ -23,6 +23,7 @@
     <div class="landing-nav-links" id="navLinks">
       <a href="#plans">Plans</a>
       <a href="#features">Features</a>
+      <a href="why-choose-us.html">Why Us</a>
       <a href="#how">How It Works</a>
       <a href="#referral-section">Referral</a>
     </div>
@@ -105,65 +106,15 @@
   </div>
 </section>
 
-<!-- ═══ WHY CHOOSE US ═══ -->
+<!-- ═══ PLATFORM FEATURES ═══ -->
 <section class="landing-section" id="features">
   <div class="section-header">
-    <span class="section-tag">Why Choose Us</span>
+    <span class="section-tag">Platform Features</span>
     <h2>Why Choose <span>CryptoVault</span>?</h2>
-    <p>Built for users who want simple onboarding, reliable payouts, and a dashboard that actually makes the numbers easy to trust.</p>
-  </div>
-
-  <div class="why-grid">
-    <article class="why-card reveal-card">
-      <div class="why-media">
-        <img src="https://picsum.photos/seed/cryptovault-security/1200/800" alt="Secure mining infrastructure" loading="lazy">
-        <div class="why-media-badge">Security First</div>
-      </div>
-      <div class="why-card-body">
-        <div class="why-step">01</div>
-        <h3>Security That Stays Quiet in the Background</h3>
-        <p>We keep the important parts invisible: encrypted sessions, protected wallets, and a clean workflow that reduces mistakes.</p>
-        <ul class="why-points">
-          <li>Protected wallet and balance flow</li>
-          <li>Admin-grade monitoring and logs</li>
-          <li>Simple controls, fewer user errors</li>
-        </ul>
-      </div>
-    </article>
-
-    <article class="why-card reveal-card">
-      <div class="why-media">
-        <img src="https://picsum.photos/seed/cryptovault-dashboard/1200/800" alt="Live crypto dashboard analytics" loading="lazy">
-        <div class="why-media-badge">Live Analytics</div>
-      </div>
-      <div class="why-card-body">
-        <div class="why-step">02</div>
-        <h3>Dashboards That Show What Matters</h3>
-        <p>Balances, activity, plan performance, and BTC prices stay visible in one place so users do not have to guess.</p>
-        <ul class="why-points">
-          <li>Real-time BTC ticker and wallet stats</li>
-          <li>Mining plans and transaction history</li>
-          <li>Fast access to deposits and withdrawals</li>
-        </ul>
-      </div>
-    </article>
-
-    <article class="why-card reveal-card">
-      <div class="why-media">
-        <img src="https://picsum.photos/seed/cryptovault-support/1200/800" alt="Customer support and growth team" loading="lazy">
-        <div class="why-media-badge">Support & Growth</div>
-      </div>
-      <div class="why-card-body">
-        <div class="why-step">03</div>
-        <h3>Support, Referrals, and Growth in One Flow</h3>
-        <p>Users can grow through referrals, get help faster, and keep everything inside a clean experience without extra clutter.</p>
-        <ul class="why-points">
-          <li>Referral program with clear rewards</li>
-          <li>Fast onboarding and account setup</li>
-          <li>Support paths that are easy to find</li>
-        </ul>
-      </div>
-    </article>
+    <p>Want the full breakdown? Open the dedicated page for a more detailed look at security, payouts, and platform design.</p>
+    <div style="margin-top:18px;">
+      <a href="why-choose-us.html" class="btn btn-outline btn-sm">Open Why Choose Us Page</a>
+    </div>
   </div>
 
   <div class="feature-grid feature-grid-spaced">
@@ -465,6 +416,7 @@
     <div class="footer-links-col">
       <h4>Company</h4>
       <a href="about.html">About Us</a>
+      <a href="why-choose-us.html">Why Choose Us</a>
       <a href="support.html">Support</a>
       <a href="terms.html">Terms of Service</a>
       <a href="privacy.html">Privacy Policy</a>
@@ -531,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }, { threshold: 0.1 });
 
-  document.querySelectorAll('.feature-card, .why-card, .step-card, .plan-card, .referral-card-item, .trust-item').forEach(el => {
+  document.querySelectorAll('.feature-card, .step-card, .plan-card, .referral-card-item, .trust-item').forEach(el => {
     el.classList.add('reveal');
     observer.observe(el);
   });
