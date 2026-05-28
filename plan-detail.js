@@ -139,12 +139,37 @@ const BTCPrice = (() => {
 
 /* ─── MINING PAYOUT HELPERS (match dashboard.js) ─────────── */
 const MINING_MS_PER_DAY = 24 * 60 * 60 * 1000;
-const PLAN_CONFIG = {
-  Starter:  { priceUsd: 500,   durationDays: 1460, monthlyRate: 0.05, hashrate: 10 },
-  Silver:   { priceUsd: 2500,  durationDays: 1095, monthlyRate: 0.10, hashrate: 50 },
-  Gold:     { priceUsd: 5000,  durationDays: 730,  monthlyRate: 0.15, hashrate: 100 },
-  Platinum: { priceUsd: 10000, durationDays: 365,  monthlyRate: 0.20, hashrate: 300 },
+const PLAN_CONFIG_FALLBACK = {
+  starter:  { priceUsd: 500,   durationDays: 1460, monthlyRate: 0.05, hashrate: 10 },
+  silver:   { priceUsd: 2500,  durationDays: 1095, monthlyRate: 0.10, hashrate: 50 },
+  gold:     { priceUsd: 5000,  durationDays: 730,  monthlyRate: 0.15, hashrate: 100 },
+  platinum: { priceUsd: 10000, durationDays: 365,  monthlyRate: 0.20, hashrate: 300 },
 };
+let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
+
+function normalizePlanKey(planName) {
+  return String(planName || '').trim().toLowerCase();
+}
+
+function normalizeMonthlyRate(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n > 1 ? n / 100 : n;
+}
+
+function getPlanPriceFromSource(source, fallback = null) {
+  const price = Number(source?.priceUsd ?? source?.plan_price ?? source?.price ?? fallback);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function getPlanDurationFromSource(source, fallback = null) {
+  const days = Number(source?.durationDays ?? source?.plan_duration_days ?? source?.duration_days ?? fallback);
+  return Number.isFinite(days) && days > 0 ? Math.floor(days) : null;
+}
+
+function getPlanMonthlyRateFromSource(source, fallback = null) {
+  return normalizeMonthlyRate(source?.monthlyRate ?? source?.plan_monthly_rate ?? source?.monthly_return_pct ?? source?.monthly_return ?? fallback);
+}
 
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
@@ -157,14 +182,14 @@ function getDaysInCurrentMonth(refDate = new Date()) {
 }
 
 function getPlanConfig(planName) {
-  return PLAN_CONFIG[String(planName || '').trim()] || null;
+  return PLAN_CONFIG[normalizePlanKey(planName)] || null;
 }
 
 function getPlanPriceUsdt(contract) {
-  const planName = contract.plan || contract.name || '';
-  return Number(contract.plan_price || 0)
-    || getPlanConfig(planName)?.priceUsd
-    || 0;
+  const planName = contract?.plan || contract?.name || '';
+  const direct = Number(contract?.plan_price ?? contract?.priceUsd ?? contract?.price ?? 0);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  return getPlanConfig(planName)?.priceUsd || 0;
 }
 
 function calcDailyProfitUsdt(planPrice, planName, refDate = new Date()) {
@@ -178,7 +203,8 @@ function getDailyProfitUsdt(contract, refDate = new Date()) {
   const planName = contract.plan || contract.name || '';
   const planPrice = getPlanPriceUsdt(contract);
   if (planPrice > 0) return calcDailyProfitUsdt(planPrice, planName, refDate);
-  return Number(contract.daily_profit || 0);
+  const direct = Number(contract?.daily_profit ?? contract?.dailyProfit ?? 0);
+  return Number.isFinite(direct) && direct > 0 ? direct : 0;
 }
 
 function getMonthlyProfitUsdt(contract, refDate = new Date()) {
@@ -190,7 +216,9 @@ function getMonthlyProfitUsdt(contract, refDate = new Date()) {
 
 function getPlanDurationDays(contract) {
   const planName = contract.plan || contract.name || '';
-  return Number(contract.plan_duration_days || contract.days_left || getPlanConfig(planName)?.durationDays || 0) || 0;
+  const direct = Number(contract?.plan_duration_days ?? contract?.duration_days ?? contract?.durationDays ?? 0);
+  if (Number.isFinite(direct) && direct > 0) return Math.floor(direct);
+  return Number(getPlanConfig(planName)?.durationDays || 0) || 0;
 }
 
 function getContractExpiryDate(contract) {
@@ -211,6 +239,14 @@ function getContractRemainingDays(contract, refDate = new Date()) {
 function isContractExpired(contract, refDate = new Date()) {
   const expiry = getContractExpiryDate(contract);
   return !!expiry && refDate.getTime() >= expiry.getTime();
+}
+
+function getContractProgressPercent(contract, refDate = new Date()) {
+  const durationDays = getPlanDurationDays(contract);
+  if (!durationDays) return Math.min(100, Math.max(0, Number(contract?.progress || 0)));
+  const createdAt = new Date(contract?.created_at || Date.now());
+  const elapsedDays = Math.max(0, (refDate.getTime() - createdAt.getTime()) / MINING_MS_PER_DAY);
+  return Math.min(100, Math.max(0, (elapsedDays / durationDays) * 100));
 }
 
 function getPayoutableCycles(contract, refDate = new Date()) {
@@ -236,6 +272,31 @@ function computeAlignedLastPayoutAt(contract, cyclesDue) {
 
 function formatUsdtDaily(amount) {
   return amount > 0 ? '$ ' + amount.toFixed(2) + ' USDT' : '—';
+}
+
+async function loadPlanCatalog() {
+  if (!_supabase) return PLAN_CONFIG;
+  try {
+    const { data, error } = await _supabase.from('plans').select('*');
+    if (error || !Array.isArray(data) || !data.length) return PLAN_CONFIG;
+
+    const next = { ...PLAN_CONFIG_FALLBACK };
+    data.forEach(row => {
+      const key = normalizePlanKey(row?.name || row?.plan_name || row?.title || row?.slug);
+      if (!key) return;
+      next[key] = {
+        ...next[key],
+        priceUsd: Number(row?.priceUsd ?? row?.plan_price ?? row?.price ?? next[key]?.priceUsd ?? 0) || next[key]?.priceUsd,
+        durationDays: Number(row?.durationDays ?? row?.plan_duration_days ?? row?.duration_days ?? next[key]?.durationDays ?? 0) || next[key]?.durationDays,
+        monthlyRate: normalizeMonthlyRate(row?.monthlyRate ?? row?.plan_monthly_rate ?? row?.monthly_return_pct ?? row?.monthly_return) ?? next[key]?.monthlyRate,
+        hashrate: Number(row?.hashrate ?? row?.hash_rate ?? next[key]?.hashrate ?? 0) || next[key]?.hashrate,
+      };
+    });
+    PLAN_CONFIG = next;
+  } catch (err) {
+    console.warn('[PlanDetail] loadPlanCatalog failed:', err.message);
+  }
+  return PLAN_CONFIG;
 }
 
 /* ─── GET CONTRACT FROM URL ──────────────────────────────── */
@@ -283,9 +344,10 @@ function renderPage(contract) {
   const expired = isContractExpired(contract);
   const dailyProfit = expired ? 0 : getDailyProfitUsdt(contract);
   const dailyProfitStr = formatUsdtDaily(dailyProfit);
-  const progress = Math.min(100, Math.max(0, Number(contract.progress || 0)));
+  const progress = getContractProgressPercent(contract);
   const remainingDays = getContractRemainingDays(contract);
   const daysLeft = remainingDays != null ? remainingDays : '∞';
+  const durationDays = getPlanDurationDays(contract);
 
   const startDate = contract.created_at ? new Date(contract.created_at) : new Date();
   const startDateStr = startDate.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -294,7 +356,6 @@ function renderPage(contract) {
   const now = new Date();
   const msPerDay = 24 * 60 * 60 * 1000;
   const elapsedMs = now - startDate;
-  const durationDays = getPlanDurationDays(contract);
   const planDailyProfit = getDailyProfitUsdt(contract);
   const daysActive = Math.max(0, Math.min(elapsedMs / msPerDay, durationDays || elapsedMs / msPerDay));
   const payoutDays = durationDays > 0 ? Math.min(daysActive, durationDays) : daysActive;
@@ -303,8 +364,7 @@ function renderPage(contract) {
   const dailyProfitUSD = '$ ' + dailyProfit.toFixed(2) + ' USDT';
   const projectedMonthly = getMonthlyProfitUsdt(contract);
   const projectedMonthlyStr = formatUsdtDaily(projectedMonthly);
-  const monthLabel = new Date().toLocaleString('en-US', { month: 'long' });
-  const daysInMonth = getDaysInCurrentMonth();
+  const durationLabel = durationDays ? durationDays + ' Days' : '—';
 
   // Hero Section
   setText('planHeroName', planName + ' Plan');
@@ -319,7 +379,7 @@ function renderPage(contract) {
 
   // Timer Section
   setText('planTimerAmount', dailyProfitStr);
-  setText('planTimerUSD', dailyProfitUSD);
+  setText('planTimerUSD', 'You will receive this amount daily');
 
   // Progress
   setText('planProgressBadge', progress.toFixed(0) + '%');
@@ -329,7 +389,7 @@ function renderPage(contract) {
 
   // Daily Earnings Card
   setText('planDailyEarnings', dailyProfitStr);
-  setText('planDailyEarningsUSD', dailyProfitUSD || ('~$' + dailyProfit.toFixed(2) + ' USDT/day · ' + monthLabel + ' (' + daysInMonth + ' days)'));
+  setText('planDailyEarningsUSD', 'Duration: ' + durationLabel + ' · Estimated daily reward: ' + dailyProfitUSD);
 
   // Chart Stats
   setText('planChartTotal', totalEarnedStr);
@@ -340,6 +400,7 @@ function renderPage(contract) {
   setText('infoPlanName', planName);
   setText('infoContractId', contract.id);
   setText('infoStartDate', startDateStr + ' at ' + startTimeStr);
+  setText('infoDuration', durationLabel);
   setText('infoHashrate', hashrate + ' TH/s');
   setText('infoDailyProfit', dailyProfitStr + ' / day');
   setText('infoStatus', expired ? '● Expired' : (contract.active ? '● Active' : '● Inactive'));
@@ -551,7 +612,7 @@ function drawEarningsChart(contract) {
   const now = new Date();
   const durationDays = getPlanDurationDays(contract);
   const days = Math.min(durationDays > 0 ? durationDays : 30, Math.min(30, Math.ceil((now - start) / (24 * 60 * 60 * 1000))));
-  const dailyProfit = Number(contract.daily_profit || 0);
+  const dailyProfit = getDailyProfitUsdt(contract);
 
   if (days <= 0 || dailyProfit <= 0) {
     ctx.fillStyle = '#475569';
@@ -660,6 +721,7 @@ function wireLogout() {
 
 /* ─── MAIN INIT ─────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
+  await loadPlanCatalog();
   const ok = await Auth.init();
   if (!ok) return;
 
