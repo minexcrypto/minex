@@ -115,12 +115,14 @@ function _fallbackCopy(text, msg) {
 const Auth = (() => {
   let _session = null;
   let _profile = null;
+  const _roleAuth = window.CVAuthRole;
 
   async function init() {
-    if (!_supabase) { window.location.href = 'login.html'; return false; }
+    if (!_supabase || !_roleAuth) { window.location.replace('login.html'); return false; }
     try {
-      const { data: { session } } = await _supabase.auth.getSession();
-      if (!session) { window.location.href = 'login.html'; return false; }
+      const { session, role } = await _roleAuth.getSessionWithRole(_supabase);
+      if (!session) { window.location.replace('login.html'); return false; }
+      if (role === 'admin') { window.location.replace('admin.html'); return false; }
       _session = session;
 
       const { data: prof, error } = await _supabase
@@ -159,19 +161,23 @@ const Auth = (() => {
       }
 
       _supabase.auth.onAuthStateChange(event => {
-        if (event === 'SIGNED_OUT') window.location.href = 'login.html';
+        if (event === 'SIGNED_OUT') {
+          _roleAuth.clearRole();
+          window.location.replace('login.html');
+        }
       });
       return true;
     } catch (err) {
       console.error('Auth init failed:', err);
-      window.location.href = 'login.html';
+      window.location.replace('login.html');
       return false;
     }
   }
 
   async function logout() {
     try { if (_supabase) await _supabase.auth.signOut(); } catch { /* ignore */ }
-    window.location.href = 'login.html';
+    _roleAuth.clearRole();
+    window.location.replace('login.html');
   }
 
   function getUser()    { return _session?.user || null; }
