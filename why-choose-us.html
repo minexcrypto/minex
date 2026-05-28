@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why Choose Us - CryptoVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#06080d;
+    --panel:#0d1118;
+    --panel-2:#101725;
+    --line:#1e2d45;
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --gold:#f59e0b;
+    --gold-2:#fbbf24;
+    --green:#22c55e;
+    --blue:#3b82f6;
+    --purple:#a855f7;
+    --shadow:0 18px 50px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(245,158,11,.16), transparent 34%),
+      radial-gradient(circle at 80% 10%, rgba(59,130,246,.12), transparent 28%),
+      linear-gradient(180deg, #06080d 0%, #080b10 100%);
+    color:var(--text);
+    font-family:'Outfit',sans-serif;
+    overflow-x:hidden;
+  }
+  a{color:inherit}
+  .nav{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between; gap:20px;
+    padding:16px 28px;
+    background:rgba(6,8,13,.82);
+    backdrop-filter:blur(18px);
+    border-bottom:1px solid rgba(30,45,69,.7);
+  }
+  .brand{display:flex; align-items:center; gap:12px; text-decoration:none; font-family:'Syne',sans-serif; font-weight:800}
+  .brand-badge{
+    width:40px; height:40px; border-radius:12px;
+    display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--gold),#ff8c1a);
+    color:#10131a;
+    box-shadow:0 10px 30px rgba(245,158,11,.3);
+  }
+  .nav-links{display:flex; gap:18px; flex-wrap:wrap; color:var(--muted); font-size:14px}
+  .nav-links a{text-decoration:none; transition:color .2s ease}
+  .nav-links a:hover,.nav-links a.active{color:var(--gold-2)}
+  .wrap{max-width:1240px; margin:0 auto; padding:32px 24px 44px}
+  .hero{
+    display:grid; grid-template-columns:1.05fr .95fr; gap:24px; align-items:stretch;
+    margin-top:10px;
+  }
+  .hero-panel{
+    background:linear-gradient(180deg, rgba(16,23,37,.96), rgba(10,14,22,.96));
+    border:1px solid var(--line);
+    border-radius:28px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    position:relative;
+  }
+  .hero-copy{padding:42px}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:10px;
+    padding:8px 14px; border-radius:999px;
+    border:1px solid rgba(245,158,11,.18);
+    background:rgba(245,158,11,.08);
+    color:var(--gold-2);
+    font-size:12px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase;
+    font-family:'DM Mono',monospace;
+  }
+  .eyebrow::before{
+    content:'';
+    width:8px; height:8px; border-radius:50%;
+    background:var(--green); box-shadow:0 0 12px rgba(34,197,94,.8);
+  }
+  h1{
+    font-family:'Syne',sans-serif;
+    font-size:clamp(38px, 5vw, 68px);
+    line-height:1.02;
+    margin:18px 0 16px;
+    letter-spacing:-1.4px;
+  }
+  h1 span{
+    background:linear-gradient(135deg,var(--gold),#ff9d21 60%,var(--gold-2));
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+  .lead{
+    max-width:650px;
+    color:var(--muted);
+    font-size:16px;
+    line-height:1.8;
+    margin:0 0 28px;
+  }
+  .cta-row{display:flex; gap:14px; flex-wrap:wrap}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    gap:10px;
+    padding:13px 18px;
+    border-radius:12px;
+    text-decoration:none;
+    font-weight:700;
+    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+  .btn:hover{transform:translateY(-2px)}
+  .btn-primary{
+    background:linear-gradient(135deg,var(--gold),#ff8f1a);
+    color:#10131a;
+    box-shadow:0 14px 28px rgba(245,158,11,.28);
+  }
+  .btn-outline{
+    border:1px solid var(--line);
+    color:var(--text);
+    background:rgba(255,255,255,.02);
+  }
+  .btn-outline:hover{border-color:rgba(245,158,11,.35); box-shadow:0 0 0 1px rgba(245,158,11,.08)}
+
+  .metrics{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:28px;
+  }
+  .metric{
+    padding:18px 16px;
+    border-radius:18px;
+    background:rgba(7,10,16,.82);
+    border:1px solid rgba(30,45,69,.8);
+  }
+  .metric b{
+    display:block;
+    font-family:'Syne',sans-serif;
+    font-size:22px;
+    color:var(--gold-2);
+    margin-bottom:4px;
+  }
+  .metric span{font-size:12px; color:var(--muted)}
+
+  .hero-media{
+    padding:18px;
+    display:grid;
+    grid-template-rows:1.2fr .8fr;
+    gap:18px;
+  }
+  .mosaic{
+    display:grid;
+    grid-template-columns:1.2fr .8fr;
+    gap:18px;
+    min-height:100%;
+  }
+  .photo{
+    position:relative;
+    overflow:hidden;
+    border-radius:22px;
+    border:1px solid rgba(30,45,69,.85);
+    background:var(--panel);
+    min-height:220px;
+  }
+  .photo img{width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.08) contrast(1.06)}
+  .photo::after{
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(6,8,13,0) 42%, rgba(6,8,13,.82) 100%),
+               linear-gradient(135deg, rgba(245,158,11,.2), transparent 55%);
+  }
+  .photo-label{
+    position:absolute; left:18px; bottom:18px; z-index:1;
+    display:inline-flex; align-items:center; gap:8px;
+    padding:7px 12px;
+    border-radius:999px;
+    background:rgba(6,8,13,.62);
+    border:1px solid rgba(245,158,11,.18);
+    color:var(--gold-2);
+    font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
+    backdrop-filter:blur(10px);
+  }
+  .stack{
+    display:grid;
+    gap:18px;
+  }
+  .stack .photo{min-height:171px}
+
+  .section{
+    margin-top:26px;
+    background:linear-gradient(180deg, rgba(15,21,32,.94), rgba(10,14,22,.94));
+    border:1px solid var(--line);
+    border-radius:28px;
+    padding:28px;
+    box-shadow:var(--shadow);
+  }
+  .section-head{
+    display:flex; justify-content:space-between; gap:18px; align-items:flex-end; flex-wrap:wrap;
+    margin-bottom:20px;
+  }
+  .section-head h2{
+    font-family:'Syne',sans-serif;
+    font-size:28px;
+    margin:0;
+    letter-spacing:-.6px;
+  }
+  .section-head p{
+    margin:0;
+    color:var(--muted);
+    max-width:760px;
+    line-height:1.7;
+  }
+
+  .card-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+  }
+  .info-card{
+    background:linear-gradient(180deg, rgba(17,24,39,.95), rgba(10,14,22,.95));
+    border:1px solid rgba(30,45,69,.8);
+    border-radius:22px;
+    overflow:hidden;
+  }
+  .info-card .thumb{
+    aspect-ratio: 16 / 9;
+    position:relative;
+    overflow:hidden;
+  }
+  .info-card .thumb img{width:100%; height:100%; object-fit:cover; display:block}
+  .info-card .thumb::after{
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(6,8,13,0) 30%, rgba(6,8,13,.84) 100%);
+  }
+  .info-card .body{padding:20px}
+  .tag{
+    display:inline-flex;
+    padding:6px 10px;
+    border-radius:999px;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    font-weight:800;
+    margin-bottom:12px;
+  }
+  .tag.green{background:rgba(34,197,94,.12); color:var(--green); border:1px solid rgba(34,197,94,.18)}
+  .tag.blue{background:rgba(59,130,246,.12); color:var(--blue); border:1px solid rgba(59,130,246,.18)}
+  .tag.purple{background:rgba(168,85,247,.12); color:var(--purple); border:1px solid rgba(168,85,247,.18)}
+  .info-card h3{
+    font-family:'Syne',sans-serif;
+    font-size:20px;
+    line-height:1.25;
+    margin:0 0 10px;
+  }
+  .info-card p{color:var(--muted); line-height:1.75; margin:0 0 14px; font-size:14px}
+  .bullets{list-style:none; padding:0; margin:0; display:grid; gap:10px}
+  .bullets li{
+    padding-left:20px;
+    position:relative;
+    color:#cbd5e1;
+    font-size:13px;
+    line-height:1.5;
+  }
+  .bullets li::before{
+    content:'';
+    width:7px; height:7px;
+    border-radius:50%;
+    position:absolute;
+    left:0; top:.5em;
+    background:var(--gold);
+    box-shadow:0 0 12px rgba(245,158,11,.5);
+  }
+
+  .timeline{
+    display:grid;
+    gap:12px;
+  }
+  .milestone{
+    display:grid;
+    grid-template-columns:92px 1fr;
+    gap:14px;
+    align-items:start;
+    padding:14px 16px;
+    border-radius:18px;
+    background:rgba(7,10,16,.85);
+    border:1px solid rgba(30,45,69,.75);
+  }
+  .milestone b{
+    font-family:'DM Mono',monospace;
+    font-size:14px;
+    color:var(--gold-2);
+  }
+  .milestone span{color:var(--muted); line-height:1.7; font-size:14px}
+
+  .cta{
+    text-align:center;
+    padding:32px 24px;
+    border-radius:28px;
+    background:linear-gradient(135deg, rgba(245,158,11,.1), rgba(59,130,246,.05));
+    border:1px solid rgba(245,158,11,.18);
+  }
+  .cta h2{font-family:'Syne',sans-serif; font-size:32px; margin:0 0 10px; letter-spacing:-.6px}
+  .cta p{margin:0 0 20px; color:var(--muted)}
+
+  footer{
+    max-width:1240px;
+    margin:18px auto 0;
+    padding:0 24px 28px;
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    flex-wrap:wrap;
+    color:var(--muted);
+    font-size:13px;
+  }
+  .footer-links{display:flex; gap:14px; flex-wrap:wrap}
+  .footer-links a{text-decoration:none; color:#cbd5e1}
+  .footer-links a:hover{color:var(--gold-2)}
+
+  @media (max-width: 1080px){
+    .hero{grid-template-columns:1fr}
+    .card-grid{grid-template-columns:1fr}
+  }
+  @media (max-width: 780px){
+    .nav{padding:14px 18px}
+    .nav-links{gap:12px}
+    .hero-copy{padding:28px}
+    .metrics{grid-template-columns:1fr}
+    .mosaic{grid-template-columns:1fr}
+    .stack{grid-template-columns:1fr 1fr; display:grid}
+    .section{padding:22px}
+    .section-head h2{font-size:24px}
+    .milestone{grid-template-columns:1fr}
+  }
+  @media (max-width: 560px){
+    .nav{flex-direction:column; align-items:flex-start}
+    .hero-copy{padding:22px}
+    h1{font-size:34px}
+    .stack{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">
+    <span class="brand-badge">₿</span>
+    <span>Crypto<span style="color:var(--gold-2)">Vault</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="why-choose-us.html" class="active">Why Us</a>
+    <a href="about.html">About</a>
+    <a href="support.html">Support</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="hero-panel hero-copy">
+      <div class="eyebrow">Why Choose Us</div>
+      <h1>Built for <span>serious mining</span> with a cleaner, smarter experience.</h1>
+      <p class="lead">CryptoVault is designed to feel futuristic without feeling complicated. Users get a transparent dashboard, reliable wallet logic, daily payouts, and a support flow that keeps everything easy to understand.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="login.html#register">Start Mining</a>
+        <a class="btn btn-outline" href="dashboard.html">View Dashboard</a>
+      </div>
+      <div class="metrics">
+        <div class="metric"><b>24/7</b><span>Platform monitoring</span></div>
+        <div class="metric"><b>99.9%</b><span>Availability target</span></div>
+        <div class="metric"><b>3 Layers</b><span>Security workflow</span></div>
+      </div>
+    </div>
+
+    <div class="hero-panel hero-media">
+      <div class="mosaic">
+        <div class="photo">
+          <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1400&q=80" alt="Bitcoin mining data center">
+          <div class="photo-label">Mining Core</div>
+        </div>
+        <div class="stack">
+          <div class="photo">
+            <img src="https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80" alt="Server room cooling systems">
+            <div class="photo-label">Cooling Grid</div>
+          </div>
+          <div class="photo">
+            <img src="https://images.unsplash.com/photo-1642104704074-907c0698cbd9?auto=format&fit=crop&w=1200&q=80" alt="Bitcoin and blockchain interface">
+            <div class="photo-label">Live Ledger</div>
+          </div>
+        </div>
+      </div>
+      <div class="photo" style="min-height:180px;">
+        <img src="https://images.unsplash.com/photo-1581091870622-2c7f1e3b0d0d?auto=format&fit=crop&w=1600&q=80" alt="Futuristic mining hardware">
+        <div class="photo-label">Hardware Fleet</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <h2>Three reasons people stay</h2>
+      </div>
+      <p>We focus on the parts users actually care about: security, clear earnings, and a clean interface that makes the platform feel trustworthy rather than noisy.</p>
+    </div>
+
+    <div class="card-grid">
+      <article class="info-card">
+        <div class="thumb">
+          <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80" alt="Security infrastructure">
+        </div>
+        <div class="body">
+          <div class="tag green">Security</div>
+          <h3>Designed to keep the wallet flow protected</h3>
+          <p>We keep the important money paths deliberate and visible so users can trust where balances, deposits, and payouts are going.</p>
+          <ul class="bullets">
+            <li>Encrypted sessions and protected access</li>
+            <li>Clean balance flow with fewer mistakes</li>
+            <li>Operational monitoring in the background</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="info-card">
+        <div class="thumb">
+          <img src="https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80" alt="Crypto dashboard analytics">
+        </div>
+        <div class="body">
+          <div class="tag blue">Transparency</div>
+          <h3>Dashboards that show the real numbers</h3>
+          <p>Users get a simple view of plans, contracts, balances, and activity without hunting through hidden menus or confusing screens.</p>
+          <ul class="bullets">
+            <li>Daily payouts and live BTC pricing</li>
+            <li>Wallet balance and transaction history</li>
+            <li>Plan performance in one clear view</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="info-card">
+        <div class="thumb">
+          <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80" alt="Support and operations">
+        </div>
+        <div class="body">
+          <div class="tag purple">Support</div>
+          <h3>A platform that feels easy to use and easy to trust</h3>
+          <p>We keep the experience simple so new users can move quickly, while still giving power users enough detail to feel in control.</p>
+          <ul class="bullets">
+            <li>Fast onboarding and plan selection</li>
+            <li>Referral growth with clear rewards</li>
+            <li>Support paths that stay easy to find</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <h2>How the experience is built</h2>
+      </div>
+      <p>A futuristic interface only works if it is useful. These are the design choices that keep CryptoVault easy to navigate.</p>
+    </div>
+    <div class="timeline">
+      <div class="milestone"><b>1. Clarity</b><span>Important numbers stay visible, while secondary details stay out of the way so the page feels calm and readable.</span></div>
+      <div class="milestone"><b>2. Trust</b><span>Visual hierarchy, status indicators, and controlled color usage make actions feel more deliberate and reliable.</span></div>
+      <div class="milestone"><b>3. Speed</b><span>Navigation stays lightweight, mobile-friendly, and direct so users can move from homepage to dashboard quickly.</span></div>
+      <div class="milestone"><b>4. Growth</b><span>Referral and onboarding messaging is placed where it helps, not where it distracts from the core mining flow.</span></div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2>Ready to start?</h2>
+    <p>Join CryptoVault and use a platform that feels sharp, trustworthy, and built around the mining journey.</p>
+    <a class="btn btn-primary" href="login.html#register">Create Account</a>
+  </section>
+</main>
+
+<footer>
+  <div>© 2026 CryptoVault. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="support.html">Support</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+  </div>
+</footer>
+</body>
+</html>
