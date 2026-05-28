@@ -1058,9 +1058,7 @@ const OldUsersModule = {
      const headers=['ID','Email','Name','User ID','Active','Admin','Banned','Suspended','Ref Code','Created'];
      const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
      downloadCSV('old_users.csv',[headers,...rows]);
-   }
-};
-
+   },
   openEditModal(){
     const body=document.getElementById('oldUserEditModalBody');
     const title=document.getElementById('oldUserEditModalTitle');
@@ -1122,10 +1120,9 @@ const OldUsersModule = {
     AdminUI.toast('Old user updated successfully.','success');
     this.closeEditModal(); this.load(this._dateRange);
   },
-  closeEditModal(){ hide('#oldUserEditModal'); },
-window.OldUsersModule=OldUsersModule;
-
-/* ══════════════════════════════════════════════════════════════
+  closeEditModal(){ hide('#oldUserEditModal'); }
+};
+window.OldUsersModule=OldUsersModule;/* ══════════════════════════════════════════════════════════════
     §21  CSV EXPORT
  ══════════════════════════════════════════════════════════════ */
 function downloadCSV(filename, rows){
