@@ -163,7 +163,7 @@ function getPlanPriceFromSource(source, fallback = null) {
 }
 
 function getPlanDurationFromSource(source, fallback = null) {
-  const days = Number(source?.durationDays ?? source?.plan_duration_days ?? source?.duration_days ?? fallback);
+  const days = Number(source?.durationDays ?? source?.duration_days ?? fallback);
   return Number.isFinite(days) && days > 0 ? Math.floor(days) : null;
 }
 
@@ -216,8 +216,6 @@ function getMonthlyProfitUsdt(contract, refDate = new Date()) {
 
 function getPlanDurationDays(contract) {
   const planName = contract.plan || contract.name || '';
-  const direct = Number(contract?.plan_duration_days ?? contract?.duration_days ?? contract?.durationDays ?? 0);
-  if (Number.isFinite(direct) && direct > 0) return Math.floor(direct);
   return Number(getPlanConfig(planName)?.durationDays || 0) || 0;
 }
 
@@ -287,7 +285,7 @@ async function loadPlanCatalog() {
       next[key] = {
         ...next[key],
         priceUsd: Number(row?.priceUsd ?? row?.plan_price ?? row?.price ?? next[key]?.priceUsd ?? 0) || next[key]?.priceUsd,
-        durationDays: Number(row?.durationDays ?? row?.plan_duration_days ?? row?.duration_days ?? next[key]?.durationDays ?? 0) || next[key]?.durationDays,
+        durationDays: Number(row?.durationDays ?? row?.duration_days ?? next[key]?.durationDays ?? 0) || next[key]?.durationDays,
         monthlyRate: normalizeMonthlyRate(row?.monthlyRate ?? row?.plan_monthly_rate ?? row?.monthly_return_pct ?? row?.monthly_return) ?? next[key]?.monthlyRate,
         hashrate: Number(row?.hashrate ?? row?.hash_rate ?? next[key]?.hashrate ?? 0) || next[key]?.hashrate,
       };
