@@ -294,7 +294,6 @@ function normalizeContractLifecycle(contract) {
   const priceUsd = getPlanPriceUsd(plan, contract.plan_price);
   const monthlyRate = getPlanMonthlyRate(plan, contract.plan_monthly_rate);
   const durationDays = getContractDurationDays(contract);
-  const expiresAt = getContractExpiryDate(contract);
   const expired = isContractExpired(contract);
   const remainingDays = getContractRemainingDays(contract);
   return {
@@ -302,7 +301,6 @@ function normalizeContractLifecycle(contract) {
     plan_price: priceUsd ?? contract.plan_price ?? null,
     plan_monthly_rate: monthlyRate ?? contract.plan_monthly_rate ?? null,
     plan_duration_days: durationDays ?? contract.plan_duration_days ?? null,
-    expires_at: expiresAt ? expiresAt.toISOString() : contract.expires_at || null,
     days_left: expired ? 0 : (remainingDays ?? contract.days_left ?? null),
     active: contract.active === true && !expired,
   };
@@ -1523,50 +1521,70 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
   if (!user) { Toast.show('Auth error. Please log in again.', 'error'); return; }
 
   try {
+    console.log('[CryptoVault] contract creation started', { planName, cost, hashrate, daily, days, monthlyRate });
     Toast.show('Processing…', 'info', 2000);
+
+    const contractPayload = {
+      user_id:        user.id,
+      plan:           planName,
+      plan_price:     cost,
+      plan_monthly_rate: rate,
+      plan_duration_days: days,
+      hashrate:       Number(hashrate),
+      active:         true,
+      daily_profit:   daily,
+      progress:       0,
+      days_left:      days,
+      last_payout_at: null,
+      created_at:     new Date().toISOString(),
+    };
+
+    const { data: contractRow, error: contractErr } = await _supabase
+      .from('contracts')
+      .insert(contractPayload)
+      .select()
+      .single();
+    if (contractErr) throw contractErr;
+    console.log('[CryptoVault] contract insert success', contractRow?.id || 'ok');
+
+    const transactionPayload = {
+      user_id:    user.id,
+      type:       'purchase',
+      amount:     cost,
+      coin:       'usdt',
+      status:     'success',
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: txErr } = await _supabase
+      .from('transactions')
+      .insert(transactionPayload);
+    if (txErr) {
+      console.error('Transaction insert failed:', txErr);
+      if (contractRow?.id) {
+        await _supabase.from('contracts').delete().eq('id', contractRow.id).catch(() => {});
+      }
+      throw txErr;
+    }
+    console.log('[CryptoVault] transaction insert success');
 
     const newBalance = balance - cost;
     const { error: balErr } = await _supabase
       .from('profiles')
       .update({ usdt_balance: newBalance })
       .eq('id', user.id);
-    if (balErr) throw balErr;
-
-    const { error: contractErr } = await _supabase
-      .from('contracts')
-      .insert({
-        user_id:        user.id,
-        plan:           planName,
-        plan_price:     cost,
-        plan_monthly_rate: rate,
-        plan_duration_days: days,
-        hashrate:       Number(hashrate),
-        active:         true,
-        daily_profit:   daily,
-        progress:       0,
-        days_left:      days,
-        expires_at:     new Date(Date.now() + (days * PLAN_MS_PER_DAY)).toISOString(),
-        last_payout_at: null,
-        created_at:     new Date().toISOString(),
-      });
-    if (contractErr) throw contractErr;
-
-    const { error: txErr } = await _supabase
-      .from('transactions')
-      .insert({
-        user_id:    user.id,
-        type:       'purchase',
-        amount:     cost,
-        coin:       'usdt',
-        status:     'success',
-        created_at: new Date().toISOString(),
-      });
-    if (txErr) {
-      console.error('Transaction insert failed:', txErr);
-      throw txErr;
+    if (balErr) {
+      console.error('Balance update failed:', balErr);
+      await Promise.allSettled([
+        contractRow?.id ? _supabase.from('contracts').delete().eq('id', contractRow.id) : Promise.resolve(),
+        _supabase.from('transactions').delete().eq('user_id', user.id).eq('type', 'purchase').eq('amount', cost).eq('created_at', transactionPayload.created_at),
+      ]);
+      throw balErr;
     }
+    console.log('[CryptoVault] wallet deduction success');
 
     Toast.show(`✅ ${planName} Plan activated! ${hashrate} TH/s added.`, 'success', 5000);
+    console.log('[CryptoVault] purchase completed');
 
     await Auth.refreshProfile();
     populateUserUI();
