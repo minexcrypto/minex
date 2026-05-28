@@ -51,8 +51,11 @@ if (typeof BTCPrice === 'undefined' || !BTCPrice.onChange) {
     },
 
     format(n) {
-      if (n == null) return '$—';
-      return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const value = typeof n === 'object' && n !== null
+        ? Number(n.price ?? n.usd ?? n.value)
+        : Number(n);
+      if (!Number.isFinite(value)) return '$—';
+      return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
     pctChange() {
