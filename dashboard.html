@@ -11,7 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₮</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth-role.js"></script>
-<base target="_blank">
+
 </head>
 <body>
 
@@ -746,6 +746,10 @@
           <input type="email" id="settingEmail" placeholder="you@example.com" readonly style="opacity:0.7;cursor:not-allowed;">
         </div>
         <div class="form-group">
+          <label>User ID</label>
+          <input type="text" id="settingUserId" placeholder="CVXXXXX" readonly style="opacity:0.7;cursor:not-allowed;">
+        </div>
+        <div class="form-group">
           <label>Country</label>
           <select>
             <option>India</option>
@@ -757,26 +761,6 @@
           </select>
         </div>
         <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
-      </div>
-
-      <div class="card glass mb-20">
-        <div class="card-header"><div class="card-title">Security</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Two-Factor Authentication</h4><p>Add an extra layer of security</p></div>
-          <label class="toggle"><input type="checkbox" id="toggle2fa"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Email Notifications</h4><p>Get alerts for payouts & activity</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleEmail" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Withdrawal Confirmation</h4><p>Require email confirm on withdrawals</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleWithdraw" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Login Alerts</h4><p>Notify on new device logins</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleLogin" checked><span class="toggle-slider"></span></label>
-        </div>
       </div>
 
       <div class="card glass mb-20">
@@ -799,7 +783,7 @@
         <div class="card-header"><div class="card-title" style="color:var(--red)">Danger Zone</div></div>
         <div class="settings-item">
           <div class="settings-info"><h4>Change Password</h4><p>Update your login password</p></div>
-          <button class="btn btn-outline btn-sm">Change</button>
+          <button class="btn btn-outline btn-sm" data-modal="changePasswordModal">Change</button>
         </div>
         <div class="settings-item">
           <div class="settings-info"><h4>Export Data</h4><p>Download all your account data</p></div>
@@ -908,15 +892,40 @@
         <label>Amount (USDT)</label>
         <div class="input-group">
           <span class="input-icon">💰</span>
-          <input type="number" id="withdrawAmount" name="amount" step="0.01" min="10" placeholder="0.00" required>
+          <input type="number" id="withdrawAmount" name="amount" step="0.01" min="50" placeholder="0.00" required>
           <span class="input-suffix">USDT</span>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Min: 10 USDT · Network fee applies</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Min: 50 USDT · 30% withdrawal charge will be deducted</div>
       </div>
       <div style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--red);margin-bottom:20px;">
         ⚠️ Withdrawals are processed within 24 hours. Only send to BEP20 address. Double-check your address.
       </div>
       <button type="submit" class="btn btn-primary btn-full">Confirm Withdrawal</button>
+    </form>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="changePasswordModal" style="display:none;">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h3>Change Password</h3>
+      <button class="modal-close" data-close-modal="changePasswordModal">✕</button>
+    </div>
+    <form id="changePasswordForm">
+      <div class="form-group">
+        <label>Current Password</label>
+        <input type="password" id="oldPassword" placeholder="Enter current password" required>
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="newPassword" placeholder="Enter new password" minlength="6" required>
+      </div>
+      <div class="form-group">
+        <label>Confirm New Password</label>
+        <input type="password" id="confirmNewPassword" placeholder="Re-enter new password" minlength="6" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Update Password</button>
     </form>
   </div>
 </div>
