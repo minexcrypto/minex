@@ -582,7 +582,7 @@ const UsersModule = {
     const container=document.getElementById('usersTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading users�'));
     try{
-      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,usdt_balance,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at').order('created_at',{ascending:false}).limit(1000);
+      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at').order('created_at',{ascending:false}).limit(1000);
       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage(); setText('#stat-total-users',this._rows.length);
     }catch(err){ setHTML(container,AdminUI.error('Could not load users: '+err.message)); }
   },
@@ -640,8 +640,7 @@ const UsersModule = {
         </div>
         <div class="card"><div class="card-title">?? Financial Stats</div>
           <div style="font-size:13px;color:#94a3b8;line-height:1.8;">
-            <div><strong style="color:#f1f5f9;">USDT Balance:</strong> ${Number(u.usdt_balance||0).toFixed(2)}</div>
-            <div><strong style="color:#f1f5f9;">USDT Balance:</strong> ${Number(u.usdt_balance||0).toFixed(2)}</div>
+            <div><strong style="color:#f1f5f9;">Wallet Balance:</strong> ${Number(u.usdt_balance||0).toFixed(2)} USDT</div>
             <div><strong style="color:#f1f5f9;">Total Deposited:</strong> ${totalDep.toFixed(2)} USDT</div>
             <div><strong style="color:#f1f5f9;">Total Withdrawn:</strong> ${totalWit.toFixed(2)} USDT</div>
             <div><strong style="color:#f1f5f9;">Mining Income:</strong> ${mining.toFixed(2)} USDT</div>
@@ -726,7 +725,7 @@ const UsersModule = {
   },
   export(){
     const headers=['ID','Email','Name','USDT Balance','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
-    const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.usdt_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
+    const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
     downloadCSV('users.csv',[headers,...rows]);
   }
 };
@@ -742,7 +741,7 @@ const NewUsersModule = {
     const container=document.getElementById('newUsersTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading new users�'));
     try{
-      const data = await fetchAllProfiles('id,email,name,user_id,usdt_balance,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
+      const data = await fetchAllProfiles('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
       this._rows = filterUsersByCreatedAt(data||[], dateFilter);
       this._page = 1;
       this._renderPage();
@@ -763,18 +762,18 @@ const NewUsersModule = {
     if(!rows.length){ setHTML(container,AdminUI.empty('No new users found for the selected date range.')); return; }
     const html=rows.map(u=>{
       const joined=u.created_at?new Date(u.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'�';
-      const btc=Number(u.usdt_balance||0).toFixed(8);
+      const usdt=Number(u.usdt_balance||0).toFixed(8);
       let status='active';
       if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
   export(){
     const dateFilter=$('#newUserDateFilter')?.value||'today';
     const rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    const headers=['ID','Email','Name','User ID','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
-    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
+    const headers=['ID','Email','Name','User ID','USDT Balance','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
+    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
     downloadCSV('new_users.csv',[headers,...data]);
   }
 };
@@ -790,7 +789,7 @@ const OldUsersModule = {
     const container=document.getElementById('oldUsersTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading old users�'));
     try{
-      this._rows = await fetchAllProfiles('id,email,name,user_id,usdt_balance,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
+      this._rows = await fetchAllProfiles('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
       this._page = 1;
       this._renderPage();
       setText('#oldUsersCount', String(this._rows.length));
@@ -811,18 +810,18 @@ const OldUsersModule = {
     if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
     const html=rows.map(u=>{
       const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'�';
-      const btc=Number(u.usdt_balance||0).toFixed(8);
+      const usdt=Number(u.usdt_balance||0).toFixed(8);
       let status='active';
       if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
   export(){
     const dateFilter=$('#oldUserDateFilter')?.value||'all-time';
     const rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    const headers=['ID','Email','Name','User ID','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
-    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
+    const headers=['ID','Email','Name','User ID','USDT Balance','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
+    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
     downloadCSV('old_users.csv',[headers,...data]);
   },
   async bulkEditFiltered(){
