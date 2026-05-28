@@ -739,7 +739,7 @@ const EditOldUserModule = {
         <td style="${TD};font-family:monospace;color:#10b981;">${wallet} USDT</td>
         <td style="${TD};font-family:monospace;color:#fbbf24;">${daily}</td>
         <td style="${TD}">${AdminUI.badge(status)}</td>
-        <td style="${TD}"><button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.selectUser('${u.id}')">Edit</button></td>
+        <td style="${TD}"><button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.openEditForm('${u.id}')">Edit</button></td>
       </tr>`;
     }).join('');
     setHTML(container,`
@@ -749,7 +749,7 @@ const EditOldUserModule = {
       </table>
     `);
   },
-  async selectUser(userId){
+  async openEditForm(userId){
     const row=this._rows.find(item=>item.id===userId);
     if(!row)return;
     this._selectedUser=row;
@@ -765,6 +765,10 @@ const EditOldUserModule = {
     $('#eouDailyProfit').value=Number(contract?.daily_profit||0);
     window.scrollTo({ top:document.body.scrollHeight, behavior:'smooth' });
   },
+  // Backward-compatible alias for older onclick bindings.
+  async selectUser(userId){
+    return this.openEditForm(userId);
+  },
   async saveUser(){
     if(!this._selectedUser){ AdminUI.toast('No user selected.','error'); return; }
     try{
@@ -772,13 +776,16 @@ const EditOldUserModule = {
       const contract=this._activeContractForRow(row);
       const status=($('#eouStatus')?.value||'active').toLowerCase();
       const selectedPlan=this._normalizePlan($('#eouPlan')?.value||'starter');
-      const dailyProfit=parseFloat($('#eouDailyProfit')?.value||0);
+      const dailyProfitInput=parseFloat($('#eouDailyProfit')?.value||0);
+      const dailyProfit=Number.isFinite(dailyProfitInput)?dailyProfitInput:0;
+      const walletInput=parseFloat($('#eouWalletBalance')?.value||0);
+      const walletBalance=Number.isFinite(walletInput)?walletInput:0;
       const profilePatch={
         name:($('#eouName')?.value||'').trim(),
         email:($('#eouEmail')?.value||'').trim(),
         phone:($('#eouPhone')?.value||'').trim(),
         country:($('#eouCountry')?.value||'').trim(),
-        usdt_balance:parseFloat($('#eouWalletBalance')?.value||0),
+        usdt_balance:walletBalance,
         is_active:status==='active',
         is_suspended:status==='suspended',
         is_banned:status==='banned'
@@ -801,6 +808,10 @@ const EditOldUserModule = {
     }catch(err){
       AdminUI.toast('Update failed: '+err.message,'error');
     }
+  },
+  // Explicit save handler name for direct button wiring.
+  async saveEditForm(){
+    return this.saveUser();
   },
   clearForm(){
     this._selectedUser=null;
