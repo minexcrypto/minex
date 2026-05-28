@@ -1717,7 +1717,9 @@ document.addEventListener('DOMContentLoaded',async()=>{
     forbiddenUser=authState==='forbidden';
   }catch(err){ console.warn('[Admin] Session check error:',err.message); }
   if(forbiddenUser){
-    window.location.href='dashboard.html';
+    show('#adminLoginScreen');
+    hide('#adminAppShell');
+    setHTML('#adminLoginError','Access denied. Admin account required.');
     return;
   }
   if(alreadyLoggedIn){ hide('#adminLoginScreen'); show('#adminAppShell'); try{await _bootPanel();}catch(err){ AdminUI.banner('⚠ Panel boot error: '+err.message,'error');} }
