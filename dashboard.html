@@ -1,953 +1,371 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dashboard — CryptoVault</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₮</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoVault Admin</title>
+    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        window.CRYPTOVAULT_SUPABASE_URL = "https://fwgqydxkdbuzrehqifjw.supabase.co";
+        window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 </head>
 <body>
-
-<div class="app-shell">
-
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<<aside class="sidebar" id="sidebar">
-  <a href="index.html" class="sidebar-logo">
-    <div class="logo-icon">₮</div>
-    <div class="logo-text">Crypto<span>Vault</span></div>
-  </a>
-
-  <nav class="sidebar-nav">
-    <div class="nav-section-label">Main</div>
-    <a href="dashboard.html" class="nav-item active" id="nav-dashboard">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Dashboard
-    </a>
-    <a href="#" class="nav-item" onclick="switchTab('mining');return false;" id="nav-mining">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      Mining
-    </a>
-    <a href="#" class="nav-item" onclick="switchTab('wallet');return false;" id="nav-wallet">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" fill="currentColor"/><path d="M22 11V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v3"/></svg>
-      Wallet
-    </a>
-    <a href="#" class="nav-item" onclick="switchTab('transactions');return false;" id="nav-transactions">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 3v18"/></svg>
-      Transactions
-      <span class="nav-badge" id="txNavBadge" style="display:none;"></span>
-    </a>
-    <div class="nav-section-label" style="margin-top:12px;">Growth</div>
-    <a href="#" class="nav-item" onclick="switchTab('plans');return false;" id="nav-plans">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      Plans
-    </a>
-    <a href="#" class="nav-item" onclick="switchTab('referral');return false;" id="nav-referral">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Referral
-    </a>
-    <div class="nav-section-label" style="margin-top:12px;">Account</div>
-    <a href="#" class="nav-item" onclick="switchTab('settings');return false;" id="nav-settings">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Settings
-    </a>
-  </nav>
-
-  <div class="sidebar-footer">
-    <div class="sidebar-user">
-      <div class="user-avatar user-avatar-display">U</div>
-      <div class="user-info">
-        <div class="user-name user-name-display">User</div>
-        <div class="user-level user-email-display" style="font-size:11px;opacity:0.7;word-break:break-all;">Loading…</div>
-      </div>
-    </div>
-  </div>
-</aside>
-
-<<header class="navbar">
-  <div class="navbar-left">
-    <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
-    <span class="page-title" id="pageTitle">Dashboard</span>
-  </div>
-  <div class="navbar-right">
-    <div class="btc-ticker glass">
-      <div class="ticker-dot"></div>
-      <span class="ticker-symbol">BTC</span>
-      <span class="ticker-price" id="tickerPrice">$67,842.00</span>
-      <span class="ticker-change ticker-up" id="tickerChange">▲ 1.24%</span>
-    </div>
-    <div class="icon-btn" data-dropdown-toggle="notificationMenu" id="notificationBell" style="position:relative;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
-    </div>
-    <div class="dropdown-menu" id="notificationMenu">
-      <div class="notification-dropdown-header">
-        <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Notifications</span>
-        <span style="font-size:11px;color:var(--text-muted);" id="notifCountLabel">0 unread</span>
-      </div>
-      <div id="notificationList"></div>
-      <div class="notification-dropdown-footer">
-        <a href="#" onclick="switchTab('transactions');document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.remove('open'));return false;" style="font-size:12px;color:var(--gold);text-decoration:none;font-weight:500;">View all activity →</a>
-      </div>
-    </div>
-    <div class="dropdown">
-      <div class="icon-btn" data-dropdown-toggle="userMenu" style="width:auto;padding:0 10px;gap:8px;cursor:pointer;">
-        <div class="user-avatar user-avatar-display" style="width:28px;height:28px;font-size:12px;">U</div>
-        <span style="font-size:13px;font-weight:600;" class="user-name-display">User</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="dropdown-menu" id="userMenu">
-        <div style="padding:10px 16px 6px;font-size:11px;color:#6b7280;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;word-break:break-all;" class="user-email-display">…</div>
-        <a class="dropdown-item" href="#" onclick="switchTab('settings');return false;">⚙️ Settings</a>
-        <a class="dropdown-item" href="#" onclick="switchTab('wallet');return false;">💼 Wallet</a>
-        <div class="dropdown-sep"></div>
-        <a class="dropdown-item danger" href="#" data-logout>🚪 Logout</a>
-      </div>
-    </div>
-  </div>
-</header>
-
-<<main class="main-content">
-
-  <!-- TAB: DASHBOARD -->
-  <div id="tab-dashboard" class="tab-content">
-    <div class="stats-grid mb-28">
-      <!-- CHANGED: Wallet Balance → USDT -->
-      <div class="stat-card gold glass">
-        <div class="stat-icon">💰</div>
-        <div class="stat-value mono" id="walletBalanceCounter">$ …</div>
-        <div class="stat-label">Wallet Balance (USDT)</div>
-        <div class="stat-change up">No earnings yet</div>
-      </div>
-      <div class="stat-card green glass">
-        <div class="stat-icon">⛏️</div>
-        <div class="stat-value mono" id="liveHashrate">0 TH/s</div>
-        <div class="stat-label">Live Hashrate</div>
-        <div class="stat-change up">No active contracts</div>
-      </div>
-      <!-- CHANGED: Daily Profit → USDT -->
-      <div class="stat-card blue glass">
-        <div class="stat-icon">📈</div>
-        <div class="stat-value mono" id="dailyProfitEl">$ 0.00</div>
-        <div class="stat-label">Daily Profit (USDT)</div>
-        <div class="stat-change up">No mining data</div>
-      </div>
-      <!-- CHANGED: Total Mined → USDT -->
-      <div class="stat-card orange glass">
-        <div class="stat-icon">🏆</div>
-        <div class="stat-value mono" id="totalMinedEl">$ 0.00</div>
-        <div class="stat-label">Total Mined (USDT)</div>
-        <div class="stat-change up">▲ All time</div>
-      </div>
+    <div id="adminLoginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>🔐 CryptoVault Admin</h1>
+            <form id="adminLoginForm">
+                <input type="email" id="adminLoginEmail" placeholder="Admin Email" required>
+                <div style="position:relative;">
+                    <input type="password" id="adminLoginPassword" placeholder="Password" required>
+                    <button type="button" id="adminTogglePassword" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;">👁</button>
+                </div>
+                <button type="submit" id="adminLoginBtn" class="btn-primary">Sign In</button>
+            </form>
+            <p id="adminLoginError" class="error-msg"></p>
+        </div>
     </div>
 
-    <div class="grid-2-1 mb-28">
-      <div class="card glass">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Mining Earnings</div>
-            <div class="card-subtitle">Last 12 days • USDT</div>
-          </div>
-          <div class="tabs">
-            <button class="tab-btn active">12D</button>
-            <button class="tab-btn">30D</button>
-            <button class="tab-btn">90D</button>
-          </div>
-        </div>
-        <canvas id="earningsChart" style="width:100%;display:block;"></canvas>
-        <div style="display:flex;gap:24px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-          <div>
-            <div style="font-size:11px;color:var(--text-muted)">Total Earned (12d)</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;" id="chartTotal12d">$ 0.00</div>
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text-muted)">Avg Daily</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--green);font-weight:500;margin-top:3px;" id="chartAvgDaily">$ 0.00</div>
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text-muted)">Best Day</div>
-            <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--text-primary);font-weight:500;margin-top:3px;" id="chartBestDay">$ 0.00</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card glass">
-        <div class="card-header">
-          <div class="card-title">Portfolio</div>
-          <span class="badge badge-success">Live</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">
-          <canvas id="donutChart" style="flex-shrink:0;"></canvas>
-          <div style="flex:1;">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Total Value</div>
-            <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--gold)" id="portfolioTotalUSD">$0.00</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" id="portfolioSubLabel">≈ 0.00 USDT</div>
-          </div>
-        </div>
-        <!-- CHANGED: Only USDT row in portfolio -->
-        <div class="portfolio-item">
-          <div class="portfolio-coin">
-            <div class="coin-icon coin-usdt">₮</div>
-            <div><div class="coin-name">Tether</div><div class="coin-full">USDT</div></div>
-          </div>
-          <div class="portfolio-right">
-            <div class="portfolio-amount" id="walletUSDTAmount">0.00 USDT</div>
-            <div class="portfolio-usd" id="portfolioUSDTusd">$0.00</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid-2 mb-28">
-      <div class="card glass">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Hashrate History</div>
-            <div class="card-subtitle">Last 24 data points</div>
-          </div>
-          <div style="text-align:right;">
-            <div class="mono text-gold" id="liveHashrate2" style="font-size:18px;font-weight:600;">0 TH/s</div>
-            <div class="text-xs text-muted mt-4">Live</div>
-          </div>
-        </div>
-        <canvas id="hashrateChart" style="width:100%;display:block;"></canvas>
-        <div style="display:flex;gap:20px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div><div class="text-xs text-muted">Peak</div><div class="text-sm mono" style="color:var(--text-primary);margin-top:3px;" id="hashrateStatPeak">—</div></div>
-          <div><div class="text-xs text-muted">Avg</div><div class="text-sm mono" style="color:var(--text-secondary);margin-top:3px;" id="hashrateStatAvg">—</div></div>
-          <div><div class="text-xs text-muted">Efficiency</div><div class="text-sm mono" style="color:var(--green);margin-top:3px;" id="hashrateStatEff">—</div></div>
-        </div>
-      </div>
-
-      <div class="card glass">
-        <div class="card-header">
-          <div class="card-title">Recent Activity</div>
-          <button class="btn btn-ghost btn-sm" onclick="switchTab('transactions')">See All →</button>
-        </div>
-        <div id="recentActivityList"></div>
-      </div>
-    </div>
-
-    <div class="card glass">
-      <div class="card-header"><div class="card-title">Quick Actions</div></div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;">
-        <!-- CHANGED: "Deposit USDT" instead of "Deposit BTC" -->
-        <button class="btn btn-green" data-modal="depositModal">📥 Deposit USDT</button>
-        <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
-        <button class="btn btn-ghost" onclick="switchTab('plans')">⛏️ Buy Mining Plan</button>
-        <button class="btn btn-outline" onclick="switchTab('referral')">👥 Refer Friends</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: MINING -->
-  <div id="tab-mining" class="tab-content" style="display:none;">
-    <div class="card glass mb-24">
-      <div class="card-header">
-        <div><div class="card-title">Active Mining Contracts</div><div class="card-subtitle">No active contracts</div></div>
-        <button class="btn btn-primary btn-sm" onclick="switchTab('plans')">+ Add Contract</button>
-      </div>
-      <div id="contractsContainer"></div>
-    </div>
-
-    <div class="grid-2">
-      <div class="card glass">
-        <div class="card-title mb-16">Mining Statistics</div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Total Hashrate</h4><p>Across all active contracts</p></div>
-          <div class="mono text-gold" style="font-size:18px;font-weight:600;" id="miningStatHashrate">—</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Power Consumption</h4><p>Est. current draw</p></div>
-          <div class="mono" style="font-size:16px;font-weight:600;color:var(--text-primary);" id="miningStatPower">—</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Daily Revenue</h4><p>Estimated (USDT)</p></div>
-          <div class="mono text-green" style="font-size:16px;font-weight:600;color:var(--green);" id="miningStatDaily">—</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;">
-          <div class="settings-info"><h4>Monthly Projection</h4><p>At current hashrate</p></div>
-          <div class="mono text-gold" style="font-size:16px;font-weight:600;" id="miningStatMonthly">—</div>
-        </div>
-        <div class="settings-item" style="padding:12px 0;border-bottom:none;">
-          <div class="settings-info"><h4>Efficiency</h4><p>Profit per TH/s per day</p></div>
-          <div class="mono" style="color:var(--green);font-size:16px;font-weight:600;" id="miningStatEfficiency">—</div>
-        </div>
-      </div>
-
-      <div class="card glass">
-        <div class="card-title mb-16">Contract Progress</div>
-        <div id="contractProgressContainer"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: WALLET -->
-  <div id="tab-wallet" class="tab-content" style="display:none;">
-    <div class="wallet-header mb-24">
-      <div class="wallet-balance-label">Total Wallet Balance (USDT)</div>
-      <!-- CHANGED: Shows USDT balance -->
-      <div class="wallet-balance-value" id="walletBigBalance">$ …</div>
-      <div class="wallet-balance-usd" id="walletBigUSD">≈ — USDT</div>
-      <div style="display:flex;gap:12px;margin-bottom:24px;">
-        <button class="btn btn-green" data-modal="depositModal">📥 Deposit</button>
-        <button class="btn btn-primary" data-modal="withdrawModal">📤 Withdraw</button>
-      </div>
-    </div>
-
-    <!-- CHANGED: Deposit section — USDT only, BTC card removed -->
-    <div class="card glass mb-24 deposit-section">
-      <div class="card-header">
-        <div>
-          <div class="card-title">💰 Deposit Address</div>
-          <div class="card-subtitle">Send USDT to the address below</div>
-        </div>
-        <span class="badge badge-success">Active</span>
-      </div>
-      <!-- Single column — only USDT -->
-      <div style="max-width:520px;margin:0 auto;">
-        <div class="deposit-method-card">
-          <div class="deposit-method-header">
-            <div class="deposit-coin-badge usdt">
-              <span class="coin-icon coin-usdt">₮</span>
-              <div>
-                <div class="deposit-coin-name">USDT</div>
-                <div class="deposit-coin-network">BEP20 (Binance Smart Chain)</div>
-              </div>
+    <div id="adminAppShell" class="admin-app hidden">
+        <aside class="sidebar" id="adminSidebar">
+            <div class="logo">🔐 CryptoVault Admin</div>
+            <nav>
+                <a href="#" class="nav-link active" data-admin-tab="overview">📊 Overview</a>
+                <a href="#" class="nav-link" data-admin-tab="deposits">📋 Deposits <span id="sidebarDepositBadge" class="nav-badge" style="display:none;"></span></a>
+                <a href="#" class="nav-link" data-admin-tab="withdrawals">📤 Withdrawals <span id="sidebarWithdrawalBadge" class="nav-badge" style="display:none;"></span></a>
+                <a href="#" class="nav-link" data-admin-tab="transactions">💱 Transactions</a>
+                <a href="#" class="nav-link" data-admin-tab="contracts">⛏ Contracts</a>
+                <a href="#" class="nav-link" data-admin-tab="users">👤 Users</a>
+                <a href="#" class="nav-link" data-admin-tab="referrals">🔗 Referrals</a>
+                <a href="#" class="nav-link" data-admin-tab="notifications">🔔 Notifications</a>
+                <a href="#" class="nav-link" data-admin-tab="logs">🛡 Security Logs</a>
+                <a href="#" class="nav-link" data-admin-tab="new-users">👤 New User</a>
+                <a href="#" class="nav-link" data-admin-tab="old-users">📅 Old User</a>
+                <a href="#" class="nav-link" data-admin-tab="edit-old-user">✏️ Edit Old User</a>
+            </nav>
+            <div class="sidebar-footer">
+                <span id="adminUserEmail"></span>
+                <button class="btn-logout" data-admin-logout>Logout</button>
             </div>
-            <span class="badge badge-info">BEP20</span>
-          </div>
-          <div class="deposit-qr-area">
-            <div class="qr-placeholder" style="background:transparent;border:2px solid rgba(38,161,123,0.2);padding:12px;border-radius:16px;">
-              <img src="usdt-qr.png" alt="USDT Deposit QR" style="width:160px;height:160px;object-fit:contain;border-radius:8px;display:block;margin:0 auto;">
-              <span class="qr-label" style="display:block;text-align:center;margin-top:8px;">Scan QR Code</span>
+        </aside>
+        <div id="adminSidebarOverlay"></div>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button id="adminMenuToggle" class="menu-toggle">☰</button>
+                    <h2 id="adminPageTitle">Admin Dashboard</h2>
+                </div>
+                <div class="topbar-right">
+                    <div class="global-search-wrap">
+                        <input type="text" id="globalSearchInput" placeholder="🔍 Search email, ID, tx hash, phone...">
+                        <button id="globalSearchBtn" class="admin-btn admin-btn-outline">Search</button>
+                    </div>
+                    <div class="btc-ticker" style="margin-left:12px;">
+                        <span class="ticker-symbol">₿</span>
+                        <span class="ticker-price admin-btc-price">—</span>
+                        <span class="ticker-change admin-btc-change">—</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- OVERVIEW -->
+            <div data-admin-section="overview" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card gold"><div class="stat-label">Total Users</div><div class="stat-value" id="stat-total-users">0</div></div>
+                    <div class="stat-card pending"><div class="stat-label">Pending Deposits</div><div class="stat-value" id="stat-pending-deposits">0</div></div>
+                    <div class="stat-card pending"><div class="stat-label">Pending Withdrawals</div><div class="stat-value" id="stat-pending-withdrawals">0</div></div>
+                    <div class="stat-card approved"><div class="stat-label">Total Deposits</div><div class="stat-value" id="stat-total-deposits">0</div></div>
+                    <div class="stat-card blue"><div class="stat-label">Active Contracts</div><div class="stat-value" id="stat-active-contracts">0</div></div>
+                    <div class="stat-card orange"><div class="stat-label">Total Referrals</div><div class="stat-value" id="stat-total-referrals">0</div></div>
+                    <div class="stat-card green"><div class="stat-label">BTC Volume</div><div class="stat-value" id="stat-btc-volume">0</div></div>
+                    <div class="stat-card green"><div class="stat-label">USDT Volume</div><div class="stat-value" id="stat-usdt-volume">0</div></div>
+                </div>
+                <div class="grid-2">
+                    <div class="card"><div class="card-header"><div class="card-title">Live Activity</div></div><div id="overviewActivityFeed" style="max-height:300px;overflow-y:auto;"></div></div>
+                    <div class="card"><div class="card-header"><div class="card-title">Admin Quick Actions</div></div>
+                        <div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 0;">
+                            <button class="admin-btn admin-btn-primary" onclick="DepositsModule.openCreateModal()">➕ Manual Deposit</button>
+                            <button class="admin-btn admin-btn-primary" onclick="WithdrawalsModule.openCreateModal()">➕ Manual Withdrawal</button>
+                            <button class="admin-btn admin-btn-primary" onclick="ContractsModule.openCreateModal()">➕ Add Contract</button>
+                            <button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openCreateModal()">➕ Add Transaction</button>
+                            <button class="admin-btn admin-btn-outline" onclick="AdminUI.toast('Use Users tab to manage accounts','info')">👤 Manage Users</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-          <div class="deposit-address-box">
-            <label class="deposit-label">Deposit Address</label>
-            <div class="wallet-address-row deposit-address-row">
-              <div class="wallet-address" id="usdtAddress">0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0</div>
-              <button class="copy-btn" onclick="copyToClipboard('0x3484Eb517732AA21A5f410bF9b5E991e9FB251d0','USDT address copied!')" title="Copy Address">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
+
+            <!-- DEPOSITS -->
+            <div data-admin-section="deposits" class="tab-content">
+                <div class="filters">
+                    <select id="depositStatusFilter"><option value="all">All Statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+                    <input type="date" id="depositDateFrom" title="From"><input type="date" id="depositDateTo" title="To">
+                    <input type="text" id="depositSearchInput" placeholder="Search email, coin, tx hash...">
+                    <button class="admin-btn admin-btn-outline" onclick="DepositsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="depositsTableWrap"></div>
+                <div class="pagination-bar" id="depositsPagination"></div>
             </div>
-            <div class="deposit-warning">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>Only send USDT on BEP20 network. Sending other tokens may result in permanent loss.</span>
+
+            <!-- WITHDRAWALS -->
+            <div data-admin-section="withdrawals" class="tab-content">
+                <div class="filters">
+                    <select id="withdrawalStatusFilter"><option value="all">All Statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+                    <input type="date" id="withdrawalDateFrom"><input type="date" id="withdrawalDateTo">
+                    <input type="text" id="withdrawalSearchInput" placeholder="Search email, address...">
+                    <button class="admin-btn admin-btn-outline" onclick="WithdrawalsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="withdrawalsTableWrap"></div>
+                <div class="pagination-bar" id="withdrawalsPagination"></div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div class="grid-2 mb-24">
-      <div class="card glass">
-        <div class="card-title mb-16">Balances</div>
-        <!-- CHANGED: Only USDT balance row, BTC row removed -->
-        <div class="portfolio-item">
-          <div class="portfolio-coin"><div class="coin-icon coin-usdt">₮</div><div><div class="coin-name">Tether</div><div class="coin-full">USDT</div></div></div>
-          <div class="portfolio-right"><div class="portfolio-amount" id="walletUSDTBalance">0.00 USDT</div><div class="portfolio-usd" id="walletItemUSD">$0.00</div></div>
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">
-          <div class="flex justify-between text-sm" style="color:var(--text-muted);">
-            <span>Total Mining Earnings</span>
-            <span class="mono text-gold" style="color:var(--gold);" id="walletTotalMinedEarnings">$ 0.00</span>
-          </div>
-          <div class="flex justify-between text-sm mt-8" style="color:var(--text-muted);">
-            <span>Total Referral Earnings</span>
-            <span class="mono" style="color:var(--green);" id="walletTotalReferralEarnings">$ 0.00</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card glass">
-        <div class="card-title mb-16">Transaction Summary</div>
-        <div class="settings-item" style="padding:10px 0;">
-          <div class="settings-info"><h4>Total Deposited</h4></div>
-          <div class="mono" style="color:var(--green);font-weight:600;" id="walletTotalDeposited">$ 0.00</div>
-        </div>
-        <div class="settings-item" style="padding:10px 0;">
-          <div class="settings-info"><h4>Total Withdrawn</h4></div>
-          <div class="mono" style="color:var(--red);font-weight:600;" id="walletTotalWithdrawn">$ 0.00</div>
-        </div>
-        <div class="settings-item" style="padding:10px 0;">
-          <div class="settings-info"><h4>Mining Income</h4></div>
-          <div class="mono text-gold" style="color:var(--gold);font-weight:600;" id="walletMiningIncome">$ 0.00</div>
-        </div>
-        <div class="settings-item" style="padding:10px 0;border-bottom:none;">
-          <div class="settings-info"><h4>Referral Bonuses</h4></div>
-          <div class="mono" style="color:var(--blue);font-weight:600;" id="walletReferralBonuses">$ 0.00</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: TRANSACTIONS -->
-  <div id="tab-transactions" class="tab-content" style="display:none;">
-    <div class="card glass">
-      <div class="card-header">
-        <div><div class="card-title">Transaction History</div><div class="card-subtitle">All account activity</div></div>
-        <div class="tabs">
-          <button class="tab-btn active" data-tx-filter="all">All</button>
-          <button class="tab-btn" data-tx-filter="mining">Mining</button>
-          <button class="tab-btn" data-tx-filter="deposits">Deposits</button>
-          <button class="tab-btn" data-tx-filter="withdrawals">Withdrawals</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Transaction</th>
-              <th>Asset</th>
-              <th>Amount</th>
-              <th>USD Value</th>
-              <th>Status</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody id="txTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: PLANS -->
-  <div id="tab-plans" class="tab-content" style="display:none;">
-    <div class="section-header mb-28">
-      <h2>Mining <span>Plans</span></h2>
-      <p>Choose a contract that fits your goals. Pay in USDT, earn daily rewards.</p>
-    </div>
-
-    <div class="plans-grid">
-      <!-- Starter -->
-      <div class="plan-card starter">
-        <div class="plan-image">
-          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
-            <defs>
-              <linearGradient id="st-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#374151"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
-              <linearGradient id="st-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity="0.3"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0.05"/></linearGradient>
-              <radialGradient id="st-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#22c55e" stop-opacity="0.15"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0"/></radialGradient>
-            </defs>
-            <rect x="60" y="40" width="280" height="140" rx="8" fill="url(#st-chassis)" stroke="#22c55e" stroke-width="1.5" stroke-opacity="0.3"/>
-            <rect x="60" y="40" width="280" height="22" rx="8" fill="#1f2937"/>
-            <rect x="60" y="52" width="280" height="10" fill="#1f2937"/>
-            <circle cx="78" cy="51" r="3" fill="#22c55e" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2s" repeatCount="indefinite"/></circle>
-            <circle cx="92" cy="51" r="3" fill="#22c55e" opacity="0.5"/>
-            <circle cx="106" cy="51" r="3" fill="#22c55e" opacity="0.7"/>
-            <circle cx="135" cy="110" r="38" fill="url(#st-fan)" stroke="#22c55e" stroke-width="2" stroke-opacity="0.4"/>
-            <circle cx="135" cy="110" r="30" fill="none" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
-            <g stroke="#22c55e" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="135" y1="72" x2="135" y2="148"/><line x1="97" y1="110" x2="173" y2="110"/>
-              <line x1="108" y1="83" x2="162" y2="137"/><line x1="162" y1="83" x2="108" y2="137"/>
-            </g>
-            <circle cx="265" cy="110" r="38" fill="url(#st-fan)" stroke="#22c55e" stroke-width="2" stroke-opacity="0.4"/>
-            <circle cx="265" cy="110" r="30" fill="none" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
-            <g stroke="#22c55e" stroke-width="2" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="265" y1="72" x2="265" y2="148"/><line x1="227" y1="110" x2="303" y2="110"/>
-              <line x1="238" y1="83" x2="292" y2="137"/><line x1="292" y1="83" x2="238" y2="137"/>
-            </g>
-            <rect x="185" y="75" width="30" height="70" rx="3" fill="#111827" stroke="#22c55e" stroke-width="1" stroke-opacity="0.2"/>
-            <rect x="190" y="82" width="20" height="4" rx="2" fill="#22c55e" opacity="0.6"/>
-            <rect x="190" y="92" width="20" height="4" rx="2" fill="#22c55e" opacity="0.4"/>
-            <rect x="190" y="102" width="20" height="4" rx="2" fill="#22c55e" opacity="0.3"/>
-            <ellipse cx="200" cy="190" rx="130" ry="10" fill="url(#st-glow)" filter="blur(6px)"/>
-            <text x="200" y="62" text-anchor="middle" font-size="8" fill="#22c55e" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
-          </svg>
-          <div class="plan-image-overlay"></div>
-        </div>
-        <div class="plan-content">
-          <div class="plan-header">
-            <div class="plan-icon">🌱</div>
-            <div class="plan-name">Starter</div>
-            <div class="plan-desc">Beginner friendly</div>
-          </div>
-          <div class="plan-price">$500 <span style="font-size:14px;color:var(--green);font-weight:600;">USDT</span></div>
-          <div class="plan-divider"></div>
-          <div class="plan-stats">
-            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">10 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-green">~$0.96 USDT</span></div>
-            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-green">~10%</span></div>
-          </div>
-          <div class="plan-divider"></div>
-          <ul class="plan-features">
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>10 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Basic Dashboard</li>
-            <li class="unavail"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority Support</li>
-          </ul>
-          <button class="btn btn-green btn-full plan-purchase-btn" data-plan="Starter" data-price="500" data-hash="10" data-daily="0.000032">Purchase Plan</button>
-        </div>
-      </div>
-
-      <!-- Silver -->
-      <div class="plan-card silver">
-        <div class="plan-image">
-          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
-            <defs>
-              <linearGradient id="sv-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#374151"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
-              <linearGradient id="sv-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.05"/></linearGradient>
-              <radialGradient id="sv-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></radialGradient>
-            </defs>
-            <rect x="55" y="35" width="290" height="150" rx="8" fill="url(#sv-chassis)" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.3"/>
-            <rect x="55" y="35" width="290" height="22" rx="8" fill="#1f2937"/>
-            <rect x="55" y="47" width="290" height="10" fill="#1f2937"/>
-            <circle cx="73" cy="46" r="3" fill="#3b82f6" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2s" repeatCount="indefinite"/></circle>
-            <circle cx="87" cy="46" r="3" fill="#3b82f6" opacity="0.5"/>
-            <circle cx="101" cy="46" r="3" fill="#3b82f6" opacity="0.7"/>
-            <circle cx="140" cy="105" r="40" fill="url(#sv-fan)" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.4"/>
-            <g stroke="#3b82f6" stroke-width="2.5" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="140" y1="65" x2="140" y2="145"/><line x1="100" y1="105" x2="180" y2="105"/>
-              <line x1="112" y1="77" x2="168" y2="133"/><line x1="168" y1="77" x2="112" y2="133"/>
-            </g>
-            <circle cx="260" cy="105" r="40" fill="url(#sv-fan)" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.4"/>
-            <g stroke="#3b82f6" stroke-width="2.5" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="260" y1="65" x2="260" y2="145"/><line x1="220" y1="105" x2="300" y2="105"/>
-              <line x1="232" y1="77" x2="288" y2="133"/><line x1="288" y1="77" x2="232" y2="133"/>
-            </g>
-            <ellipse cx="200" cy="195" rx="130" ry="10" fill="url(#sv-glow)" filter="blur(6px)"/>
-            <text x="200" y="57" text-anchor="middle" font-size="8" fill="#3b82f6" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
-          </svg>
-          <div class="plan-image-overlay"></div>
-        </div>
-        <div class="plan-content">
-          <div class="plan-header">
-            <div class="plan-icon">🥈</div>
-            <div class="plan-name">Silver</div>
-            <div class="plan-desc">Growing portfolio</div>
-          </div>
-          <div class="plan-price">$2,500 <span style="font-size:14px;color:var(--blue);font-weight:600;">USDT</span></div>
-          <div class="plan-divider"></div>
-          <div class="plan-stats">
-            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">50 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-blue">~$4.74 USDT</span></div>
-            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-blue">~15%</span></div>
-          </div>
-          <div class="plan-divider"></div>
-          <ul class="plan-features">
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>50 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Full Dashboard</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Analytics Reports</li>
-          </ul>
-          <button class="btn btn-blue btn-full plan-purchase-btn" data-plan="Silver" data-price="2500" data-hash="50" data-daily="0.000158">Purchase Plan</button>
-        </div>
-      </div>
-
-      <!-- Gold -->
-      <div class="plan-card gold featured">
-        <div class="plan-image">
-          <div class="plan-badge-popular">Most Popular</div>
-          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
-            <defs>
-              <linearGradient id="gd-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4b5563"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
-              <linearGradient id="gd-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0.05"/></linearGradient>
-              <radialGradient id="gd-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.2"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
-            </defs>
-            <rect x="55" y="30" width="290" height="70" rx="6" fill="url(#gd-chassis)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.35"/>
-            <rect x="55" y="30" width="290" height="18" rx="6" fill="#1f2937"/>
-            <circle cx="73" cy="39" r="2.5" fill="#f59e0b" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.5s" repeatCount="indefinite"/></circle>
-            <circle cx="130" cy="65" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="130" y1="39" x2="130" y2="91"/><line x1="104" y1="65" x2="156" y2="65"/>
-            </g>
-            <circle cx="270" cy="65" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
-            <g stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.3" stroke-linecap="round">
-              <line x1="270" y1="39" x2="270" y2="91"/><line x1="244" y1="65" x2="296" y2="65"/>
-            </g>
-            <rect x="55" y="100" width="290" height="4" rx="2" fill="#f59e0b" opacity="0.15"/>
-            <rect x="55" y="106" width="290" height="70" rx="6" fill="url(#gd-chassis)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.35"/>
-            <rect x="55" y="106" width="290" height="18" rx="6" fill="#1f2937"/>
-            <circle cx="73" cy="115" r="2.5" fill="#f59e0b" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.5s" begin="0.7s" repeatCount="indefinite"/></circle>
-            <circle cx="130" cy="141" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
-            <circle cx="270" cy="141" r="26" fill="url(#gd-fan)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4"/>
-            <ellipse cx="200" cy="188" rx="130" ry="10" fill="url(#gd-glow)" filter="blur(6px)"/>
-            <text x="200" y="54" text-anchor="middle" font-size="7" fill="#f59e0b" opacity="0.5" font-family="Arial" font-weight="bold" letter-spacing="2">ANTMINER</text>
-          </svg>
-          <div class="plan-image-overlay"></div>
-        </div>
-        <div class="plan-content">
-          <div class="plan-header">
-            <div class="plan-icon">🥇</div>
-            <div class="plan-name">Gold</div>
-            <div class="plan-desc">Best value</div>
-          </div>
-          <div class="plan-price">$5,000 <span style="font-size:14px;color:var(--gold);font-weight:600;">USDT</span></div>
-          <div class="plan-divider"></div>
-          <div class="plan-stats">
-            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">100 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-gold">~$9.45 USDT</span></div>
-            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-gold">~20%</span></div>
-          </div>
-          <div class="plan-divider"></div>
-          <ul class="plan-features">
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>100 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Advanced Dashboard</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Priority Support</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Auto Reinvest</li>
-          </ul>
-          <button class="btn btn-primary btn-full plan-purchase-btn" data-plan="Gold" data-price="5000" data-hash="100" data-daily="0.000315">Purchase Plan</button>
-        </div>
-      </div>
-
-      <!-- Platinum -->
-      <div class="plan-card platinum">
-        <div class="plan-image">
-          <svg viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" class="plan-machine-svg">
-            <defs>
-              <linearGradient id="pt-chassis" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4b5563"/><stop offset="100%" stop-color="#1f2937"/></linearGradient>
-              <linearGradient id="pt-fan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a855f7" stop-opacity="0.3"/><stop offset="100%" stop-color="#a855f7" stop-opacity="0.05"/></linearGradient>
-              <radialGradient id="pt-glow" cx="50%" cy="50%"><stop offset="0%" stop-color="#a855f7" stop-opacity="0.2"/><stop offset="100%" stop-color="#a855f7" stop-opacity="0"/></radialGradient>
-            </defs>
-            <rect x="55" y="18" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
-            <rect x="55" y="18" width="290" height="14" rx="5" fill="#1f2937"/>
-            <circle cx="70" cy="25" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" repeatCount="indefinite"/></circle>
-            <circle cx="125" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <circle cx="200" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <circle cx="275" cy="46" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <rect x="55" y="74" width="290" height="3" rx="1" fill="#a855f7" opacity="0.12"/>
-            <rect x="55" y="78" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
-            <rect x="55" y="78" width="290" height="14" rx="5" fill="#1f2937"/>
-            <circle cx="70" cy="85" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" begin="0.4s" repeatCount="indefinite"/></circle>
-            <circle cx="125" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <circle cx="200" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <circle cx="275" cy="106" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <rect x="55" y="134" width="290" height="3" rx="1" fill="#a855f7" opacity="0.12"/>
-            <rect x="55" y="138" width="290" height="55" rx="5" fill="url(#pt-chassis)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.35"/>
-            <rect x="55" y="138" width="290" height="14" rx="5" fill="#1f2937"/>
-            <circle cx="70" cy="145" r="2" fill="#a855f7" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.2s" begin="0.8s" repeatCount="indefinite"/></circle>
-            <circle cx="125" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <circle cx="200" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <circle cx="275" cy="166" r="20" fill="url(#pt-fan)" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4"/>
-            <ellipse cx="200" cy="198" rx="130" ry="8" fill="url(#pt-glow)" filter="blur(6px)"/>
-          </svg>
-          <div class="plan-image-overlay"></div>
-        </div>
-        <div class="plan-content">
-          <div class="plan-header">
-            <div class="plan-icon">💎</div>
-            <div class="plan-name">Platinum</div>
-            <div class="plan-desc">Maximum returns</div>
-          </div>
-          <div class="plan-price">$10,000 <span style="font-size:14px;color:var(--purple);font-weight:600;">USDT</span></div>
-          <div class="plan-divider"></div>
-          <div class="plan-stats">
-            <div class="plan-stat"><span>Hashrate</span><span class="plan-stat-val">300 TH/s</span></div>
-            <div class="plan-stat"><span>Daily</span><span class="plan-stat-val text-purple">~$28.35 USDT</span></div>
-            <div class="plan-stat"><span>Monthly</span><span class="plan-stat-val text-purple">~25%</span></div>
-          </div>
-          <div class="plan-divider"></div>
-          <ul class="plan-features">
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>300 TH/s Hashrate</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Daily USDT Payouts</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>VIP Dashboard</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dedicated Manager</li>
-            <li><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Auto Reinvest + Compound</li>
-          </ul>
-          <button class="btn btn-purple btn-full plan-purchase-btn" data-plan="Platinum" data-price="10000" data-hash="300" data-daily="0.000945">Purchase Plan</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: REFERRAL -->
-  <div id="tab-referral" class="tab-content" style="display:none;">
-    <div class="grid-2-1 mb-24">
-      <div class="referral-card glass">
-        <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:6px;">Earn 5% <span style="color:var(--gold)">Commission</span></div>
-        <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;max-width:480px;">Share your referral link. Every time someone purchases a mining contract using your link, you earn 5% of their contract value — paid instantly in USDT.</p>
-        <div class="referral-link-box">
-          <span class="referral-link" id="refLinkDisplay">Loading your unique link…</span>
-          <button class="btn btn-primary btn-sm" id="copyRefBtn" disabled style="opacity:0.5;">📋 Copy Link</button>
-        </div>
-        <div id="refErrorMsg" style="display:none;color:var(--red);font-size:13px;margin-top:8px;">
-          ⚠️ Unable to generate link. Please refresh the page or contact support.
-        </div>
-        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" id="shareWhatsApp" onclick="shareReferral('whatsapp')">📱 WhatsApp</button>
-          <button class="btn btn-ghost btn-sm" id="shareTwitter" onclick="shareReferral('twitter')">🐦 Twitter</button>
-          <button class="btn btn-ghost btn-sm" id="shareEmail" onclick="shareReferral('email')">✉️ Email</button>
-        </div>
-      </div>
-
-      <div class="card glass">
-        <div class="card-title mb-16">Your Stats</div>
-        <div style="text-align:center;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:12px;">
-          <div style="font-size:38px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold);" id="refCountEl">0</div>
-          <div style="font-size:12px;color:var(--text-muted);">Total Referrals</div>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
-          <span style="color:var(--text-muted)">Total Earned</span>
-          <span class="mono text-gold" style="color:var(--gold);" id="refEarningsEl">$ 0.00 USDT</span>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
-          <span style="color:var(--text-muted)">This Month</span>
-          <span class="mono" style="color:var(--green);">$ 0.00 USDT</span>
-        </div>
-        <div class="flex justify-between text-sm" style="padding:8px 0;">
-          <span style="color:var(--text-muted)">Active Referrals</span>
-          <span style="color:var(--text-primary);font-weight:600;" id="activeRefEl">0</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card glass">
-      <div class="card-header"><div class="card-title">Commission Tiers</div></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
-        <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥉</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Bronze</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">1–4 referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">5%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥈</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Silver</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">5–19 referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">7%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-          <div style="font-size:24px;margin-bottom:8px;">🥇</div>
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Gold</div>
-          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">20+ referrals</div>
-          <div style="font-size:28px;font-weight:800;font-family:'Syne',sans-serif;color:var(--gold)">10%</div>
-          <div style="font-size:11px;color:var(--text-muted)">Commission</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: SETTINGS -->
-  <div id="tab-settings" class="tab-content" style="display:none;">
-    <div class="grid-2">
-      <div class="card glass mb-20">
-        <div class="card-header"><div class="card-title">Profile Settings</div></div>
-        <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="settingName" placeholder="Your name">
-        </div>
-        <div class="form-group">
-          <label>Email Address</label>
-          <input type="email" id="settingEmail" placeholder="you@example.com" readonly style="opacity:0.7;cursor:not-allowed;">
-        </div>
-        <div class="form-group">
-          <label>Country</label>
-          <select>
-            <option>India</option>
-            <option>United States</option>
-            <option>United Kingdom</option>
-            <option>Germany</option>
-            <option>Singapore</option>
-            <option>UAE</option>
-          </select>
-        </div>
-        <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
-      </div>
-
-      <div class="card glass mb-20">
-        <div class="card-header"><div class="card-title">Security</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Two-Factor Authentication</h4><p>Add an extra layer of security</p></div>
-          <label class="toggle"><input type="checkbox" id="toggle2fa"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Email Notifications</h4><p>Get alerts for payouts & activity</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleEmail" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Withdrawal Confirmation</h4><p>Require email confirm on withdrawals</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleWithdraw" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Login Alerts</h4><p>Notify on new device logins</p></div>
-          <label class="toggle"><input type="checkbox" id="toggleLogin" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <div class="card glass mb-20">
-        <div class="card-header"><div class="card-title">Mining Preferences</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Auto Reinvest Earnings</h4><p>Automatically reinvest daily mining rewards</p></div>
-          <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Mining Reports</h4><p>Weekly PDF performance reports</p></div>
-          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Low Hashrate Alerts</h4><p>Alert when efficiency drops below 90%</p></div>
-          <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <div class="card glass" style="border-color:rgba(239,68,68,0.2);">
-        <div class="card-header"><div class="card-title" style="color:var(--red)">Danger Zone</div></div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Change Password</h4><p>Update your login password</p></div>
-          <button class="btn btn-outline btn-sm">Change</button>
-        </div>
-        <div class="settings-item">
-          <div class="settings-info"><h4>Export Data</h4><p>Download all your account data</p></div>
-          <button class="btn btn-outline btn-sm">Export CSV</button>
-        </div>
-        <div class="settings-item" style="border-bottom:none;">
-          <div class="settings-info"><h4>Logout</h4><p>Sign out of this session</p></div>
-          <button class="btn btn-red btn-sm" data-logout>Logout</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</main>
-</div>
-
-<!-- Deposit Modal — USDT only -->
-<div class="modal-overlay" id="depositModal" style="display:none;">
-  <div class="modal" style="max-width:540px;">
-    <div class="modal-header">
-      <h3>📥 Submit USDT Deposit</h3>
-      <button class="modal-close" data-close-modal="depositModal">✕</button>
-    </div>
-    <form id="depositForm" class="deposit-form-modal">
-      <div class="form-group">
-        <label for="depositCoin">Payment Method</label>
-        <div class="select-wrapper">
-          <select id="depositCoin" name="coin" required>
-            <option value="" disabled selected>Choose deposit method</option>
-            <option value="usdt_bep20" selected>USDT (BEP20)</option>
-          </select>
-          <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="depositAmount">Amount (USDT)</label>
-        <div class="input-group deposit-input-group">
-          <input type="number" id="depositAmount" name="amount" step="0.01" min="10" placeholder="0.00" required>
-          <span class="input-suffix" id="amountSuffix">USDT</span>
-        </div>
-        <div class="deposit-hint" id="amountHint">Minimum deposit: 10 USDT</div>
-      </div>
-      <div class="form-group">
-        <label for="depositTxHash">Transaction Hash (TXID)</label>
-        <div class="input-group">
-          <span class="input-icon">🔗</span>
-          <input type="text" id="depositTxHash" name="txHash" placeholder="Paste your transaction hash here" required>
-        </div>
-        <div class="deposit-hint">You can find this in your wallet's transaction history</div>
-      </div>
-      <div class="form-group">
-        <label>Screenshot / Proof of Payment</label>
-        <div class="upload-area" id="uploadArea">
-          <input type="file" id="depositScreenshot" name="screenshot" accept="image/*" hidden>
-          <div class="upload-content" id="uploadContent">
-            <div class="upload-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <!-- TRANSACTIONS -->
+            <div data-admin-section="transactions" class="tab-content">
+                <div class="filters">
+                    <select id="transactionTypeFilter"><option value="all">All Types</option><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="mining">Mining</option><option value="purchase">Purchase</option><option value="referral">Referral</option></select>
+                    <input type="date" id="transactionDateFrom"><input type="date" id="transactionDateTo">
+                    <input type="text" id="transactionSearchInput" placeholder="Search user, type...">
+                    <button class="admin-btn admin-btn-outline" onclick="TransactionsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="transactionsTableWrap"></div>
+                <div class="pagination-bar" id="transactionsPagination"></div>
             </div>
-            <div class="upload-text">
-              <span class="upload-title">Click to upload screenshot</span>
-              <span class="upload-subtitle">or drag and drop here</span>
+
+            <!-- CONTRACTS -->
+            <div data-admin-section="contracts" class="tab-content">
+                <div class="filters">
+                    <select id="contractStatusFilter"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+                    <input type="text" id="contractSearchInput" placeholder="Search plan, user...">
+                    <button class="admin-btn admin-btn-outline" onclick="ContractsModule.export()">📥 CSV</button>
+                    <button class="admin-btn admin-btn-primary" onclick="ContractsModule.openCreateModal()">➕ Add Contract</button>
+                </div>
+                <div class="table-container" id="contractsTableWrap"></div>
+                <div class="pagination-bar" id="contractsPagination"></div>
             </div>
-            <div class="upload-formats">PNG, JPG, GIF up to 5MB</div>
-          </div>
-          <div class="upload-preview" id="uploadPreview" style="display:none;">
-            <img id="previewImage" src="" alt="Preview">
-            <div class="preview-overlay">
-              <button type="button" class="preview-remove" id="removePreview" title="Remove">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-              <span class="preview-filename" id="previewFilename">screenshot.png</span>
+
+            <!-- USERS -->
+            <div data-admin-section="users" class="tab-content">
+                <div class="filters">
+                    <select id="userStatusFilter"><option value="all">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="banned">Banned</option></select>
+                    <input type="text" id="userSearchInput" placeholder="Search users...">
+                    <button class="admin-btn admin-btn-outline" onclick="UsersModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="usersTableWrap"></div>
+                <div class="pagination-bar" id="usersPagination"></div>
             </div>
-          </div>
-        </div>
-      </div>
-      <div class="deposit-form-actions" style="margin-top:20px;">
-        <button type="submit" class="btn btn-green btn-full">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          Submit Deposit Request
+
+            <!-- REFERRALS -->
+            <div data-admin-section="referrals" class="tab-content">
+                <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+                    <div class="stat-card blue"><div class="stat-label">Total Referrals</div><div class="stat-value" id="refStatTotal">0</div></div>
+                    <div class="stat-card green"><div class="stat-label">Referral Earnings</div><div class="stat-value" id="refStatEarnings">0</div></div>
+                    <div class="stat-card gold"><div class="stat-label">Top Referrer</div><div class="stat-value" id="refStatTop">—</div></div>
+                    <div class="stat-card orange"><div class="stat-label">Conversion Rate</div><div class="stat-value" id="refStatConv">—</div></div>
+                </div>
+                <div class="grid-2">
+                    <div class="card"><div class="card-header"><div class="card-title">🏆 Referral Leaderboard</div></div><div id="referralLeaderboardWrap"></div></div>
+                    <div class="card"><div class="card-header"><div class="card-title">🔗 Referral Tree Search</div></div>
+                        <div style="padding:16px;"><input type="text" id="referralTreeSearch" placeholder="Enter email or user ID..." style="margin-bottom:12px;"><button class="admin-btn admin-btn-primary" onclick="ReferralModule.loadTree()">Load Tree</button><div id="referralTreeWrap" style="margin-top:16px;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTIFICATIONS -->
+            <div data-admin-section="notifications" class="tab-content">
+                <div class="grid-2">
+                    <div class="card"><div class="card-header"><div class="card-title">Send Notification</div></div>
+                        <div class="notif-form">
+                            <div class="form-group"><label>Target</label><select id="notifTarget"><option value="all">All Users</option><option value="specific">Specific User</option></select></div>
+                            <div class="form-group" id="notifUserGroup" style="display:none;"><label>User Email</label><input type="email" id="notifUserEmail" placeholder="user@example.com"></div>
+                            <div class="form-group"><label>Title</label><input type="text" id="notifTitle" placeholder="Notification title"></div>
+                            <div class="form-group"><label>Message</label><textarea id="notifMessage" rows="3" placeholder="Message content..."></textarea></div>
+                            <div class="form-group"><label>Type</label><select id="notifType"><option value="info">Info</option><option value="success">Success</option><option value="warning">Warning</option><option value="error">Error</option><option value="announcement">Announcement</option></select></div>
+                            <button class="admin-btn admin-btn-primary" id="sendNotifBtn">📤 Send Notification</button>
+                        </div>
+                    </div>
+                    <div class="card"><div class="card-header"><div class="card-title">Recent Notifications</div></div><div id="adminNotifTableWrap"></div></div>
+                </div>
+            </div>
+
+            <!-- LOGS -->
+            <div data-admin-section="logs" class="tab-content">
+                <div class="filters">
+                    <input type="date" id="logDateFrom"><input type="date" id="logDateTo">
+                    <input type="text" id="logSearchInput" placeholder="Search action, admin, target...">
+                    <button class="admin-btn admin-btn-outline" onclick="SecurityLogsModule.export()">📥 CSV</button>
+                </div>
+                <div class="table-container" id="logsTableWrap"></div>
+                <div class="pagination-bar" id="logsPagination"></div>
+            </div>
+
+<!-- NEW USERS -->
+             <div data-admin-section="new-users" class="tab-content">
+                 <div class="filters">
+                     <select id="newUserDateFilter">
+                         <option value="today" selected>Today</option>
+                         <option value="last-week">Last Week</option>
+                         <option value="last-month">Last Month</option>
+                     </select>
+                     <input type="text" id="newUserSearchInput" placeholder="Search new users...">
+                     <button class="admin-btn admin-btn-outline" onclick="NewUsersModule.export()">📥 CSV</button>
+                 </div>
+                <div class="table-container" id="newUsersTableWrap"></div>
+                <div class="pagination-bar" id="newUsersPagination"></div>
+            </div>
+
+<!-- EDIT OLD USER -->
+<div data-admin-section="edit-old-user" class="tab-content">
+
+    <div class="filters">
+        <input type="text" id="editOldUserSearchInput" placeholder="Search user by email or ID...">
+
+        <select id="editOldUserPlanFilter">
+            <option value="all">All Plans</option>
+            <option value="starter">Starter Plan</option>
+            <option value="silver">Silver Plan</option>
+            <option value="gold">Gold Plan</option>
+            <option value="platinum">Platinum Plan</option>
+        </select>
+
+        <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.loadUsers()">
+            🔍 Load Users
         </button>
-        <p class="deposit-form-note">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          Your deposit will be reviewed within 15–30 minutes during business hours.
-        </p>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Withdraw Modal — USDT -->
-<div class="modal-overlay" id="withdrawModal" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>📤 Withdraw USDT</h3>
-      <button class="modal-close" data-close-modal="withdrawModal">✕</button>
     </div>
-    <form id="withdrawForm">
-      <div class="form-group">
-        <label>USDT Wallet Address (BEP20)</label>
-        <div class="input-group">
-          <span class="input-icon">₮</span>
-          <input type="text" placeholder="0x..." required>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Amount (USDT)</label>
-        <div class="input-group">
-          <span class="input-icon">💰</span>
-          <input type="number" name="amount" step="0.01" min="10" placeholder="0.00" required>
-          <span class="input-suffix">USDT</span>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Min: 10 USDT · Network fee applies</div>
-      </div>
-      <div style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--red);margin-bottom:20px;">
-        ⚠️ Withdrawals are processed within 24 hours. Only send to BEP20 address. Double-check your address.
-      </div>
-      <button type="submit" class="btn btn-primary btn-full">Confirm Withdrawal</button>
-    </form>
-  </div>
-</div>
 
-<!-- Purchase Confirmation Modal -->
-<div class="modal-overlay" id="purchaseModal" style="display:none;">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header">
-      <h3>Confirm Purchase</h3>
-      <button class="modal-close" data-close-modal="purchaseModal">✕</button>
+    <!-- USERS TABLE -->
+    <div class="table-container" id="editOldUserTableWrap"></div>
+    <div class="pagination-bar" id="editOldUserPagination"></div>
+
+    <!-- EDIT FORM -->
+    <div id="editOldUserFormWrap" style="display:none;margin-top:20px;">
+        <div class="card">
+
+            <div class="card-header">
+                <div class="card-title">✏️ Edit Selected User</div>
+            </div>
+
+            <div style="padding:16px;">
+
+                <div class="grid-2">
+
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="eouName">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="eouEmail">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" id="eouPhone">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Country</label>
+                        <input type="text" id="eouCountry">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Plan</label>
+                        <select id="eouPlan">
+                            <option value="starter">Starter</option>
+                            <option value="silver">Silver</option>
+                            <option value="gold">Gold</option>
+                            <option value="platinum">Platinum</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="eouStatus">
+                            <option value="inactive">Inactive</option>
+                            <option value="active">Active</option>
+                            <option value="suspended">Suspended</option>
+                            <option value="banned">Banned</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Wallet Balance (USDT)</label>
+                        <input type="number" id="eouWalletBalance" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Daily Profit Balance</label>
+                        <input type="number" id="eouDailyProfit" step="0.01">
+                    </div>
+
+                </div>
+
+                <div style="margin-top:16px;">
+                    <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.saveEditForm()">
+                        💾 Save Changes
+                    </button>
+
+                    <button class="admin-btn admin-btn-outline"
+                        onclick="EditOldUserModule.clearForm()"
+                        style="margin-left:8px;">
+                        ❌ Clear
+                    </button>
+                </div>
+
+            </div>
+        </div>
     </div>
-    <div id="purchaseModalBody"></div>
-  </div>
 </div>
 
-<script src="dashboard.js"></script>
+<!-- OLD USERS -->
+             <div data-admin-section="old-users" class="tab-content">
+                 <div class="filters">
+                     <select id="oldUserDateFilter">
+                         <option value="last-week">Last Week</option>
+                         <option value="last-month">Last Month</option>
+                         <option value="all-time" selected>All Time</option>
+                     </select>
+                     <input type="text" id="oldUserSearchInput" placeholder="Search old users...">
+                     <button class="admin-btn admin-btn-outline" onclick="EditOldUserModule.export()">📥 CSV</button>
+                 
+                     <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.openEditForm()">✏️ Edit User</button></div>
+                <div class="table-container" id="oldUsersTableWrap"></div>
+                <div class="pagination-bar" id="oldUsersPagination"></div>
+            </div>
+        </main>
+    </div>
 
-<script>
-/* ─── REFERRAL SHARE FUNCTIONS ─── */
-function shareReferral(platform) {
-  const link = document.getElementById('refLinkDisplay')?.textContent || '';
-  if (!link || link === 'Loading your unique link…' || link === '—') {
-    alert('Your referral link is still loading. Please wait a moment and try again.');
-    return;
-  }
-  const text = 'Join me on CryptoVault and start earning USDT with cloud mining! Use my referral link: ' + link;
-  if (platform === 'whatsapp') {
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-  } else if (platform === 'twitter') {
-    window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
-  } else if (platform === 'email') {
-    window.location.href = 'mailto:?subject=' + encodeURIComponent('Join CryptoVault - USDT Mining') + '&body=' + encodeURIComponent(text);
-  }
-}
-</script>
+    <!-- USER DETAIL MODAL -->
+    <div id="userDetailModal" class="modal-overlay hidden">
+        <div class="modal modal-xl">
+            <div class="modal-header"><h3 id="udModalTitle">User Details</h3><button class="modal-close" onclick="UsersModule.closeModal()">×</button></div>
+            <div class="modal-body" id="userDetailBody"></div>
+        </div>
+    </div>
 
+    <!-- ENTITY EDIT/CREATE MODALS -->
+    <div id="entityModal" class="modal-overlay hidden"><div class="modal"><div class="modal-header"><h3 id="entityModalTitle">Edit</h3><button class="modal-close" onclick="closeEntityModal()">×</button></div><div class="modal-body" id="entityModalBody"></div></div></div>
+
+    <div id="toast" class="toast"></div>
+    <div id="lightbox" class="lightbox hidden"><span class="lightbox-close">×</span><img id="lightbox-img" src="" alt="Screenshot"></div>
+
+    <script src="admin.js"></script>
+
+    <!-- OLD USER EDIT MODAL -->
+    <div id="oldUserEditModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="oldUserEditModalTitle">Edit Old User</h3>
+                <button class="modal-close" onclick="EditOldUserModule.closeEditForm()">×</button>
+            </div>
+            <div class="modal-body" id="oldUserEditModalBody">
+                <!-- Edit form will be injected here by JS -->
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
