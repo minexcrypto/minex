@@ -28,6 +28,14 @@ function show(sel)           { const el=resolve(sel); if(el){ el.classList.remov
 function hide(sel)           { const el=resolve(sel); if(el){ el.classList.add('hidden'); el.classList.remove('open'); el.style.display='none'; } }
 function on(sel, evt, fn, ctx = document) { const el = typeof sel === 'string' ? $(sel, ctx) : (sel || null); if (el) el.addEventListener(evt, fn); }
 function resolve(sel) { return typeof sel === 'string' ? $(sel) : (sel || null); }
+function escapeHtml(text='') {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 /* ══════════════════════════════════════════════════════════════
    §3  UI PRIMITIVES
@@ -680,6 +688,93 @@ const EditOldUserModule = {
   _activeContractForRow(row){
     return row?._activeContract || null;
   },
+  _bulkRows(){
+    return this._filteredRows();
+  },
+  _syncBulkActionFields(){
+    const action=($('#eouBulkAction')?.value||'wallet_add').toLowerCase();
+    const walletSection=document.getElementById('eouBulkWalletSection');
+    const transactionSection=document.getElementById('eouBulkTransactionSection');
+    const dailySection=document.getElementById('eouBulkDailySection');
+    if(walletSection) walletSection.style.display = action==='wallet_add' ? '' : 'none';
+    if(transactionSection) transactionSection.style.display = action==='transaction' ? '' : 'none';
+    if(dailySection) dailySection.style.display = action==='daily_profit' ? '' : 'none';
+  },
+  openBulkEditForm(){
+    const rows=this._bulkRows();
+    if(!rows.length){ AdminUI.toast('No filtered users found. Load users and choose a plan first.','warning'); return; }
+    const title=document.getElementById('oldUserEditModalTitle');
+    const body=document.getElementById('oldUserEditModalBody');
+    if(title) title.textContent='Bulk Edit Filtered Users';
+    setHTML(body,`
+      <div style="margin-bottom:14px;padding:12px 14px;border:1px solid #1e2d45;border-radius:12px;background:#0d1117;color:#94a3b8;font-size:13px;">
+        Applies to <strong style="color:#f1f5f9;">${rows.length}</strong> filtered user${rows.length===1?'':'s'}.
+      </div>
+
+      <div class="form-group">
+        <label>Action</label>
+        <select id="eouBulkAction">
+          <option value="wallet_add">Wallet Balance Add</option>
+          <option value="transaction">Transaction Entry</option>
+          <option value="daily_profit">Set Daily Profit</option>
+        </select>
+      </div>
+
+      <div id="eouBulkWalletSection">
+        <div class="form-group">
+          <label>Amount to Add (USDT)</label>
+          <input type="number" id="eouBulkWalletAmount" step="0.01" placeholder="2">
+        </div>
+      </div>
+
+      <div id="eouBulkTransactionSection" style="display:none;">
+        <div class="form-group">
+          <label>Transaction Amount</label>
+          <input type="number" id="eouBulkTxAmount" step="0.00000001" placeholder="10">
+        </div>
+        <div class="form-group">
+          <label>Direction</label>
+          <select id="eouBulkTxDirection">
+            <option value="credit">Positive / Credit</option>
+            <option value="debit">Negative / Debit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Transaction Name</label>
+          <input type="text" id="eouBulkTxName" placeholder="Manual Adjustment">
+        </div>
+        <div class="form-group">
+          <label>Coin</label>
+          <select id="eouBulkTxCoin">
+            <option value="usdt_bep20">USDT</option>
+            <option value="btc">BTC</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="eouBulkDailySection" style="display:none;">
+        <div class="form-group">
+          <label>Daily Profit</label>
+          <input type="number" id="eouBulkDailyProfit" step="0.00000001" placeholder="2">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">
+        <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.saveBulkEdit()">Save Bulk Changes</button>
+        <button class="admin-btn admin-btn-outline" onclick="EditOldUserModule.closeBulkEditForm()">Cancel</button>
+      </div>
+    `);
+    show('#oldUserEditModal');
+    this._syncBulkActionFields();
+    on('#eouBulkAction','change',()=>this._syncBulkActionFields());
+  },
+  closeBulkEditForm(){
+    hide('#oldUserEditModal');
+    setHTML('#oldUserEditModalBody','');
+  },
+  closeEditForm(){
+    return this.closeBulkEditForm();
+  },
   async loadUsers(){
     const container=document.getElementById('editOldUserTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading users…'));
@@ -750,6 +845,7 @@ const EditOldUserModule = {
     `);
   },
   async openEditForm(userId){
+    if(!userId){ return this.openBulkEditForm(); }
     const row=this._rows.find(item=>item.id===userId);
     if(!row)return;
     this._selectedUser=row;
@@ -809,6 +905,77 @@ const EditOldUserModule = {
       AdminUI.toast('Update failed: '+err.message,'error');
     }
   },
+  async saveBulkEdit(){
+    const rows=this._bulkRows();
+    if(!rows.length){ AdminUI.toast('No filtered users found.','error'); return; }
+    const action=($('#eouBulkAction')?.value||'wallet_add').toLowerCase();
+    const userIds=rows.map(row=>row.id).filter(Boolean);
+    if(!userIds.length){ AdminUI.toast('No valid users selected.','error'); return; }
+
+    try{
+      if(action==='wallet_add'){
+        const amount=Number.parseFloat($('#eouBulkWalletAmount')?.value||'');
+        if(!Number.isFinite(amount) || amount===0){ AdminUI.toast('Enter a valid wallet amount.','error'); return; }
+        const { data: currentProfiles, error } = await sb.from('profiles').select('id,usdt_balance').in('id', userIds);
+        if(error) throw error;
+        const profileMap = new Map((currentProfiles||[]).map(p => [p.id, p]));
+        let updated=0;
+        for(const row of rows){
+          const current=Number(profileMap.get(row.id)?.usdt_balance ?? row.usdt_balance ?? 0);
+          const next=current+amount;
+          const { error: updateError } = await sb.from('profiles').update({ usdt_balance: next }).eq('id', row.id);
+          if(updateError) throw updateError;
+          updated++;
+        }
+        await logAdminAction('bulk_wallet_add','profiles','bulk:'+userIds.join(','),{action:'wallet_add',amount,targets:userIds.length},{action:'wallet_add',amount,targets:userIds.length});
+        AdminUI.toast(`Wallet balance updated for ${updated} user${updated===1?'':'s'}.`,'success');
+      } else if(action==='transaction'){
+        let amount=Number.parseFloat($('#eouBulkTxAmount')?.value||'');
+        if(!Number.isFinite(amount) || amount===0){ AdminUI.toast('Enter a valid transaction amount.','error'); return; }
+        const direction=($('#eouBulkTxDirection')?.value||'credit').toLowerCase();
+        amount=Math.abs(amount);
+        if(direction==='debit') amount=-amount;
+        const name=($('#eouBulkTxName')?.value||'').trim() || 'Manual Adjustment';
+        const coin=($('#eouBulkTxCoin')?.value||'usdt_bep20');
+        let created=0;
+        for(const row of rows){
+          const { error: txError } = await sb.from('transactions').insert({
+            user_id: row.id,
+            type: name,
+            coin,
+            amount,
+            status: 'success',
+            created_at: new Date().toISOString(),
+          });
+          if(txError) throw txError;
+          created++;
+        }
+        await logAdminAction('bulk_transaction_add','transactions','bulk:'+userIds.join(','),{action:'transaction',amount,name,coin,targets:userIds.length},{action:'transaction',amount,name,coin,targets:userIds.length});
+        AdminUI.toast(`Transaction entry added for ${created} user${created===1?'':'s'}.`,'success');
+      } else if(action==='daily_profit'){
+        const dailyProfit=Number.parseFloat($('#eouBulkDailyProfit')?.value||'');
+        if(!Number.isFinite(dailyProfit)){ AdminUI.toast('Enter a valid daily profit.','error'); return; }
+        const { data: contracts, error } = await sb.from('contracts').select('id,user_id,active').in('user_id', userIds);
+        if(error) throw error;
+        const activeContracts=(contracts||[]).filter(c=>c.active===true);
+        let updated=0;
+        for(const contract of activeContracts){
+          const { error: updateError } = await sb.from('contracts').update({ daily_profit: dailyProfit }).eq('id', contract.id);
+          if(updateError) throw updateError;
+          updated++;
+        }
+        await logAdminAction('bulk_daily_profit','contracts','bulk:'+userIds.join(','),{action:'daily_profit',dailyProfit,targets:userIds.length},{action:'daily_profit',dailyProfit,targets:userIds.length});
+        AdminUI.toast(`Daily profit updated for ${updated} contract${updated===1?'':'s'}.`,'success');
+      } else {
+        AdminUI.toast('Unknown bulk action.','error');
+        return;
+      }
+      this.closeBulkEditForm();
+      await this.loadUsers();
+    }catch(err){
+      AdminUI.toast('Bulk update failed: '+err.message,'error');
+    }
+  },
   // Explicit save handler name for direct button wiring.
   async saveEditForm(){
     return this.saveUser();
@@ -829,11 +996,14 @@ window.EditOldUserModule=EditOldUserModule;
 const TransactionsModule = {
   _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
+  _txLabel(row){
+    return row?.type || '—';
+  },
   async load(typeFilter='all'){
     const container=document.getElementById('transactionsTableWrap'); if(!container||!sb)return;
     setHTML(container,AdminUI.loading('Loading transactions…'));
     try{
-      let q=sb.from('transactions').select('id,user_id,amount,type,coin,status,created_at').order('created_at',{ascending:false}).limit(1000);
+      let q=sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(1000);
       if(typeFilter!=='all')q=q.eq('type',typeFilter);
       const{data,error}=await q; if(error)throw error; this._rows=data||[];
       const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
@@ -850,18 +1020,18 @@ const TransactionsModule = {
     if(!rows.length){ setHTML(container,AdminUI.empty('No transactions.')); return; }
     const html=rows.map(tx=>{
       const isUSDT=tx.coin==='usdt'||tx.coin==='usdt_bep20'; const coin=isUSDT?'USDT':'BTC'; const decimals=isUSDT?2:8;
-      const amt=Number(tx.amount||0).toFixed(decimals); const date=tx.created_at?new Date(tx.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—';
-      const isOut=tx.type==='withdrawal'||tx.type==='purchase'; const color=isOut?'#ef4444':'#10b981'; const sign=isOut?'-':'+';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id||'').slice(0,8)}…</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[tx.user_id]?.user_id || (tx.user_id?tx.user_id.slice(0,8)+'…':'—')}</span></td><td style="${TD}">${AdminUI.badge(tx.type)}</td><td style="${TD};font-family:monospace;color:${color};font-weight:600">${sign}${amt} ${coin}</td><td style="${TD}">${AdminUI.badge(tx.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openEditModal('${tx.id}')">✏️</button><button class="admin-btn admin-btn-danger" onclick="TransactionsModule.deleteTransaction('${tx.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
+      const rawAmount=Number(tx.amount||0); const absAmount=Math.abs(rawAmount).toFixed(decimals); const date=tx.created_at?new Date(tx.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—';
+      const isOut=rawAmount<0 || tx.type==='withdrawal' || tx.type==='purchase'; const color=isOut?'#ef4444':'#10b981'; const sign=isOut?'-':'+'; 
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id||'').slice(0,8)}…</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[tx.user_id]?.user_id || (tx.user_id?tx.user_id.slice(0,8)+'…':'—')}</span></td><td style="${TD};font-size:12px;color:#f1f5f9;font-weight:600">${escapeHtml(String(this._txLabel(tx)))}</td><td style="${TD};font-family:monospace;color:${color};font-weight:600">${sign}${absAmount} ${coin}</td><td style="${TD}">${AdminUI.badge(tx.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openEditModal('${tx.id}')">✏️</button><button class="admin-btn admin-btn-danger" onclick="TransactionsModule.deleteTransaction('${tx.id}')" style="margin-left:4px;">🗑</button></td></tr>`;
     }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Type</th><th style="${TH}">Amount</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
+    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Name</th><th style="${TH}">Amount</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
   openCreateModal(){
     const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
     if(title)title.textContent='Add Transaction';
     setHTML(body,`
       <div class="form-group"><label>User ID</label><input type="text" id="ntUserId" placeholder="uuid"></div>
-      <div class="form-group"><label>Type</label><select id="ntType"><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="mining">Mining</option><option value="purchase">Purchase</option><option value="referral">Referral</option></select></div>
+      <div class="form-group"><label>Transaction Name / Type</label><input type="text" id="ntType" placeholder="Deposit, Withdrawal, Bonus, Manual Adjust..."></div>
       <div class="form-group"><label>Coin</label><select id="ntCoin"><option value="btc">BTC</option><option value="usdt_bep20">USDT</option></select></div>
       <div class="form-group"><label>Amount</label><input type="number" id="ntAmount" step="0.00000001"></div>
       <div class="form-group"><label>Status</label><select id="ntStatus"><option value="success">Success</option><option value="pending">Pending</option><option value="failed">Failed</option></select></div>
@@ -883,14 +1053,14 @@ const TransactionsModule = {
     if(title)title.textContent='Edit Transaction';
     setHTML(body,`
       <div class="form-group"><label>Amount</label><input type="number" id="etAmount" value="${row.amount}" step="0.00000001"></div>
-      <div class="form-group"><label>Type</label><select id="etType"><option value="deposit" ${row.type==='deposit'?'selected':''}>Deposit</option><option value="withdrawal" ${row.type==='withdrawal'?'selected':''}>Withdrawal</option><option value="mining" ${row.type==='mining'?'selected':''}>Mining</option><option value="purchase" ${row.type==='purchase'?'selected':''}>Purchase</option><option value="referral" ${row.type==='referral'?'selected':''}>Referral</option></select></div>
+      <div class="form-group"><label>Transaction Name / Type</label><input type="text" id="etType" value="${escapeHtml(String(row.type||''))}"></div>
       <div class="form-group"><label>Status</label><select id="etStatus"><option value="success" ${row.status==='success'?'selected':''}>Success</option><option value="pending" ${row.status==='pending'?'selected':''}>Pending</option><option value="failed" ${row.status==='failed'?'selected':''}>Failed</option></select></div>
       <button class="admin-btn admin-btn-primary" onclick="TransactionsModule.saveEdit('${id}')">💾 Save</button>
     `);
     show('#entityModal');
   },
   async saveEdit(id){
-    const amount=parseFloat($('#etAmount')?.value||0); const type=$('#etType')?.value; const status=$('#etStatus')?.value;
+    const amount=parseFloat($('#etAmount')?.value||0); const type=($('#etType')?.value||'').trim(); const status=$('#etStatus')?.value;
     const old=this._rows.find(r=>r.id===id);
     const{error}=await sb.from('transactions').update({amount,type,status}).eq('id',id);
     if(error){ AdminUI.toast('Save failed: '+error.message,'error'); return; }
@@ -906,7 +1076,7 @@ const TransactionsModule = {
     this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deleted.','warning');
   },
   export(){
-    const headers=['ID','User ID','Type','Coin','Amount','Status','Created At'];
+    const headers=['ID','User ID','Name','Coin','Amount','Status','Created At'];
     const rows=this._rows.map(r=>[r.id,r.user_id||'',r.type||'',r.coin||'',r.amount||0,r.status||'',r.created_at||'']);
     downloadCSV('transactions.csv',[headers,...rows]);
   }
