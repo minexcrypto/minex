@@ -121,7 +121,7 @@ function getPlanMonthlyRateFromSource(source, fallback = null) {
 }
 
 function getPlanDurationFromSource(source, fallback = null) {
-  const days = Number(source?.durationDays ?? source?.plan_duration_days ?? source?.duration_days ?? fallback);
+  const days = Number(source?.durationDays ?? source?.duration_days ?? fallback);
   return Number.isFinite(days) && days > 0 ? Math.floor(days) : null;
 }
 
@@ -136,8 +136,7 @@ function getContractMonthlyRate(contract) {
 }
 
 function getContractDurationDays(contract) {
-  const planCfg = getPlanConfig(contract?.plan || contract?.name);
-  return getPlanDurationFromSource(contract, planCfg?.durationDays) ?? 0;
+  return getPlanDurationDays(contract?.plan || contract?.name) ?? 0;
 }
 
 function getPlanDurationDays(planName, fallbackDays = null) {
@@ -169,9 +168,7 @@ function getPlanMonthlyProfitUsd(planName, priceUsd = null) {
 }
 
 function getContractDurationDays(contract) {
-  const direct = getPlanDurationFromSource(contract);
-  if (direct) return direct;
-  return getPlanDurationDays(contract?.plan || contract?.name, contract?.plan_duration_days ?? contract?.duration_days ?? contract?.durationDays);
+  return getPlanDurationDays(contract?.plan || contract?.name) || 0;
 }
 
 function getContractExpiryDate(contract) {
@@ -300,7 +297,6 @@ function normalizeContractLifecycle(contract) {
     ...contract,
     plan_price: priceUsd ?? contract.plan_price ?? null,
     plan_monthly_rate: monthlyRate ?? contract.plan_monthly_rate ?? null,
-    plan_duration_days: durationDays ?? contract.plan_duration_days ?? null,
     days_left: expired ? 0 : (remainingDays ?? contract.days_left ?? null),
     active: contract.active === true && !expired,
   };
@@ -1529,7 +1525,6 @@ async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, d
       plan:           planName,
       plan_price:     cost,
       plan_monthly_rate: rate,
-      plan_duration_days: days,
       hashrate:       Number(hashrate),
       active:         true,
       daily_profit:   daily,
