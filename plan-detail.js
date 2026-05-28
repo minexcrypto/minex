@@ -139,8 +139,12 @@ const BTCPrice = (() => {
 
 /* ─── MINING PAYOUT HELPERS (match dashboard.js) ─────────── */
 const MINING_MS_PER_DAY = 24 * 60 * 60 * 1000;
-const PLAN_USDT_PRICES  = { Starter: 500, Silver: 2500, Gold: 5000, Platinum: 10000 };
-const PLAN_MONTHLY_RATE = { Starter: 0.10, Silver: 0.15, Gold: 0.20, Platinum: 0.25 };
+const PLAN_CONFIG = {
+  Starter:  { priceUsd: 500,   durationDays: 1460, monthlyRate: 0.05, hashrate: 10 },
+  Silver:   { priceUsd: 2500,  durationDays: 1095, monthlyRate: 0.10, hashrate: 50 },
+  Gold:     { priceUsd: 5000,  durationDays: 730,  monthlyRate: 0.15, hashrate: 100 },
+  Platinum: { priceUsd: 10000, durationDays: 365,  monthlyRate: 0.20, hashrate: 300 },
+};
 
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
@@ -152,15 +156,21 @@ function getDaysInCurrentMonth(refDate = new Date()) {
   return new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate();
 }
 
+function getPlanConfig(planName) {
+  return PLAN_CONFIG[String(planName || '').trim()] || null;
+}
+
 function getPlanPriceUsdt(contract) {
+  const planName = contract.plan || contract.name || '';
   return Number(contract.plan_price || 0)
-    || PLAN_USDT_PRICES[contract.plan || contract.name] || 0;
+    || getPlanConfig(planName)?.priceUsd
+    || 0;
 }
 
 function calcDailyProfitUsdt(planPrice, planName, refDate = new Date()) {
   if (!planPrice || planPrice <= 0) return 0;
-  const days = getDaysInCurrentMonth(refDate);
-  const monthlyRate = PLAN_MONTHLY_RATE[planName] ?? 0.10;
+  const days = 30;
+  const monthlyRate = getPlanConfig(planName)?.monthlyRate ?? 0.10;
   return (planPrice * monthlyRate) / days;
 }
 
@@ -174,8 +184,43 @@ function getDailyProfitUsdt(contract, refDate = new Date()) {
 function getMonthlyProfitUsdt(contract, refDate = new Date()) {
   const planName = contract.plan || contract.name || '';
   const planPrice = getPlanPriceUsdt(contract);
-  if (planPrice > 0) return planPrice * (PLAN_MONTHLY_RATE[planName] ?? 0.10);
+  if (planPrice > 0) return planPrice * (getPlanConfig(planName)?.monthlyRate ?? 0.10);
   return getDailyProfitUsdt(contract, refDate) * getDaysInCurrentMonth(refDate);
+}
+
+function getPlanDurationDays(contract) {
+  const planName = contract.plan || contract.name || '';
+  return Number(contract.plan_duration_days || contract.days_left || getPlanConfig(planName)?.durationDays || 0) || 0;
+}
+
+function getContractExpiryDate(contract) {
+  const durationDays = getPlanDurationDays(contract);
+  if (!durationDays) return null;
+  const createdAt = new Date(contract.created_at || Date.now());
+  return new Date(createdAt.getTime() + durationDays * MINING_MS_PER_DAY);
+}
+
+function getContractRemainingDays(contract, refDate = new Date()) {
+  const expiry = getContractExpiryDate(contract);
+  if (!expiry) return Number(contract.days_left || 0) || null;
+  const remainingMs = expiry.getTime() - refDate.getTime();
+  if (remainingMs <= 0) return 0;
+  return Math.max(1, Math.ceil(remainingMs / MINING_MS_PER_DAY));
+}
+
+function isContractExpired(contract, refDate = new Date()) {
+  const expiry = getContractExpiryDate(contract);
+  return !!expiry && refDate.getTime() >= expiry.getTime();
+}
+
+function getPayoutableCycles(contract, refDate = new Date()) {
+  const base = getPayoutAnchorDate(contract);
+  const elapsedCycles = Math.floor((refDate - base) / MINING_MS_PER_DAY);
+  if (elapsedCycles <= 0) return 0;
+  const expiry = getContractExpiryDate(contract);
+  if (!expiry) return elapsedCycles;
+  const cyclesBeforeExpiry = Math.max(0, Math.floor((expiry.getTime() - base.getTime()) / MINING_MS_PER_DAY));
+  return Math.max(0, Math.min(elapsedCycles, cyclesBeforeExpiry));
 }
 
 function getPayoutAnchorDate(contract) {
@@ -235,10 +280,12 @@ function renderPage(contract) {
 
   const planName = contract.plan || contract.name || 'Mining Contract';
   const hashrate = contract.hashrate != null ? contract.hashrate.toFixed(1) : '—';
-  const dailyProfit = getDailyProfitUsdt(contract);
+  const expired = isContractExpired(contract);
+  const dailyProfit = expired ? 0 : getDailyProfitUsdt(contract);
   const dailyProfitStr = formatUsdtDaily(dailyProfit);
   const progress = Math.min(100, Math.max(0, Number(contract.progress || 0)));
-  const daysLeft = contract.days_left != null ? contract.days_left : '∞';
+  const remainingDays = getContractRemainingDays(contract);
+  const daysLeft = remainingDays != null ? remainingDays : '∞';
 
   const startDate = contract.created_at ? new Date(contract.created_at) : new Date();
   const startDateStr = startDate.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -247,10 +294,13 @@ function renderPage(contract) {
   const now = new Date();
   const msPerDay = 24 * 60 * 60 * 1000;
   const elapsedMs = now - startDate;
-  const daysActive = Math.max(0, elapsedMs / msPerDay);
-  const totalEarned = dailyProfit * daysActive;
+  const durationDays = getPlanDurationDays(contract);
+  const planDailyProfit = getDailyProfitUsdt(contract);
+  const daysActive = Math.max(0, Math.min(elapsedMs / msPerDay, durationDays || elapsedMs / msPerDay));
+  const payoutDays = durationDays > 0 ? Math.min(daysActive, durationDays) : daysActive;
+  const totalEarned = planDailyProfit * payoutDays;
   const totalEarnedStr = formatUsdtDaily(totalEarned);
-  const dailyProfitUSD = '';
+  const dailyProfitUSD = '$ ' + dailyProfit.toFixed(2) + ' USDT';
   const projectedMonthly = getMonthlyProfitUsdt(contract);
   const projectedMonthlyStr = formatUsdtDaily(projectedMonthly);
   const monthLabel = new Date().toLocaleString('en-US', { month: 'long' });
@@ -279,7 +329,7 @@ function renderPage(contract) {
 
   // Daily Earnings Card
   setText('planDailyEarnings', dailyProfitStr);
-  setText('planDailyEarningsUSD', dailyProfitUSD || ('~$' + dailyProfit.toFixed(2) + '/day · ' + monthLabel + ' (' + daysInMonth + ' days)'));
+  setText('planDailyEarningsUSD', dailyProfitUSD || ('~$' + dailyProfit.toFixed(2) + ' USDT/day · ' + monthLabel + ' (' + daysInMonth + ' days)'));
 
   // Chart Stats
   setText('planChartTotal', totalEarnedStr);
@@ -292,7 +342,7 @@ function renderPage(contract) {
   setText('infoStartDate', startDateStr + ' at ' + startTimeStr);
   setText('infoHashrate', hashrate + ' TH/s');
   setText('infoDailyProfit', dailyProfitStr + ' / day');
-  setText('infoStatus', contract.active ? '● Active' : '● Inactive');
+  setText('infoStatus', expired ? '● Expired' : (contract.active ? '● Active' : '● Inactive'));
 
   // Start Live Timer
   if (_timerInterval) clearInterval(_timerInterval);
@@ -323,6 +373,17 @@ function formatCountdown(ms) {
 
 /* ─── LIVE TIMER ─────────────────────────────────────────── */
 function updateTimer(contract) {
+  if (isContractExpired(contract)) {
+    const timerEl = $('planDetailTimer');
+    if (timerEl) timerEl.textContent = '00:00:00';
+    if (contract && contract.id && !contract._timerExpiredHandled) {
+      contract._timerExpiredHandled = true;
+      _supabase?.from('contracts').update({ active: false, days_left: 0 }).eq('id', contract.id).catch(() => {});
+      contract.active = false;
+    }
+    return;
+  }
+
   const base = getPayoutAnchorDate(contract);
   const now = new Date();
   const elapsed = now - base;
@@ -352,6 +413,7 @@ function updateTimer(contract) {
 
 async function repairContractAnchor(contract, miningTxns) {
   if (!contract?.created_at || !_supabase) return contract;
+  if (isContractExpired(contract)) return contract;
 
   const user = Auth.getUser();
   if (!user) return contract;
@@ -384,8 +446,9 @@ async function repairContractAnchor(contract, miningTxns) {
   }
 
   const patch = { last_payout_at: correctAnchor, daily_profit: daily };
-  if (!contract.plan_price && PLAN_USDT_PRICES[contract.plan]) {
-    patch.plan_price = PLAN_USDT_PRICES[contract.plan];
+  const planCfg = getPlanConfig(contract.plan);
+  if (!contract.plan_price && planCfg?.priceUsd) {
+    patch.plan_price = planCfg.priceUsd;
   }
 
   const { error } = await _supabase.from('contracts').update(patch).eq('id', contract.id);
@@ -402,9 +465,20 @@ async function triggerPayout(contract) {
     if (!user || !_supabase) return;
 
     const now   = new Date();
-    const base  = getPayoutAnchorDate(contract);
-    const cycles = Math.floor((now - base) / MINING_MS_PER_DAY);
-    if (cycles <= 0) return;
+    const cycles = getPayoutableCycles(contract, now);
+    if (cycles <= 0) {
+      if (isContractExpired(contract, now) && contract.active !== false) {
+        const { error: expireErr } = await _supabase
+          .from('contracts')
+          .update({ active: false, days_left: 0 })
+          .eq('id', contract.id);
+        if (!expireErr) {
+          contract.active = false;
+          contract.days_left = 0;
+        }
+      }
+      return;
+    }
 
     const dailyProfit = getDailyProfitUsdt(contract);
     if (!dailyProfit || dailyProfit <= 0) return;
@@ -442,13 +516,18 @@ async function triggerPayout(contract) {
     const newLastPayout = computeAlignedLastPayoutAt(contract, cycles);
     const { error: cErr } = await _supabase
       .from('contracts')
-      .update({ last_payout_at: newLastPayout, daily_profit: dailyProfit })
+      .update({
+        last_payout_at: newLastPayout,
+        daily_profit: dailyProfit,
+        active: !isContractExpired(contract, now),
+      })
       .eq('id', contract.id);
     if (cErr) throw cErr;
 
     contract.last_payout_at = newLastPayout;
     contract.daily_profit = dailyProfit;
     contract._payoutTriggered = false;
+    contract.active = !isContractExpired(contract, now);
 
     Toast.show(`✅ Mining payout credited: $${payoutUSDT.toFixed(2)} USDT`, 'success', 4500);
     renderPage(contract);
@@ -470,7 +549,8 @@ function drawEarningsChart(contract) {
 
   const start = new Date(contract.created_at || Date.now());
   const now = new Date();
-  const days = Math.min(30, Math.ceil((now - start) / (24 * 60 * 60 * 1000)));
+  const durationDays = getPlanDurationDays(contract);
+  const days = Math.min(durationDays > 0 ? durationDays : 30, Math.min(30, Math.ceil((now - start) / (24 * 60 * 60 * 1000))));
   const dailyProfit = Number(contract.daily_profit || 0);
 
   if (days <= 0 || dailyProfit <= 0) {
