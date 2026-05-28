@@ -79,7 +79,7 @@ const AdminUI = {
   activateTab(name) {
     $$('[data-admin-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab===name));
     $$('[data-admin-section]').forEach(sec => { const match=sec.dataset.adminSection===name; sec.classList.toggle('active',match); sec.style.display=match?'':'none'; });
-    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs' };
+    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs', 'new-users':'New Users', 'old-users':'Old Users' };
     setText('#adminPageTitle', TITLES[name]||name);
   },
 };
@@ -730,44 +730,9 @@ const TransactionsModule = {
   },
   async deleteTransaction(id){
     if(!confirm('Delete this transaction?'))return;
-
-    const { data: tx, error: fetchErr } = await sb
-      .from('transactions')
-      .select('id,user_id,type,coin,amount,status')
-      .eq('id', id)
-      .maybeSingle();
-    if(fetchErr){ AdminUI.toast('Load failed: '+fetchErr.message,'error'); return; }
-
-    // Roll back wallet balance for successful mining/deposit/withdrawal USDT transactions
-    if(tx && tx.user_id && tx.status === 'success'){
-      const isUSDT = tx.coin === 'usdt' || tx.coin === 'usdt_bep20';
-      const amt    = Number(tx.amount || 0);
-      if(isUSDT && amt > 0){
-        const sign =
-          tx.type === 'deposit'  ? -1 :
-          tx.type === 'withdrawal' ? +1 :
-          tx.type === 'mining'   ? -1 :
-          tx.type === 'referral' ? -1 : 0;
-        if(sign !== 0){
-          const { data: prof } = await sb
-            .from('profiles')
-            .select('usdt_balance')
-            .eq('id', tx.user_id)
-            .maybeSingle();
-          if(prof){
-            const current = Number(prof.usdt_balance || 0);
-            const nextBal = current + sign * amt;
-            await sb.from('profiles')
-              .update({ usdt_balance: nextBal < 0 ? 0 : nextBal })
-              .eq('id', tx.user_id);
-          }
-        }
-      }
-    }
-
     const{error}=await sb.from('transactions').delete().eq('id',id);
     if(error){ AdminUI.toast('Delete failed: '+error.message,'error'); return; }
-    await logAdminAction('delete_transaction','transactions',id,tx,null);
+    await logAdminAction('delete_transaction','transactions',id,null,null);
     this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deleted.','warning');
   },
   export(){
@@ -960,225 +925,306 @@ const ReferralModule = {
 };
 
 /* ══════════════════════════════════════════════════════════════
-   §17  SECURITY LOGS MODULE
-══════════════════════════════════════════════════════════════ */
+    §17  SECURITY LOGS MODULE
+ ══════════════════════════════════════════════════════════════ */
 const SecurityLogsModule = {
-  _rows:[], _page:1, _pageSize:25,
+   _rows:[], _page:1, _pageSize:25,
+   goPage(n){ this._page=n; this._renderPage(); },
+   async load(){
+     const container=document.getElementById('logsTableWrap'); if(!container||!sb)return;
+     setHTML(container,AdminUI.loading('Loading logs…'));
+     try{
+       const{data,error}=await sb.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(1000);
+       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
+     }catch(err){ setHTML(container,AdminUI.error('Could not load logs: '+err.message)); }
+   },
+   _renderPage(){
+     const container=document.getElementById('logsTableWrap');
+     this._render(container,this._rows);
+   },
+   _render(container,rows){
+     if(!rows.length){ setHTML(container,AdminUI.empty('No logs.')); return; }
+     const html=rows.map(l=>{
+       const date=l.created_at?new Date(l.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—';
+       return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(l.id||'').slice(0,8)}…</td><td style="${TD}">${l.admin_email||'—'}</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;">${l.action}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${l.target_table||'—'} ${l.target_id?'<br><span style="font-size:10px;color:#64748b;">'+l.target_id.slice(0,12)+'…</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
+     }).join('');
+     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">Admin</th><th style="${TH}">Action</th><th style="${TH}">Target</th><th style="${TH}">Date</th></tr></thead><tbody>${html}</tbody></table>`);
+   },
+   export(){
+     const headers=['ID','Admin Email','Action','Target Table','Target ID','Old Value','New Value','Created At'];
+     const rows=this._rows.map(r=>[r.id,r.admin_email||'',r.action||'',r.target_table||'',r.target_id||'',JSON.stringify(r.old_value)||'',JSON.stringify(r.new_value)||'',r.created_at||'']);
+     downloadCSV('admin_logs.csv',[headers,...rows]);
+}
+};
+window.SecurityLogsModule=SecurityLogsModule;
+
+/* ══════════════════════════════════════════════════════════════
+    §18  GLOBAL SEARCH
+ ══════════════════════════════════════════════════════════════ */
+const GlobalSearch = {
+   async execute(){
+      const term=$('#globalSearchInput')?.value?.trim(); if(!term){ AdminUI.toast('Enter search term.','warning'); return; }
+      AdminUI.toast('Searching…','info',2000);
+      try{
+        const promises=[
+          sb.from('profiles').select('id,email,name').or(`email.ilike.%${term}%,name.ilike.%${term}%`).limit(10),
+          sb.from('deposits').select('id,user_email,amount,status').or(`user_email.ilike.%${term}%,tx_hash.ilike.%${term}%`).limit(10),
+          sb.from('withdrawals').select('id,user_email,amount,status').or(`user_email.ilike.%${term}%,address.ilike.%${term}%`).limit(10),
+          sb.from('transactions').select('id,user_id,type,amount').or(`user_id.ilike.%${term}%`).limit(10),
+        ];
+        const[{data:users},{data:deps},{data:withs},{data:txs}]=await Promise.all(promises);
+        let html=`<div style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:16px;">🔍 Results for "${term}"</div>`;
+        html+=`<div style="margin-bottom:12px;"><strong style="color:#f59e0b;">Users (${(users||[]).length})</strong></div>`+(users||[]).map(u=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;cursor:pointer;" onclick="AdminUI.activateTab('users'); UsersModule.openUserModal('${u.id}')">${u.name||'—'} · ${u.email||'—'}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No users.</div>';
+        html+=`<div style="margin:16px 0 12px;"><strong style="color:#f59e0b;">Deposits (${(deps||[]).length})</strong></div>`+(deps||[]).map(d=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;">${d.user_email||'—'} · ${d.amount} ${d.coin||'BTC'} · ${AdminUI.badge(d.status)}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No deposits.</div>';
+        AdminUI.toast(html,'info',8000);
+      }catch(err){ AdminUI.toast('Search error: '+err.message,'error'); }
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+    §19  NEW USERS MODULE
+ ══════════════════════════════════════════════════════════════ */
+const NewUsersModule = {
+   _rows:[], _page:1, _pageSize:25, _dateRange:'all',
+   goPage(n){ this._page=n; this._renderPage(); },
+   async load(range='all'){
+     this._dateRange=range;
+     const container=document.getElementById('newUsersTableWrap'); if(!container||!sb)return;
+     setHTML(container,AdminUI.loading('Loading new users…'));
+     try{
+       const dateFilter=new Date(Date.now()-7*24*60*60*1000).toISOString();
+       const{data,error}=await sb.from('profiles').select('id,email,name,user_id,btc_balance,usdt_balance,is_active,is_admin,is_banned,is_suspended,ref_code,created_at').gte('created_at',dateFilter).order('created_at',{ascending:false}).limit(1000);
+       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
+     }catch(err){ setHTML(container,AdminUI.error('Could not load new users: '+err.message)); }
+   },
+   _renderPage(){
+     const container=document.getElementById('newUsersTableWrap'); const filter=$('#newUserSearchInput')?.value?.toLowerCase()||'';
+     let rows=this._rows; if(filter)rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.id||'')).toLowerCase().includes(filter));
+     paginate(rows,this._pageSize,this._page,'newUsersPagination',(pageRows)=>this._render(container,pageRows),'NewUsersModule');
+   },
+   _render(container,rows){
+     if(!rows.length){ setHTML(container,AdminUI.empty('No new users found.')); return; }
+     const html=rows.map(u=>{
+       const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
+       let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
+return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-size:12px;color:#94a3b8">${joined}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td></tr>`;
+      }).join('');
+      setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Joined</th><th style="${TH}">Status</th></tr></thead><tbody>${html}</tbody></table>`);
+   },
+   export(){
+     const headers=['ID','Email','Name','User ID','Active','Admin','Banned','Suspended','Ref Code','Created'];
+     const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
+     downloadCSV('new_users.csv',[headers,...rows]);
+   }
+};
+window.NewUsersModule=NewUsersModule;
+
+/* ══════════════════════════════════════════════════════════════
+    §20  OLD USERS MODULE
+ ══════════════════════════════════════════════════════════════ */
+const OldUsersModule = {
+  _rows:[], _page:1, _pageSize:25, _dateRange:'all',
   goPage(n){ this._page=n; this._renderPage(); },
-  async load(){
-    const container=document.getElementById('logsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading logs…'));
+  async load(range='all'){
+    this._dateRange=range;
+    const container=document.getElementById('oldUsersTableWrap'); if(!container||!sb)return;
+    setHTML(container,AdminUI.loading('Loading old users…'));
     try{
-      const{data,error}=await sb.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(1000);
+      const dateFilter=new Date(Date.now()-30*24*60*60*1000).toISOString();
+      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,btc_balance,usdt_balance,is_active,is_admin,is_banned,is_suspended,ref_code,created_at').lte('created_at',dateFilter).order('created_at',{ascending:false}).limit(1000);
       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
-    }catch(err){ setHTML(container,AdminUI.error('Could not load logs: '+err.message)); }
+    }catch(err){ setHTML(container,AdminUI.error('Could not load old users: '+err.message)); }
   },
   _renderPage(){
-    const container=document.getElementById('logsTableWrap'); const filter=$('#logSearchInput')?.value?.toLowerCase()||'';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.action||'')+(r.admin_email||'')+(r.target_table||'')).toLowerCase().includes(filter));
-    paginate(rows,this._pageSize,this._page,'logsPagination',(pageRows)=>this._render(container,pageRows),'SecurityLogsModule');
+    const container=document.getElementById('oldUsersTableWrap'); const filter=$('#oldUserSearchInput')?.value?.toLowerCase()||'';
+    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.id||'')).toLowerCase().includes(filter));
+    paginate(rows,this._pageSize,this._page,'oldUsersPagination',(pageRows)=>this._render(container,pageRows),'OldUsersModule');
   },
   _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No logs.')); return; }
-    const html=rows.map(l=>{
-      const date=l.created_at?new Date(l.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(l.id||'').slice(0,8)}…</td><td style="${TD}">${l.admin_email||'—'}</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;">${l.action}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${l.target_table||'—'} ${l.target_id?'<br><span style="font-size:10px;color:#64748b;">'+l.target_id.slice(0,12)+'…</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
+    if(!rows.length){ setHTML(container,AdminUI.empty('No old users found.')); return; }
+    const html=rows.map(u=>{
+      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
+      let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-size:12px;color:#94a3b8">${joined}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td></tr>`;
     }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">Admin</th><th style="${TH}">Action</th><th style="${TH}">Target</th><th style="${TH}">Date</th></tr></thead><tbody>${html}</tbody></table>`);
+    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Joined</th><th style="${TH}">Status</th></tr></thead><tbody>${html}</tbody></table>`);
   },
-  export(){
-    const headers=['ID','Admin Email','Action','Target Table','Target ID','Old Value','New Value','Created At'];
-    const rows=this._rows.map(r=>[r.id,r.admin_email||'',r.action||'',r.target_table||'',r.target_id||'',JSON.stringify(r.old_value)||'',JSON.stringify(r.new_value)||'',r.created_at||'']);
-    downloadCSV('admin_logs.csv',[headers,...rows]);
-  }
+export(){
+     const headers=['ID','Email','Name','User ID','Active','Admin','Banned','Suspended','Ref Code','Created'];
+     const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
+     downloadCSV('old_users.csv',[headers,...rows]);
+   }
 };
+window.OldUsersModule=OldUsersModule;
 
 /* ══════════════════════════════════════════════════════════════
-   §18  GLOBAL SEARCH
-══════════════════════════════════════════════════════════════ */
-const GlobalSearch = {
-  async execute(){
-    const term=$('#globalSearchInput')?.value?.trim(); if(!term){ AdminUI.toast('Enter search term.','warning'); return; }
-    AdminUI.toast('Searching…','info',2000);
-    try{
-      const promises=[
-        sb.from('profiles').select('id,email,name').or(`email.ilike.%${term}%,name.ilike.%${term}%`).limit(10),
-        sb.from('deposits').select('id,user_email,amount,status').or(`user_email.ilike.%${term}%,tx_hash.ilike.%${term}%`).limit(10),
-        sb.from('withdrawals').select('id,user_email,amount,status').or(`user_email.ilike.%${term}%,address.ilike.%${term}%`).limit(10),
-        sb.from('transactions').select('id,user_id,type,amount').or(`user_id.ilike.%${term}%`).limit(10),
-      ];
-      const[{data:users},{data:deps},{data:withs},{data:txs}]=await Promise.all(promises);
-      let html=`<div style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:16px;">🔍 Results for "${term}"</div>`;
-      html+=`<div style="margin-bottom:12px;"><strong style="color:#f59e0b;">Users (${(users||[]).length})</strong></div>`+(users||[]).map(u=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;cursor:pointer;" onclick="AdminUI.activateTab('users'); UsersModule.openUserModal('${u.id}')">${u.name||'—'} · ${u.email||'—'}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No users.</div>';
-      html+=`<div style="margin:16px 0 12px;"><strong style="color:#f59e0b;">Deposits (${(deps||[]).length})</strong></div>`+(deps||[]).map(d=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;">${d.user_email||'—'} · ${d.amount} ${d.coin||'BTC'} · ${AdminUI.badge(d.status)}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No deposits.</div>';
-      AdminUI.toast(html,'info',8000);
-    }catch(err){ AdminUI.toast('Search error: '+err.message,'error'); }
-  }
-};
-
-/* ══════════════════════════════════════════════════════════════
-   §19  CSV EXPORT
-══════════════════════════════════════════════════════════════ */
+    §21  CSV EXPORT
+ ══════════════════════════════════════════════════════════════ */
 function downloadCSV(filename, rows){
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+   const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §20  PROFILE FETCH HELPER
-══════════════════════════════════════════════════════════════ */
+    §22  PROFILE FETCH HELPER
+ ══════════════════════════════════════════════════════════════ */
 async function _fetchProfiles(userIds){
-  if(!sb||!userIds.length)return{};
-  const{data,error}=await sb.from('profiles').select('id,email,name,user_id').in('id',userIds);
-  if(error){ console.warn('Profile fetch error:',error.message); return{}; }
-  const map={}; (data||[]).forEach(p=>{map[p.id]=p;}); return map;
+   if(!sb||!userIds.length)return{};
+   const{data,error}=await sb.from('profiles').select('id,email,name,user_id').in('id',userIds);
+   if(error){ console.warn('Profile fetch error:',error.message); return{}; }
+   const map={}; (data||[]).forEach(p=>{map[p.id]=p;}); return map;
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §21  SEARCH / FILTER WIRING
-══════════════════════════════════════════════════════════════ */
+    §23  SEARCH / FILTER WIRING
+ ══════════════════════════════════════════════════════════════ */
 function initFilters(){
-  on('#depositStatusFilter','change',e=>{ DepositsModule.load(e.target.value||'all'); });
-  on('#withdrawalStatusFilter','change',e=>{ WithdrawalsModule.load(e.target.value||'all'); });
-  on('#transactionTypeFilter','change',e=>{ TransactionsModule.load(e.target.value||'all'); });
-  on('#contractStatusFilter','change',e=>{ ContractsModule.load(); });
-  on('#userStatusFilter','change',e=>{ UsersModule._renderPage(); });
-  on('#depositSearchInput','input',()=>{ DepositsModule._page=1; DepositsModule._renderPage(); });
-  on('#withdrawalSearchInput','input',()=>{ WithdrawalsModule._page=1; WithdrawalsModule._renderPage(); });
-  on('#transactionSearchInput','input',()=>{ TransactionsModule._page=1; TransactionsModule._renderPage(); });
-  on('#contractSearchInput','input',()=>{ ContractsModule._page=1; ContractsModule._renderPage(); });
-  on('#userSearchInput','input',()=>{ UsersModule._page=1; UsersModule._renderPage(); });
-  on('#logSearchInput','input',()=>{ SecurityLogsModule._page=1; SecurityLogsModule._renderPage(); });
-  on('#globalSearchBtn','click',()=>GlobalSearch.execute());
-  on('#globalSearchInput','keydown',e=>{ if(e.key==='Enter')GlobalSearch.execute(); });
+   on('#depositStatusFilter','change',e=>{ DepositsModule.load(e.target.value||'all'); });
+   on('#withdrawalStatusFilter','change',e=>{ WithdrawalsModule.load(e.target.value||'all'); });
+   on('#transactionTypeFilter','change',e=>{ TransactionsModule.load(e.target.value||'all'); });
+   on('#contractStatusFilter','change',e=>{ ContractsModule.load(); });
+   on('#userStatusFilter','change',e=>{ UsersModule._renderPage(); });
+   on('#depositSearchInput','input',()=>{ DepositsModule._page=1; DepositsModule._renderPage(); });
+   on('#withdrawalSearchInput','input',()=>{ WithdrawalsModule._page=1; WithdrawalsModule._renderPage(); });
+   on('#transactionSearchInput','input',()=>{ TransactionsModule._page=1; TransactionsModule._renderPage(); });
+   on('#contractSearchInput','input',()=>{ ContractsModule._page=1; ContractsModule._renderPage(); });
+   on('#userSearchInput','input',()=>{ UsersModule._page=1; UsersModule._renderPage(); });
+   on('#logSearchInput','input',()=>{ SecurityLogsModule._page=1; SecurityLogsModule._renderPage(); });
+   on('#newUserSearchInput','input',()=>{ NewUsersModule._page=1; NewUsersModule._renderPage(); });
+   on('#oldUserSearchInput','input',()=>{ OldUsersModule._page=1; OldUsersModule._renderPage(); });
+   on('#globalSearchBtn','click',()=>GlobalSearch.execute());
+   on('#globalSearchInput','keydown',e=>{ if(e.key==='Enter')GlobalSearch.execute(); });
 }
 
 function initNotificationForm(){
-  on('#notifTarget','change',e=>{ const grp=document.getElementById('notifUserGroup'); if(grp)grp.style.display=e.target.value==='specific'?'':'none'; });
-  on('#sendNotifBtn','click',e=>{ e.preventDefault(); NotificationsModule.send(); });
+   on('#notifTarget','change',e=>{ const grp=document.getElementById('notifUserGroup'); if(grp)grp.style.display=e.target.value==='specific'?'':'none'; });
+   on('#sendNotifBtn','click',e=>{ e.preventDefault(); NotificationsModule.send(); });
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §22  REALTIME
-══════════════════════════════════════════════════════════════ */
+    §24  REALTIME
+ ══════════════════════════════════════════════════════════════ */
 function initRealtime(){
-  if(typeof sb?.channel!=='function')return;
-  try{
-    const channel=sb.channel('admin-realtime');
-    channel.on('postgres_changes',{event:'INSERT',schema:'public',table:'deposits'},payload=>{
-      if(payload.new?.status==='pending'){
-        AdminUI.toast('🆕 New deposit request.','info',6000);
-        const badge=document.getElementById('sidebarDepositBadge'); const cur=parseInt(badge?.textContent||'0',10);
-        setText('#sidebarDepositBadge',String(cur+1)); if(badge)badge.style.display='inline-flex';
-      }
-      DepositsModule.load($('#depositStatusFilter')?.value||'all');
-      OverviewModule._depositStats();
-    })
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'deposits'},()=>{
-      DepositsModule.load($('#depositStatusFilter')?.value||'all'); OverviewModule._depositStats();
-    })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'withdrawals'},payload=>{
-      if(payload.new?.status==='pending'){
-        AdminUI.toast('🆕 New withdrawal request.','info',6000);
-        const badge=document.getElementById('sidebarWithdrawalBadge'); const cur=parseInt(badge?.textContent||'0',10);
-        setText('#sidebarWithdrawalBadge',String(cur+1)); if(badge)badge.style.display='inline-flex';
-      }
-      WithdrawalsModule.load($('#withdrawalStatusFilter')?.value||'all'); OverviewModule._withdrawalStats();
-    })
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'withdrawals'},()=>{
-      WithdrawalsModule.load($('#withdrawalStatusFilter')?.value||'all'); OverviewModule._withdrawalStats();
-    })
-    .on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>{
-      TransactionsModule.load($('#transactionTypeFilter')?.value||'all');
-    })
-    .on('postgres_changes',{event:'*',schema:'public',table:'contracts'},()=>{
-      ContractsModule.load();
-    })
-    .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>{
-      UsersModule.load(); OverviewModule._userStats();
-    })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_logs'},()=>{
-      if(_loaded.has('logs'))SecurityLogsModule.load();
-      OverviewModule._activityFeed();
-    })
-    .subscribe(status=>{ if(status==='SUBSCRIBED')console.info('[Admin] Realtime subscribed.'); });
-  }catch(err){ console.warn('[Admin] Realtime unavailable:',err.message); }
+   if(typeof sb?.channel!=='function')return;
+   try{
+     const channel=sb.channel('admin-realtime');
+     channel.on('postgres_changes',{event:'INSERT',schema:'public',table:'deposits'},payload=>{
+       if(payload.new?.status==='pending'){
+         AdminUI.toast('🆕 New deposit request.','info',6000);
+         const badge=document.getElementById('sidebarDepositBadge'); const cur=parseInt(badge?.textContent||'0',10);
+         setText('#sidebarDepositBadge',String(cur+1)); if(badge)badge.style.display='inline-flex';
+       }
+       DepositsModule.load($('#depositStatusFilter')?.value||'all');
+       OverviewModule._depositStats();
+     })
+     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'deposits'},()=>{
+       DepositsModule.load($('#depositStatusFilter')?.value||'all'); OverviewModule._depositStats();
+     })
+     .on('postgres_changes',{event:'INSERT',schema:'public',table:'withdrawals'},payload=>{
+       if(payload.new?.status==='pending'){
+         AdminUI.toast('🆕 New withdrawal request.','info',6000);
+         const badge=document.getElementById('sidebarWithdrawalBadge'); const cur=parseInt(badge?.textContent||'0',10);
+         setText('#sidebarWithdrawalBadge',String(cur+1)); if(badge)badge.style.display='inline-flex';
+       }
+       WithdrawalsModule.load($('#withdrawalStatusFilter')?.value||'all'); OverviewModule._withdrawalStats();
+     })
+     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'withdrawals'},()=>{
+       WithdrawalsModule.load($('#withdrawalStatusFilter')?.value||'all'); OverviewModule._withdrawalStats();
+     })
+     .on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>{
+       TransactionsModule.load($('#transactionTypeFilter')?.value||'all');
+     })
+     .on('postgres_changes',{event:'*',schema:'public',table:'contracts'},()=>{
+       ContractsModule.load();
+     })
+     .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>{
+       UsersModule.load(); OverviewModule._userStats();
+     })
+     .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_logs'},()=>{
+       if(_loaded.has('logs'))SecurityLogsModule.load();
+       OverviewModule._activityFeed();
+     })
+     .subscribe(status=>{ if(status==='SUBSCRIBED')console.info('[Admin] Realtime subscribed.'); });
+   }catch(err){ console.warn('[Admin] Realtime unavailable:',err.message); }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §23  NAVIGATION
-══════════════════════════════════════════════════════════════ */
+    §25  NAVIGATION
+ ══════════════════════════════════════════════════════════════ */
 const _loaded=new Set();
 
 function initNavigation(){
-  $$('[data-admin-tab]').forEach(btn=>{
-    btn.addEventListener('click',async()=>{
-      const name=btn.dataset.adminTab; AdminUI.activateTab(name); await loadSection(name);
-      document.getElementById('adminSidebar')?.classList.remove('open');
-      document.getElementById('adminSidebarOverlay')?.classList.remove('open');
-    });
-  });
-  on('#adminMenuToggle','click',()=>{
-    document.getElementById('adminSidebar')?.classList.toggle('open');
-    document.getElementById('adminSidebarOverlay')?.classList.toggle('open');
-  });
-  on('#adminSidebarOverlay','click',()=>{
-    document.getElementById('adminSidebar')?.classList.remove('open');
-    document.getElementById('adminSidebarOverlay')?.classList.remove('open');
-  });
-  $$('[data-admin-logout]').forEach(btn=>{ btn.addEventListener('click',()=>AdminAuth.logout()); });
+   $$('[data-admin-tab]').forEach(btn=>{
+     btn.addEventListener('click',async()=>{
+       const name=btn.dataset.adminTab; AdminUI.activateTab(name); await loadSection(name);
+       document.getElementById('adminSidebar')?.classList.remove('open');
+       document.getElementById('adminSidebarOverlay')?.classList.remove('open');
+     });
+   });
+   on('#adminMenuToggle','click',()=>{
+     document.getElementById('adminSidebar')?.classList.toggle('open');
+     document.getElementById('adminSidebarOverlay')?.classList.toggle('open');
+   });
+   on('#adminSidebarOverlay','click',()=>{
+     document.getElementById('adminSidebar')?.classList.remove('open');
+     document.getElementById('adminSidebarOverlay')?.classList.remove('open');
+   });
+   $$('[data-admin-logout]').forEach(btn=>{ btn.addEventListener('click',()=>AdminAuth.logout()); });
 }
 
 function initModals(){
-  on('#entityModal','click',e=>{ if(e.target===e.currentTarget) closeEntityModal(); });
-  on('#userDetailModal','click',e=>{ if(e.target===e.currentTarget) UsersModule.closeModal(); });
+   on('#entityModal','click',e=>{ if(e.target===e.currentTarget) closeEntityModal(); });
+   on('#userDetailModal','click',e=>{ if(e.target===e.currentTarget) UsersModule.closeModal(); });
 }
 
 async function loadSection(name){
-  if(_loaded.has(name))return; _loaded.add(name);
-  switch(name){
-    case 'overview': await OverviewModule.load(); break;
-    case 'deposits': await DepositsModule.load(); break;
-    case 'withdrawals': await WithdrawalsModule.load(); break;
-    case 'transactions': await TransactionsModule.load(); break;
-    case 'contracts': await ContractsModule.load(); break;
-    case 'users': await UsersModule.load(); break;
-    case 'referrals': await ReferralModule.load(); break;
-    case 'notifications': await NotificationsModule.load(); break;
-    case 'logs': await SecurityLogsModule.load(); break;
-  }
+   if(_loaded.has(name))return; _loaded.add(name);
+   switch(name){
+     case 'overview': await OverviewModule.load(); break;
+     case 'deposits': await DepositsModule.load(); break;
+     case 'withdrawals': await WithdrawalsModule.load(); break;
+     case 'transactions': await TransactionsModule.load(); break;
+     case 'contracts': await ContractsModule.load(); break;
+     case 'users': await UsersModule.load(); break;
+     case 'referrals': await ReferralModule.load(); break;
+     case 'notifications': await NotificationsModule.load(); break;
+     case 'logs': await SecurityLogsModule.load(); break;
+     case 'new-users': await NewUsersModule.load(); break;
+     case 'old-users': await OldUsersModule.load(); break;
+   }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §24  PANEL BOOT
-══════════════════════════════════════════════════════════════ */
+    §26  PANEL BOOT
+ ══════════════════════════════════════════════════════════════ */
 async function _bootPanel(){
-  _loaded.clear(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
-  AdminUI.activateTab('overview'); await loadSection('overview');
+   _loaded.clear(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
+   AdminUI.activateTab('overview'); await loadSection('overview');
 }
 
 /* ══════════════════════════════════════════════════════════════
-   §25  ENTRY POINT
-══════════════════════════════════════════════════════════════ */
+    §27  ENTRY POINT
+ ══════════════════════════════════════════════════════════════ */
 console.log('[CryptoVault] admin.js enterprise loaded.');
 
 document.addEventListener('DOMContentLoaded',async()=>{
-  initNavigation(); initLoginForm(); initModals();
-  if(!initSupabaseClient()){ show('#adminLoginScreen'); hide('#adminAppShell'); return; }
-  let alreadyLoggedIn=false;
-  try{ alreadyLoggedIn=await AdminAuth.check(); }catch(err){ console.warn('[Admin] Session check error:',err.message); }
-  if(alreadyLoggedIn){ hide('#adminLoginScreen'); show('#adminAppShell'); try{await _bootPanel();}catch(err){ AdminUI.banner('⚠ Panel boot error: '+err.message,'error');} }
-  else{ show('#adminLoginScreen'); hide('#adminAppShell'); }
+   initNavigation(); initLoginForm(); initModals();
+   if(!initSupabaseClient()){ show('#adminLoginScreen'); hide('#adminAppShell'); return; }
+   let alreadyLoggedIn=false;
+   try{ alreadyLoggedIn=await AdminAuth.check(); }catch(err){ console.warn('[Admin] Session check error:',err.message); }
+   if(alreadyLoggedIn){ hide('#adminLoginScreen'); show('#adminAppShell'); try{await _bootPanel();}catch(err){ AdminUI.banner('⚠ Panel boot error: '+err.message,'error');} }
+   else{ show('#adminLoginScreen'); hide('#adminAppShell'); }
 });
 
 function closeEntityModal(){ hide('#entityModal'); }
 
 /* ══════════════════════════════════════════════════════════════
-   §26  PUBLIC EXPORTS
-══════════════════════════════════════════════════════════════ */
+    §28  PUBLIC EXPORTS
+ ══════════════════════════════════════════════════════════════ */
 Object.assign(window,{
-  AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,TransactionsModule,ContractsModule,
-  OverviewModule,PriceService,NotificationsModule,ReferralModule,SecurityLogsModule,GlobalSearch,
-  logAdminAction,closeEntityModal
+   AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,TransactionsModule,ContractsModule,
+   OverviewModule,PriceService,NotificationsModule,ReferralModule,SecurityLogsModule,GlobalSearch,
+   NewUsersModule,OldUsersModule,
+   logAdminAction,closeEntityModal
 });
