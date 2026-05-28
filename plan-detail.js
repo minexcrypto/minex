@@ -84,10 +84,9 @@ const Auth = (() => {
         const ref_code = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
         const { data: newProf } = await _supabase
           .from('profiles')
-          .upsert({
+        .upsert({
             id: session.user.id,
             email: session.user.email,
-            btc_balance: 0,
             usdt_balance: 0,
             ref_code,
           })
@@ -96,7 +95,6 @@ const Auth = (() => {
         _profile = newProf || {
           id: session.user.id,
           email: session.user.email,
-          btc_balance: 0,
           usdt_balance: 0,
           ref_code,
         };
