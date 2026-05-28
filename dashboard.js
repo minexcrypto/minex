@@ -1676,11 +1676,39 @@ function wireModals() {
     });
   });
 
-  $('withdrawForm')?.addEventListener('submit', e => {
-    e.preventDefault();
-    closeModal('withdrawModal');
-    Toast.show('📤 Withdrawal submitted. Processing within 24 hours.', 'info', 4000);
+  $('withdrawForm')?.addEventListener('submit', submitWithdrawalForm);
+}
+
+async function submitWithdrawalForm(e) {
+  e.preventDefault();
+  const user = Auth.getUser();
+  const profile = Auth.getProfile();
+  if (!user || !_supabase) { Toast.show('Auth required. Please log in again.', 'error'); return; }
+
+  const address = String($('withdrawAddress')?.value || '').trim();
+  const amount = Number($('withdrawAmount')?.value || 0);
+  const available = Number(profile?.usdt_balance || 0);
+
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) { Toast.show('Enter a valid BEP20 wallet address.', 'error'); return; }
+  if (!Number.isFinite(amount) || amount < 10) { Toast.show('Minimum withdrawal is 10 USDT.', 'error'); return; }
+  if (amount > available) { Toast.show('Insufficient USDT balance.', 'error'); return; }
+
+  const { error } = await _supabase.from('withdrawals').insert({
+    user_id: user.id,
+    user_email: user.email || profile?.email || '',
+    coin: 'usdt_bep20',
+    amount,
+    address,
+    status: 'pending',
+    created_at: new Date().toISOString(),
   });
+  if (error) { Toast.show('Withdrawal failed: ' + error.message, 'error', 5000); return; }
+
+  $('withdrawForm')?.reset();
+  closeModal('withdrawModal');
+  Toast.show('Withdrawal submitted. Processing within 24 hours.', 'success', 4500);
+  await Notifications.load();
+  await refreshAll();
 }
 
 function wireDepositButtons() {
