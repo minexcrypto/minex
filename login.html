@@ -148,7 +148,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-<base target="_blank">
 </head>
 <body>
 
@@ -226,6 +225,7 @@
   const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
   const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const USER_HOME_PATH = 'dashboard.html';
 
   async function isAdminUser(user) {
     if (!user) return false;
@@ -257,7 +257,7 @@
     const { data: { session } } = await _supabase.auth.getSession();
     if (session) {
       // Public login should always land users on the dashboard, never the admin panel.
-      window.location.href = 'dashboard.html';
+      window.location.replace(USER_HOME_PATH);
       return;
     }
 
@@ -427,7 +427,8 @@
       if (document.getElementById('rememberMe').checked) {
         localStorage.setItem('cv_remember', '1');
       }
-      window.location.href = 'dashboard.html';
+      // Force all public logins to the user dashboard only.
+      window.location.replace(USER_HOME_PATH);
     }
   });
 
