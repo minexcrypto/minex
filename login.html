@@ -256,7 +256,8 @@
   (async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (session) {
-      window.location.href = (await isAdminUser(session.user)) ? 'admin.html' : 'dashboard.html';
+      // Public login should always land users on the dashboard, never the admin panel.
+      window.location.href = 'dashboard.html';
       return;
     }
 
@@ -426,7 +427,7 @@
       if (document.getElementById('rememberMe').checked) {
         localStorage.setItem('cv_remember', '1');
       }
-      window.location.href = (await isAdminUser(data.user)) ? 'admin.html' : 'dashboard.html';
+      window.location.href = 'dashboard.html';
     }
   });
 
