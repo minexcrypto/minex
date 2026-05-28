@@ -329,9 +329,9 @@
                          <option value="all-time" selected>All Time</option>
                      </select>
                      <input type="text" id="oldUserSearchInput" placeholder="Search old users...">
-                     <button class="admin-btn admin-btn-outline" onclick="OldUsersModule.export()">📥 CSV</button>
+                     <button class="admin-btn admin-btn-outline" onclick="EditOldUserModule.export()">📥 CSV</button>
                  
-                     <button class="admin-btn admin-btn-primary" onclick="OldUsersModule.openEditModal()">✏️ Edit User</button></div>
+                     <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.openEditForm()">✏️ Edit User</button></div>
                 <div class="table-container" id="oldUsersTableWrap"></div>
                 <div class="pagination-bar" id="oldUsersPagination"></div>
             </div>
@@ -359,7 +359,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h3 id="oldUserEditModalTitle">Edit Old User</h3>
-                <button class="modal-close" onclick="OldUsersModule.closeEditModal()">×</button>
+                <button class="modal-close" onclick="EditOldUserModule.closeEditForm()">×</button>
             </div>
             <div class="modal-body" id="oldUserEditModalBody">
                 <!-- Edit form will be injected here by JS -->
