@@ -86,65 +86,6 @@ function normalizeTxType(raw) {
   return t || 'other';
 }
 
-/* ─── MINING PLAN MATH (monthly % ÷ days in current month) ─── */
-const MINING_MS_PER_DAY   = 24 * 60 * 60 * 1000;
-const PLAN_USDT_PRICES    = { Starter: 500, Silver: 2500, Gold: 5000, Platinum: 10000 };
-const PLAN_MONTHLY_RATE   = { Starter: 0.10, Silver: 0.15, Gold: 0.20, Platinum: 0.25 };
-
-function getDaysInCurrentMonth(refDate = new Date()) {
-  return new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate();
-}
-
-function getPlanPriceUsdt(contract) {
-  return Number(contract.plan_price || 0)
-    || PLAN_USDT_PRICES[contract.plan || contract.name] || 0;
-}
-
-function calcDailyProfitUsdt(planPrice, planName, refDate = new Date()) {
-  if (!planPrice || planPrice <= 0) return 0;
-  const days = getDaysInCurrentMonth(refDate);
-  const monthlyRate = PLAN_MONTHLY_RATE[planName] ?? 0.10;
-  return (planPrice * monthlyRate) / days;
-}
-
-/** Daily USDT = (plan price × monthly %) ÷ days in current month (e.g. May = 31). */
-function getDailyProfitUsdt(contract, refDate = new Date()) {
-  const planName = contract.plan || contract.name || '';
-  const planPrice = getPlanPriceUsdt(contract);
-  if (planPrice > 0) return calcDailyProfitUsdt(planPrice, planName, refDate);
-  return Number(contract.daily_profit || 0);
-}
-
-function getMonthlyProfitUsdt(contract, refDate = new Date()) {
-  const planName = contract.plan || contract.name || '';
-  const planPrice = getPlanPriceUsdt(contract);
-  if (planPrice > 0) return planPrice * (PLAN_MONTHLY_RATE[planName] ?? 0.10);
-  return getDailyProfitUsdt(contract, refDate) * getDaysInCurrentMonth(refDate);
-}
-
-function isContractActive(c) {
-  if (!c) return false;
-  if (c.active === false || c.active === 'false' || c.active === 0 || c.active === '0') return false;
-  return true;
-}
-
-function getTotalMinedUsdt(txns) {
-  return (txns || _allTransactions || [])
-    .filter(t => normalizeTxType(t.type) === 'mining')
-    .reduce((s, t) => s + Number(t.amount || 0), 0);
-}
-
-function getPayoutAnchorDate(contract) {
-  const createdAt = new Date(contract.created_at || Date.now());
-  if (contract.last_payout_at) return new Date(contract.last_payout_at);
-  return createdAt;
-}
-
-function computeAlignedLastPayoutAt(contract, cyclesDue) {
-  const anchor = getPayoutAnchorDate(contract);
-  return new Date(anchor.getTime() + cyclesDue * MINING_MS_PER_DAY).toISOString();
-}
-
 /* ─── COPY UTILITY ───────────────────────────────────────── */
 function copyToClipboard(text, msg = 'Copied!') {
   if (navigator.clipboard?.writeText) {
@@ -459,45 +400,32 @@ async function populateUserUI() {
    UI — DASHBOARD STATS
 ══════════════════════════════════════════════════════════════ */
 async function populateDashboardStats(contracts) {
-  const activeContracts = contracts.filter(isContractActive);
+  const activeContracts = contracts.filter(c => c.active === true);
   const totalHashrate = activeContracts.reduce((s, c) => s + Number(c.hashrate || 0), 0);
   setText('liveHashrate',  totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('liveHashrate2', totalHashrate > 0 ? totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
 
-  const dailyProfit = activeContracts.reduce((s, c) => s + getDailyProfitUsdt(c), 0);
-  setText('dailyProfitEl', '$ ' + dailyProfit.toFixed(2));
+  const dailyProfit = activeContracts.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
+  setText('dailyProfitEl', '₿ ' + dailyProfit.toFixed(8));
 
-  const totalMined = getTotalMinedUsdt(_allTransactions);
-  setText('totalMinedEl', '$ ' + totalMined.toFixed(2));
-  setText('walletTotalMinedEarnings', '$ ' + totalMined.toFixed(2));
+  const statChangeHashrate = document.getElementById('statChangeHashrate');
+  const statChangeContracts = document.getElementById('statChangeContracts');
+  if (statChangeHashrate)  statChangeHashrate.textContent  = activeContracts.length + ' active contract' + (activeContracts.length !== 1 ? 's' : '');
+  if (statChangeContracts) statChangeContracts.textContent = activeContracts.length + ' active';
 
-  const daysInMonth = getDaysInCurrentMonth();
-  const monthName = new Date().toLocaleString('en-US', { month: 'long' });
-
-  const walletStatChange = document.querySelector('#tab-dashboard .stat-card.gold .stat-change');
-  const hashrateStatChange = document.querySelector('#tab-dashboard .stat-card.green .stat-change');
-  const dailyStatChange = document.querySelector('#tab-dashboard .stat-card.blue .stat-change');
-  const minedStatChange = document.querySelector('#tab-dashboard .stat-card.orange .stat-change');
-
-  if (walletStatChange) {
-    walletStatChange.textContent = totalMined > 0
-      ? ('▲ $' + totalMined.toFixed(2) + ' mined')
-      : 'No earnings yet';
-  }
-  if (hashrateStatChange) {
-    hashrateStatChange.textContent = activeContracts.length > 0
-      ? (activeContracts.length + ' active contract' + (activeContracts.length !== 1 ? 's' : ''))
-      : 'No active contracts';
-  }
-  if (dailyStatChange) {
-    dailyStatChange.textContent = dailyProfit > 0
-      ? ('~$' + dailyProfit.toFixed(2) + '/day · ' + monthName + ' (' + daysInMonth + 'd)')
-      : 'No mining data';
-  }
-  if (minedStatChange) {
-    minedStatChange.textContent = totalMined > 0
-      ? ('▲ $' + totalMined.toFixed(2) + ' all time')
-      : '▲ All time';
+  const user = Auth.getUser();
+  if (user && _supabase) {
+    const { data: miningTxns } = await _supabase
+      .from('transactions')
+      .select('amount,type')
+      .eq('user_id', user.id)
+      .in('type', ['mining', 'mining_reward', 'reward']);
+    const totalMined = (miningTxns || [])
+      .filter(t => normalizeTxType(t.type) === 'mining')
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+    setText('totalMinedEl', '₿ ' + totalMined.toFixed(8));
+  } else {
+    setText('totalMinedEl', '₿ 0.00000000');
   }
 }
 
@@ -530,16 +458,16 @@ function renderTransactions(filter) {
     const coinLbl = isUSDT ? 'USDT' : 'BTC';
     const decimals = isUSDT ? 2 : 8;
     const amt = Number(tx.amount || 0);
-    const isOut = txType === 'withdrawal' || txType === 'purchase';
-    const amtStr = (isOut ? '-' : '+') + amt.toFixed(decimals) + ' ' + coinLbl;
+    const isOut = amt < 0 || txType === 'withdrawal' || txType === 'purchase';
+    const amtStr = (isOut ? '-' : '+') + Math.abs(amt).toFixed(decimals) + ' ' + coinLbl;
 
     let usdVal;
     if (isUSDT) {
-      usdVal = (isOut ? '-' : '+') + '$' + amt.toFixed(2);
+      usdVal = (isOut ? '-' : '+') + '$' + Math.abs(amt).toFixed(2);
     } else {
       const price = BTCPrice.get();
       usdVal = price != null
-        ? (isOut ? '-' : '+') + '$' + (amt * price).toFixed(2)
+        ? (isOut ? '-' : '+') + '$' + (Math.abs(amt) * price).toFixed(2)
         : '—';
     }
 
@@ -612,7 +540,7 @@ function renderTransactions(filter) {
 
   tbody.innerHTML = rows.map(tx => `
     <tr>
-      <td>${tx.desc}</td>
+      <td>${escapeHtml(tx.desc)}</td>
       <td>${tx.coin}</td>
       <td style="color:${tx.amount.startsWith('+') ? '#22c55e' : '#ef4444'};font-family:'DM Mono',monospace;">${tx.amount}</td>
       <td style="font-family:'DM Mono',monospace;color:#94a3b8;">${tx.usd}</td>
@@ -678,12 +606,12 @@ function renderRecentActivity() {
     const symbol = isUSDT ? 'USDT' : '₿';
     const decimals = isUSDT ? 2 : 8;
     const amt = Number(tx.amount || 0);
-    const isOut = txType === 'withdrawal' || txType === 'purchase';
+    const isOut = amt < 0 || txType === 'withdrawal' || txType === 'purchase';
     return {
       icon:   _txIcon(txType),
       desc:   _txLabel(tx.type),
       date:   _fmtDate(tx.created_at),
-      amount: (isOut ? '-' : '+') + symbol + amt.toFixed(decimals),
+      amount: (isOut ? '-' : '+') + symbol + Math.abs(amt).toFixed(decimals),
       isOut:  isOut,
       createdAt: tx.created_at,
     };
@@ -721,7 +649,7 @@ function renderRecentActivity() {
     <div class="rig-card" style="margin-bottom:8px;">
       <div class="tx-icon ${item.isOut ? 'out' : 'in'}">${item.icon}</div>
       <div class="rig-info">
-        <div class="rig-name">${item.desc}</div>
+        <div class="rig-name">${escapeHtml(item.desc)}</div>
         <div class="rig-specs">${item.date}</div>
       </div>
       <div class="rig-metrics">
@@ -754,8 +682,8 @@ function renderContracts(contracts) {
   const container = $('contractsContainer');
   if (!container) return;
 
-  const active = contracts.filter(isContractActive);
-  window._activeContracts = active;
+  const active = contracts.filter(c => c.active === true);
+  window._activeContracts = active; // 👈 modal ke liye store kar rahe hain
 
   if (!active.length) {
     container.innerHTML = `
@@ -771,11 +699,10 @@ function renderContracts(contracts) {
     const progress    = c.progress != null ? Math.min(100, Math.max(0, Number(c.progress))) : 0;
     const daysLeft    = c.days_left != null ? c.days_left + ' days left' : 'Unlimited';
     const hashrate    = c.hashrate  != null ? c.hashrate.toFixed(1) + ' TH/s' : '—';
-    const dailyProfit = '$ ' + getDailyProfitUsdt(c).toFixed(2);
+    const dailyProfit = c.daily_profit != null
+      ? Number(c.daily_profit).toFixed(8) + ' BTC'
+      : '—';
     const planName    = c.plan || c.name || 'Mining Contract';
-    const lastPayout  = c.last_payout_at
-      ? new Date(c.last_payout_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      : 'No payouts yet';
 
     return `
       <div class="rig-card plan-contract-card" style="margin-bottom:12px;" onclick="window.location.href='plan-detail.html?contract=${c.id}'">
@@ -783,7 +710,6 @@ function renderContracts(contracts) {
         <div class="rig-info">
           <div class="rig-name">${planName}</div>
           <div class="rig-specs">${hashrate} · ${daysLeft}</div>
-          <div class="rig-specs" style="font-size:11px;color:#9ca3af;">Last payout: ${lastPayout}</div>
         </div>
         <div class="rig-metrics">
           <div class="rig-hash" style="color:var(--green)">${dailyProfit}/day</div>
@@ -797,17 +723,17 @@ function renderContracts(contracts) {
    UI — MINING TAB STATS
 ══════════════════════════════════════════════════════════════ */
 function renderMiningStats(contracts) {
-  const active = contracts.filter(isContractActive);
+  const active = contracts.filter(c => c.active === true);
 
   const totalHash    = active.reduce((s, c) => s + Number(c.hashrate    || 0), 0);
   const totalPower   = active.reduce((s, c) => s + Number(c.power_watts || 0), 0);
-  const dailyProfit  = active.reduce((s, c) => s + getDailyProfitUsdt(c), 0);
-  const monthlyProj  = active.reduce((s, c) => s + getMonthlyProfitUsdt(c), 0);
+  const dailyProfit  = active.reduce((s, c) => s + Number(c.daily_profit || 0), 0);
+  const monthlyProj  = dailyProfit * 30;
 
   setText('miningStatHashrate',  totalHash   > 0 ? totalHash.toFixed(1)   + ' TH/s' : '0 TH/s');
   setText('miningStatPower',     totalPower  > 0 ? totalPower.toFixed(0)  + ' W'    : '0 W');
-  setText('miningStatDaily',     '$ ' + dailyProfit.toFixed(2));
-  setText('miningStatMonthly',   '$ ' + monthlyProj.toFixed(2));
+  setText('miningStatDaily',     '₿ ' + dailyProfit.toFixed(8));
+  setText('miningStatMonthly',   '₿ ' + monthlyProj.toFixed(8));
 
   renderContractProgress(active);
 }
@@ -861,12 +787,10 @@ function renderWalletSummary() {
   const referralBonuses = txns.filter(t => t.type === 'referral')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-  // Treat aggregates as USDT values
-  setText('walletTotalDeposited',  '$ ' + totalDeposited.toFixed(2));
-  setText('walletTotalWithdrawn',  '$ ' + totalWithdrawn.toFixed(2));
-  setText('walletMiningIncome',        '$ ' + miningIncome.toFixed(2));
-  setText('walletTotalMinedEarnings',   '$ ' + miningIncome.toFixed(2));
-  setText('walletReferralBonuses',       '$ ' + referralBonuses.toFixed(2));
+  setText('walletTotalDeposited',  '₿ ' + totalDeposited.toFixed(8));
+  setText('walletTotalWithdrawn',  '₿ ' + totalWithdrawn.toFixed(8));
+  setText('walletMiningIncome',    '₿ ' + miningIncome.toFixed(8));
+  setText('walletReferralBonuses', '₿ ' + referralBonuses.toFixed(8));
 
   const profile    = Auth.getProfile();
   const btcBalance = typeof profile.btc_balance === 'number' ? profile.btc_balance : 0;
@@ -898,7 +822,7 @@ function initEarningsChart(transactions) {
     .forEach(t => {
       const key = t.created_at?.slice(0, 10);
       if (key && key in buckets) {
-        buckets[key] += Number(t.amount || 0); // USDT
+        buckets[key] += Number(t.amount || 0);
       }
     });
 
@@ -909,9 +833,9 @@ function initEarningsChart(transactions) {
   const total12d = data.reduce((s, v) => s + v, 0);
   const avgDaily = total12d / days;
   const bestDay  = Math.max(...data);
-  setText('chartTotal12d', hasData ? '$ ' + total12d.toFixed(2) : '$ 0.00');
-  setText('chartAvgDaily', hasData ? '$ ' + avgDaily.toFixed(2) : '$ 0.00');
-  setText('chartBestDay',  hasData ? '$ ' + bestDay.toFixed(2)  : '$ 0.00');
+  setText('chartTotal12d', hasData ? '₿ ' + total12d.toFixed(8) : '₿ 0.00000000');
+  setText('chartAvgDaily', hasData ? '₿ ' + avgDaily.toFixed(8) : '₿ 0.00000000');
+  setText('chartBestDay',  hasData ? '₿ ' + bestDay.toFixed(8)  : '₿ 0.00000000');
 
   if (!hasData) {
     _drawEmptyChart(canvas, 'No mining earnings yet');
@@ -1297,7 +1221,7 @@ function purchasePlan(planName, priceUsd, hashrate) {
   const body  = $('purchaseModalBody');
   if (!modal || !body) return;
 
-  const daily = calcDailyProfitUsdt(parseFloat(priceUsd), planName).toFixed(2);
+  const daily = (Number(hashrate) * 0.0000032).toFixed(8);
   const days  = _planDays(planName);
   const daysText = days ? `${days} Days` : 'Unlimited';
   const icon  = planName === 'Starter' ? '🌱' : planName === 'Silver' ? '🥈' : planName === 'Gold' ? '🥇' : '💎';
@@ -1312,8 +1236,8 @@ function purchasePlan(planName, priceUsd, hashrate) {
     <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
       <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Price</span><span style="font-weight:700;">$${priceUsd}</span></div>
       <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Hashrate</span><span style="font-weight:700;">${hashrate} TH/s</span></div>
-      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Daily Profit</span><span style="font-weight:700;color:${color};">~$${daily} USDT</span></div>
-      <div class="flex justify-between"><span style="color:var(--text-muted);">Est. Monthly</span><span style="font-weight:700;color:var(--gold);">~$${(parseFloat(priceUsd) * (PLAN_MONTHLY_RATE[planName] || 0.10)).toFixed(2)} USDT</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Daily Profit</span><span style="font-weight:700;color:${color};">~${daily} BTC</span></div>
+      <div class="flex justify-between"><span style="color:var(--text-muted);">Est. Monthly</span><span style="font-weight:700;color:var(--gold);">~${(daily * 30).toFixed(8)} BTC</span></div>
     </div>
     <div style="display:flex;gap:12px;">
       <button class="btn btn-ghost btn-full" onclick="closeModal('purchaseModal')">Cancel</button>
@@ -1368,9 +1292,7 @@ async function _executePurchase(planName, priceUsd, hashrate) {
         plan:         planName,
         hashrate:     Number(hashrate),
         active:       true,
-        daily_profit: calcDailyProfitUsdt(cost, planName),
-        plan_price:   cost,
-        last_payout_at: null,
+        daily_profit: Number(hashrate) * 0.0000032,
         progress:     0,
         days_left:    _planDays(planName),
         created_at:   new Date().toISOString(),
@@ -1463,204 +1385,6 @@ async function approveDeposit(deposit) {
     await Auth.refreshProfile();
     await refreshAll();
     populateUserUI();
-  }
-}
-
-/* ══════════════════════════════════════════════════════════════
-   MINING PAYOUT ENGINE — AUTO-CREDIT USDT
-══════════════════════════════════════════════════════════════ */
-/**
- * Old users: last_payout_at was set to "now" on deploy, so timer restarted.
- * Reset anchor from mining tx history + created_at so missed days can still pay out.
- */
-async function repairLegacyMiningContracts(contracts, miningTxns) {
-  if (!_supabase) return contracts;
-
-  const user = Auth.getUser();
-  if (!user) return contracts;
-
-  const now = new Date();
-  const active = contracts.filter(c => c.active === true);
-
-  for (const c of active) {
-    if (!c.created_at) continue;
-
-    const createdAt = new Date(c.created_at);
-    const elapsedCycles = Math.floor((now - createdAt) / MINING_MS_PER_DAY);
-    if (elapsedCycles <= 0) continue;
-
-    const daily = getDailyProfitUsdt(c);
-    if (!daily || daily <= 0) continue;
-
-    const contractStart = createdAt.getTime();
-    const paidSinceStart = (miningTxns || [])
-      .filter(t => {
-        if (normalizeTxType(t.type) !== 'mining') return false;
-        const txTime = new Date(t.created_at).getTime();
-        return txTime >= contractStart - 60000;
-      })
-      .reduce((s, t) => s + Number(t.amount || 0), 0);
-
-    const cyclesPaid = Math.min(elapsedCycles, Math.floor(paidSinceStart / daily + 0.0001));
-    const correctAnchor = cyclesPaid > 0
-      ? new Date(createdAt.getTime() + cyclesPaid * MINING_MS_PER_DAY).toISOString()
-      : null;
-
-    const last = c.last_payout_at ? new Date(c.last_payout_at) : null;
-    const cyclesFromLast = last ? Math.floor((now - last) / MINING_MS_PER_DAY) : elapsedCycles;
-    const owedCycles = elapsedCycles - cyclesPaid;
-
-    // Timer reset bug: last_payout recent but contract is older and days still owed
-    const wronglyReset = last
-      && owedCycles > 0
-      && cyclesFromLast < owedCycles
-      && (now - last) < MINING_MS_PER_DAY * 2;
-
-    const needsRepair = wronglyReset
-      || (correctAnchor && last && Math.abs(last - new Date(correctAnchor)) > 3600000)
-      || (!last && elapsedCycles > 0 && cyclesPaid < elapsedCycles);
-
-    if (!needsRepair) continue;
-
-    const patch = {
-      last_payout_at: correctAnchor,
-      daily_profit: daily,
-    };
-    if (!c.plan_price && PLAN_USDT_PRICES[c.plan]) {
-      patch.plan_price = PLAN_USDT_PRICES[c.plan];
-    }
-
-    const { error } = await _supabase
-      .from('contracts')
-      .update(patch)
-      .eq('id', c.id)
-      .eq('user_id', user.id);
-
-    if (!error) {
-      c.last_payout_at = correctAnchor;
-      c.daily_profit   = daily;
-      if (patch.plan_price) c.plan_price = patch.plan_price;
-      console.log('[Mining] Repaired payout anchor for contract', c.id);
-    }
-  }
-
-  return contracts;
-}
-
-let _isProcessingMiningPayout = false;
-
-async function processDailyMiningPayout(passedContracts = null) {
-  if (_isProcessingMiningPayout) return;
-  if (!_supabase) return;
-
-  const user = Auth.getUser();
-  if (!user) return;
-
-  _isProcessingMiningPayout = true;
-  try {
-    const now = new Date();
-
-    let contracts = Array.isArray(passedContracts) ? passedContracts : await loadContracts();
-    contracts = await repairLegacyMiningContracts(contracts, _allTransactions);
-    const active  = contracts.filter(c => c.active === true);
-    if (!active.length) return;
-
-    let totalPayoutUSDT = 0;
-    const contractsToUpdate = [];
-
-    for (const c of active) {
-      const createdAt = c.created_at ? new Date(c.created_at) : null;
-      if (!createdAt) continue;
-
-      const anchor    = getPayoutAnchorDate(c);
-      const diffMs    = now - anchor;
-      const cyclesDue = Math.floor(diffMs / MINING_MS_PER_DAY);
-      if (cyclesDue <= 0) continue;
-
-      const dailyProfit = getDailyProfitUsdt(c);
-      if (!dailyProfit || dailyProfit <= 0) continue;
-
-      const payoutForContract = dailyProfit * cyclesDue;
-      totalPayoutUSDT += payoutForContract;
-
-      let newProgress = Number(c.progress || 0);
-      if (typeof c.days_left === 'number' && c.days_left > 0) {
-        const perDay = 100 / c.days_left;
-        newProgress  = Math.min(100, newProgress + perDay * cyclesDue);
-      }
-
-      contractsToUpdate.push({
-        id: c.id,
-        last_payout_at: computeAlignedLastPayoutAt(c, cyclesDue),
-        progress: newProgress,
-        daily_profit: dailyProfit,
-      });
-    }
-
-    if (totalPayoutUSDT <= 0 || !contractsToUpdate.length) return;
-
-    // Credit profile balance
-    const profile = Auth.getProfile();
-    const currentUSDT = typeof profile.usdt_balance === 'number' ? profile.usdt_balance : 0;
-    const newUSDT     = currentUSDT + totalPayoutUSDT;
-
-    const { error: balErr } = await _supabase
-      .from('profiles')
-      .update({ usdt_balance: newUSDT })
-      .eq('id', user.id);
-    if (balErr) throw balErr;
-
-    profile.usdt_balance = newUSDT;
-
-    // Insert mining transactions (one per batch to keep it simple)
-    const { error: txErr } = await _supabase
-      .from('transactions')
-      .insert({
-        user_id:    user.id,
-        type:       'mining',
-        amount:     totalPayoutUSDT,
-        coin:       'usdt',
-        status:     'success',
-        created_at: now.toISOString(),
-      });
-    if (txErr) throw txErr;
-
-    // Update contracts metadata
-    for (const upd of contractsToUpdate) {
-      const patch = {
-        last_payout_at: upd.last_payout_at,
-        progress:       upd.progress,
-      };
-      if (upd.daily_profit != null) patch.daily_profit = upd.daily_profit;
-
-      await _supabase
-        .from('contracts')
-        .update(patch)
-        .eq('id', upd.id);
-
-      // Also patch the in-memory instance if present
-      const local = (passedContracts || []).find(c => c.id === upd.id);
-      if (local) {
-        local.last_payout_at = upd.last_payout_at;
-        local.progress       = upd.progress;
-      }
-    }
-
-    Toast.show(
-      `✅ Mining payout credited: $${totalPayoutUSDT.toFixed(2)} USDT`,
-      'success',
-      4500
-    );
-
-    _allTransactions = await loadTransactions();
-    renderTransactions(_currentTxFilter);
-    renderRecentActivity();
-    renderWalletSummary();
-    populateDashboardStats(passedContracts || await loadContracts());
-  } catch (err) {
-    console.error('[MiningPayout] Failed:', err);
-  } finally {
-    _isProcessingMiningPayout = false;
   }
 }
 
@@ -1940,14 +1664,6 @@ async function refreshAll() {
   renderMiningStats(contracts);
   renderWalletSummary();
   updatePortfolioValue();
-  // Repair old anchors, then credit any missed 24h cycles
-  contracts = await repairLegacyMiningContracts(contracts, txns);
-  await processDailyMiningPayout(contracts);
-  _allTransactions = await loadTransactions();
-  contracts = await loadContracts();
-  renderContracts(contracts);
-  renderMiningStats(contracts);
-  renderWalletSummary();
   populateDashboardStats(contracts);
 
   await Notifications.load();
@@ -2299,11 +2015,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('planDetailModal')?.addEventListener('click', e => {
     if (e.target === $('planDetailModal')) closePlanDetailModal();
   });
-
-  // Background mining payout check every 60 seconds
-  setInterval(() => {
-    processDailyMiningPayout().catch(() => {});
-  }, 60_000);
 
   console.log('CryptoVault dashboard initialized — real data only.');
 });
