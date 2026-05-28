@@ -1,3 +1,214 @@
+'use strict';
+
+/* Core state */
+let sb = null;
+
+/* DOM helpers */
+const $ = (sel, ctx = document) => { try { return ctx.querySelector(sel); } catch { return null; } };
+const $$ = (sel, ctx = document) => { try { return Array.from(ctx.querySelectorAll(sel)); } catch { return []; } };
+function setHTML(sel, html) { const el = typeof sel === 'string' ? $(sel) : sel; if (el) el.innerHTML = html; }
+function setText(sel, text) { const el = typeof sel === 'string' ? $(sel) : sel; if (el) el.textContent = text; }
+function show(sel) { const el = typeof sel === 'string' ? $(sel) : sel; if (el) { el.classList.remove('hidden'); el.style.display = ''; } }
+function hide(sel) { const el = typeof sel === 'string' ? $(sel) : sel; if (el) { el.classList.add('hidden'); } }
+function on(sel, evt, fn) { const el = typeof sel === 'string' ? $(sel) : sel; if (el) el.addEventListener(evt, fn); }
+
+/* Table styles */
+const TH = 'font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#475569;padding:11px 16px;text-align:left;white-space:nowrap;border-bottom:1px solid #1e2d45';
+const TD = 'padding:12px 16px;font-size:13px;color:#94a3b8;border-bottom:1px solid rgba(30,45,69,.5);';
+
+/* UI */
+const AdminUI = {
+  toast(msg, type = 'info') {
+    const id = 'adminSimpleToast';
+    const old = document.getElementById(id);
+    if (old) old.remove();
+    const t = document.createElement('div');
+    t.id = id;
+    t.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:99999;background:#111720;color:#f1f5f9;padding:10px 14px;border:1px solid #1e2d45;border-radius:8px;font-size:12px;max-width:360px';
+    if (type === 'error') t.style.borderColor = '#ef4444';
+    if (type === 'success') t.style.borderColor = '#10b981';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  },
+  loading(msg = 'Loading...') { return `<div style="padding:24px;color:#94a3b8">${msg}</div>`; },
+  error(msg = 'Error') { return `<div style="padding:24px;color:#ef4444">${msg}</div>`; },
+  empty(msg = 'No records found.') { return `<div style="padding:24px;color:#94a3b8">${msg}</div>`; },
+  badge(status) {
+    const s = String(status || 'active').toLowerCase();
+    const color = s === 'active' ? '#10b981' : s === 'suspended' ? '#f59e0b' : s === 'banned' ? '#ef4444' : '#64748b';
+    return `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;color:${color};background:${color}22">${s}</span>`;
+  },
+  activateTab(name) {
+    $$('[data-admin-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab === name));
+    $$('[data-admin-section]').forEach(sec => {
+      const match = sec.dataset.adminSection === name;
+      sec.classList.toggle('active', match);
+      sec.style.display = match ? '' : 'none';
+    });
+    setText('#adminPageTitle', name.replace(/-/g, ' '));
+  }
+};
+
+function paginate(rows, pageSize, page, pagerId, renderFn, moduleName) {
+  const list = Array.isArray(rows) ? rows : [];
+  const pages = Math.max(1, Math.ceil(list.length / pageSize));
+  const safePage = Math.min(Math.max(page, 1), pages);
+  const start = (safePage - 1) * pageSize;
+  renderFn(list.slice(start, start + pageSize));
+
+  const pager = document.getElementById(pagerId);
+  if (!pager) return;
+  if (pages <= 1) { pager.innerHTML = ''; return; }
+
+  let html = '';
+  for (let i = 1; i <= pages; i++) {
+    html += `<button class="${i === safePage ? 'active' : ''}" onclick="${moduleName}.goPage(${i})">${i}</button>`;
+  }
+  pager.innerHTML = html;
+}
+
+async function logAdminAction() { /* no-op fallback */ }
+
+function initSupabaseClient() {
+  const url = window.CRYPTOVAULT_SUPABASE_URL || '';
+  const key = window.CRYPTOVAULT_SUPABASE_KEY || '';
+  if (!url || !key) {
+    AdminUI.toast('Supabase credentials missing.', 'error');
+    return false;
+  }
+  if (typeof window.supabase?.createClient !== 'function') {
+    AdminUI.toast('Supabase SDK not loaded.', 'error');
+    return false;
+  }
+  try {
+    sb = window.supabase.createClient(url, key);
+    return true;
+  } catch (err) {
+    AdminUI.toast('Supabase init error: ' + err.message, 'error');
+    return false;
+  }
+}
+
+const AdminAuth = {
+  user: null,
+
+  async _isAdmin(user) {
+    if (!user) return false;
+    if (user?.app_metadata?.role === 'admin') return true;
+    try {
+      const { data } = await sb.from('admins').select('id').eq('id', user.id).maybeSingle();
+      if (data) return true;
+    } catch (_) {}
+    try {
+      const { data } = await sb.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+      if (data?.is_admin === true) return true;
+    } catch (_) {}
+    return false;
+  },
+
+  async check() {
+    if (!sb) return false;
+    const { data, error } = await sb.auth.getUser();
+    if (error || !data?.user) return false;
+    const ok = await this._isAdmin(data.user);
+    if (!ok) return false;
+    this.user = data.user;
+    setText('#adminUserEmail', data.user.email || '');
+    return true;
+  },
+
+  async login(email, password) {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'Login failed');
+    const ok = await this._isAdmin(data.user);
+    if (!ok) {
+      await sb.auth.signOut().catch(() => {});
+      throw new Error('Access denied. Admin role not found.');
+    }
+    this.user = data.user;
+    setText('#adminUserEmail', data.user.email || '');
+    return data.user;
+  },
+
+  async logout() {
+    if (sb) await sb.auth.signOut().catch(() => {});
+    this.user = null;
+    show('#adminLoginScreen');
+    hide('#adminAppShell');
+  }
+};
+
+function initNavigation() {
+  $$('[data-admin-tab]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      AdminUI.activateTab(btn.dataset.adminTab);
+    });
+  });
+  $$('[data-admin-logout]').forEach(btn => btn.addEventListener('click', () => AdminAuth.logout()));
+}
+
+function initLoginForm() {
+  const form = $('#adminLoginForm');
+  if (!form) return;
+
+  const toggleBtn = $('#adminTogglePassword');
+  const passEl = $('#adminLoginPassword');
+  if (toggleBtn && passEl) {
+    toggleBtn.addEventListener('click', () => {
+      passEl.type = passEl.type === 'password' ? 'text' : 'password';
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('#adminLoginEmail')?.value?.trim();
+    const password = $('#adminLoginPassword')?.value || '';
+    const errEl = $('#adminLoginError');
+    const btn = $('#adminLoginBtn');
+    if (errEl) errEl.textContent = '';
+
+    if (!email || !password) {
+      if (errEl) errEl.textContent = 'Email and password required.';
+      return;
+    }
+
+    try {
+      if (btn) btn.disabled = true;
+      await AdminAuth.login(email, password);
+      hide('#adminLoginScreen');
+      show('#adminAppShell');
+      AdminUI.activateTab('overview');
+      AdminUI.toast('Login successful', 'success');
+    } catch (err) {
+      if (errEl) errEl.textContent = err.message || 'Sign in failed';
+      AdminUI.toast(err.message || 'Sign in failed', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+}
+
+/* Graceful stubs so UI buttons do not crash */
+function createStub(name) {
+  return new Proxy({}, {
+    get() {
+      return () => AdminUI.toast(name + ' module unavailable right now.', 'error');
+    }
+  });
+}
+const DepositsModule = createStub('Deposits');
+const WithdrawalsModule = createStub('Withdrawals');
+const TransactionsModule = createStub('Transactions');
+const ContractsModule = createStub('Contracts');
+const UsersModule = createStub('Users');
+const ReferralModule = createStub('Referral');
+const NotificationsModule = createStub('Notifications');
+const SecurityLogsModule = createStub('Logs');
+const NewUsersModule = createStub('NewUsers');
+const OldUsersModule = createStub('OldUsers');
+const GlobalSearch = { execute: () => AdminUI.toast('Global search unavailable.', 'error') };
 
 /* ══════════════════════════════════════════════════════════════
    EDIT OLD USER MODULE
@@ -105,11 +316,11 @@ const EditOldUserModule = {
             <tr>
 
                 <td style="${TD}">
-                    ${u.name || '—'}
+                    ${u.name || '-'}
                 </td>
 
                 <td style="${TD}">
-                    ${u.email || '—'}
+                    ${u.email || '-'}
                 </td>
 
                 <td style="${TD}">
@@ -132,7 +343,7 @@ const EditOldUserModule = {
                     <button
                         class="admin-btn admin-btn-primary"
                         onclick="EditOldUserModule.selectUser('${u.id}')">
-                        ✏️ Edit
+                        Edit
                     </button>
                 </td>
 
@@ -302,4 +513,46 @@ const EditOldUserModule = {
         });
     }
 };
+
 window.EditOldUserModule = EditOldUserModule;
+window.AdminUI = AdminUI;
+window.AdminAuth = AdminAuth;
+window.DepositsModule = DepositsModule;
+window.WithdrawalsModule = WithdrawalsModule;
+window.TransactionsModule = TransactionsModule;
+window.ContractsModule = ContractsModule;
+window.UsersModule = UsersModule;
+window.ReferralModule = ReferralModule;
+window.NotificationsModule = NotificationsModule;
+window.SecurityLogsModule = SecurityLogsModule;
+window.NewUsersModule = NewUsersModule;
+window.OldUsersModule = OldUsersModule;
+window.GlobalSearch = GlobalSearch;
+
+/* Boot */
+document.addEventListener('DOMContentLoaded', async () => {
+  initNavigation();
+  initLoginForm();
+
+  if (!initSupabaseClient()) {
+    show('#adminLoginScreen');
+    hide('#adminAppShell');
+    return;
+  }
+
+  try {
+    const ok = await AdminAuth.check();
+    if (ok) {
+      hide('#adminLoginScreen');
+      show('#adminAppShell');
+      AdminUI.activateTab('overview');
+    } else {
+      show('#adminLoginScreen');
+      hide('#adminAppShell');
+    }
+  } catch (err) {
+    console.error(err);
+    show('#adminLoginScreen');
+    hide('#adminAppShell');
+  }
+});
