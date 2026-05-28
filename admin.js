@@ -79,7 +79,7 @@ const AdminUI = {
   activateTab(name) {
     $$('[data-admin-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab===name));
     $$('[data-admin-section]').forEach(sec => { const match=sec.dataset.adminSection===name; sec.classList.toggle('active',match); sec.style.display=match?'':'none'; });
-    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs', 'new-users':'New Users', 'old-users':'Old Users' };
+    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs', 'new-users':'New Users', 'old-users':'Old Users', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User', 'edit-old-user':'Edit Old User' };
     setText('#adminPageTitle', TITLES[name]||name);
   },
 };
@@ -1122,7 +1122,2107 @@ const OldUsersModule = {
   },
   closeEditModal(){ hide('#oldUserEditModal'); }
 };
-window.OldUsersModule=OldUsersModule;/* ══════════════════════════════════════════════════════════════
+window.OldUsersModule=OldUsersModule;
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+
+/* ══════════════════════════════════════════════════════════════
+   §20B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _currentUserId: null,
+
+  async loadUser(){
+    const search = document.getElementById('editOldUserSearchInput')?.value?.trim();
+    if(!search){ AdminUI.toast('Enter email or user ID.','warning'); return; }
+    const wrap = document.getElementById('editOldUserTableWrap');
+    setHTML(wrap, AdminUI.loading('Searching user...'));
+    try{
+      const{data,error} = await sb.from('profiles').select('*').or(`email.eq.${search},user_id.eq.${search},id.eq.${search}`).limit(1);
+      if(error || !data || !data.length){ 
+        setHTML(wrap, AdminUI.empty('User not found.')); 
+        document.getElementById('editOldUserFormWrap').style.display = 'none';
+        return; 
+      }
+      const u = data[0];
+      this._currentUserId = u.id;
+      document.getElementById('eouName').value = u.name || '';
+      document.getElementById('eouEmail').value = u.email || '';
+      document.getElementById('eouPhone').value = u.phone || '';
+      document.getElementById('eouCountry').value = u.country || '';
+      document.getElementById('eouLevel').value = u.level || '';
+      document.getElementById('eouStatus').value = u.is_banned ? 'banned' : u.is_suspended ? 'suspended' : 'active';
+      document.getElementById('eouBtc').value = u.btc_balance || 0;
+      document.getElementById('eouUsdt').value = u.usdt_balance || 0;
+      document.getElementById('editOldUserFormWrap').style.display = '';
+      setHTML(wrap, `<div style="padding:16px;color:#10b981;font-size:14px;">✅ User loaded: <strong>${u.name || u.email || u.user_id}</strong></div>`);
+      AdminUI.toast('User loaded. Edit fields and save.','success');
+    }catch(err){ 
+      setHTML(wrap, AdminUI.error('Search failed: ' + err.message)); 
+    }
+  },
+
+  async saveUser(){
+    if(!this._currentUserId){ AdminUI.toast('Load a user first.','warning'); return; }
+    const name = document.getElementById('eouName')?.value?.trim();
+    const email = document.getElementById('eouEmail')?.value?.trim();
+    const phone = document.getElementById('eouPhone')?.value?.trim();
+    const country = document.getElementById('eouCountry')?.value?.trim();
+    const level = document.getElementById('eouLevel')?.value?.trim();
+    const status = document.getElementById('eouStatus')?.value;
+    const btc_balance = parseFloat(document.getElementById('eouBtc')?.value || 0);
+    const usdt_balance = parseFloat(document.getElementById('eouUsdt')?.value || 0);
+    const patch = {name, email, phone, country, level, btc_balance, usdt_balance};
+    if(status === 'active'){ patch.is_active = true; patch.is_banned = false; patch.is_suspended = false; }
+    if(status === 'suspended'){ patch.is_active = false; patch.is_suspended = true; patch.is_banned = false; }
+    if(status === 'banned'){ patch.is_active = false; patch.is_banned = true; patch.is_suspended = false; }
+    const{error} = await sb.from('profiles').update(patch).eq('id', this._currentUserId);
+    if(error){ AdminUI.toast('Save failed: ' + error.message, 'error'); return; }
+    await logAdminAction('edit_old_user', 'profiles', this._currentUserId, null, patch);
+    AdminUI.toast('User updated successfully.', 'success');
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  },
+
+  clearForm(){
+    this._currentUserId = null;
+    document.getElementById('editOldUserFormWrap').style.display = 'none';
+    document.getElementById('editOldUserSearchInput').value = '';
+    setHTML(document.getElementById('editOldUserTableWrap'), '');
+  }
+};
+window.EditOldUserModule = EditOldUserModule;
+
+/* ══════════════════════════════════════════════════════════════
     §21  CSV EXPORT
  ══════════════════════════════════════════════════════════════ */
 function downloadCSV(filename, rows){
@@ -1260,6 +3360,36 @@ async function loadSection(name){
      case 'logs': await SecurityLogsModule.load(); break;
      case 'new-users': await NewUsersModule.load('today'); break;
      case 'old-users': await OldUsersModule.load('all-time'); break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
+     case 'edit-old-user': break;
    }
 }
 
