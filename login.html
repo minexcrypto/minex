@@ -344,7 +344,6 @@
         const profileData = {
           id:           data.user.id,
           email:        data.user.email,
-          btc_balance:  0,
           usdt_balance: 0,
           ref_code:     myRefCode,
         };
@@ -396,7 +395,7 @@
       if (!prof) {
         await _supabase.from('profiles').upsert({
           id: data.user.id, email: data.user.email,
-          btc_balance: 0, usdt_balance: 0,
+          usdt_balance: 0,
           ref_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase()
         });
       } else if (!prof.ref_code) {
