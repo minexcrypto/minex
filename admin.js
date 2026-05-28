@@ -37,6 +37,64 @@ function escapeHtml(text='') {
     .replace(/'/g, '&#039;');
 }
 
+function getLocalDayRange(date = new Date()) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+function getDateRangeForFilter(filter) {
+  const normalized = String(filter || '').toLowerCase();
+  if (normalized === 'all' || normalized === 'all-time' || normalized === '') return null;
+
+  const { start, end } = getLocalDayRange(new Date());
+  if (normalized === 'today') return { start, end };
+
+  if (normalized === 'last-week') {
+    start.setDate(start.getDate() - 6);
+    return { start, end };
+  }
+
+  if (normalized === 'last-month') {
+    start.setDate(start.getDate() - 29);
+    return { start, end };
+  }
+
+  return null;
+}
+
+function filterUsersByCreatedAt(rows, filter) {
+  const range = getDateRangeForFilter(filter);
+  if (!range) return rows.slice();
+  return rows.filter(row => {
+    if (!row?.created_at) return false;
+    const createdAt = new Date(row.created_at);
+    return createdAt >= range.start && createdAt <= range.end;
+  });
+}
+
+async function fetchAllProfiles(columns) {
+  if (!sb) return [];
+  const rows = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await sb
+      .from('profiles')
+      .select(columns)
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const batch = data || [];
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+  return rows;
+}
+
 /* ══════════════════════════════════════════════════════════════
    §3  UI PRIMITIVES
 ══════════════════════════════════════════════════════════════ */
@@ -87,7 +145,7 @@ const AdminUI = {
   activateTab(name) {
     $$('[data-admin-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab===name));
     $$('[data-admin-section]').forEach(sec => { const match=sec.dataset.adminSection===name; sec.classList.toggle('active',match); sec.style.display=match?'':'none'; });
-    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs', 'edit-old-user':'Edit Old User' };
+    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs', 'new-users':'New User', 'old-users':'Old User', 'edit-old-user':'Edit Old User' };
     setText('#adminPageTitle', TITLES[name]||name);
   },
 };
@@ -662,7 +720,119 @@ const UsersModule = {
 window.UsersModule=UsersModule;
 
 /* ══════════════════════════════════════════════════════════════
-   §12B  EDIT OLD USER MODULE
+   §12A  NEW USERS MODULE
+══════════════════════════════════════════════════════════════ */
+const NewUsersModule = {
+  _rows:[], _page:1, _pageSize:25,
+  goPage(n){ this._page=n; this._renderPage(); },
+  async load(dateFilter='today'){
+    const container=document.getElementById('newUsersTableWrap'); if(!container||!sb)return;
+    setHTML(container,AdminUI.loading('Loading new users…'));
+    try{
+      const data = await fetchAllProfiles('id,email,name,user_id,btc_balance,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
+      this._rows = filterUsersByCreatedAt(data||[], dateFilter);
+      this._page = 1;
+      this._renderPage();
+      setText('#newUsersCount', String(this._rows.length));
+    }catch(err){
+      setHTML(container,AdminUI.error('Could not load new users: '+err.message));
+    }
+  },
+  _renderPage(){
+    const container=document.getElementById('newUsersTableWrap'); if(!container)return;
+    const filter=($('#newUserSearchInput')?.value||'').toLowerCase().trim();
+    const dateFilter=$('#newUserDateFilter')?.value||'today';
+    let rows=filterUsersByCreatedAt(this._rows, dateFilter);
+    if(filter) rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.user_id||'')+(r.id||'')).toLowerCase().includes(filter));
+    paginate(rows,this._pageSize,this._page,'newUsersPagination',(pageRows)=>this._render(container,pageRows),'NewUsersModule');
+  },
+  _render(container,rows){
+    if(!rows.length){ setHTML(container,AdminUI.empty('No new users found for the selected date range.')); return; }
+    const html=rows.map(u=>{
+      const joined=u.created_at?new Date(u.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'—';
+      const btc=Number(u.btc_balance||0).toFixed(8);
+      let status='active';
+      if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">👁 View</button></td></tr>`;
+    }).join('');
+    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">BTC Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
+  },
+  export(){
+    const dateFilter=$('#newUserDateFilter')?.value||'today';
+    const rows=filterUsersByCreatedAt(this._rows, dateFilter);
+    const headers=['ID','Email','Name','User ID','BTC','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
+    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.btc_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
+    downloadCSV('new_users.csv',[headers,...data]);
+  }
+};
+window.NewUsersModule=NewUsersModule;
+
+/* ══════════════════════════════════════════════════════════════
+   §12B  OLD USERS MODULE
+══════════════════════════════════════════════════════════════ */
+const OldUsersModule = {
+  _rows:[], _page:1, _pageSize:25,
+  goPage(n){ this._page=n; this._renderPage(); },
+  async load(dateFilter='all-time'){
+    const container=document.getElementById('oldUsersTableWrap'); if(!container||!sb)return;
+    setHTML(container,AdminUI.loading('Loading old users…'));
+    try{
+      this._rows = await fetchAllProfiles('id,email,name,user_id,btc_balance,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
+      this._page = 1;
+      this._renderPage();
+      setText('#oldUsersCount', String(this._rows.length));
+      EditOldUserModule._rows = this._rows.map(row => ({ ...row, _activePlan: '', _activeContract: null }));
+    }catch(err){
+      setHTML(container,AdminUI.error('Could not load old users: '+err.message));
+    }
+  },
+  _renderPage(){
+    const container=document.getElementById('oldUsersTableWrap'); if(!container)return;
+    const filter=($('#oldUserSearchInput')?.value||'').toLowerCase().trim();
+    const dateFilter=$('#oldUserDateFilter')?.value||'all-time';
+    let rows=filterUsersByCreatedAt(this._rows, dateFilter);
+    if(filter) rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.user_id||'')+(r.id||'')+(r.phone||'')+(r.country||'')).toLowerCase().includes(filter));
+    paginate(rows,this._pageSize,this._page,'oldUsersPagination',(pageRows)=>this._render(container,pageRows),'OldUsersModule');
+  },
+  _render(container,rows){
+    if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
+    const html=rows.map(u=>{
+      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'—';
+      const btc=Number(u.btc_balance||0).toFixed(8);
+      let status='active';
+      if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'…'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'—'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${btc} <span style="font-size:10px;color:#64748b">BTC</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">👁 View</button></td></tr>`;
+    }).join('');
+    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">BTC Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
+  },
+  export(){
+    const dateFilter=$('#oldUserDateFilter')?.value||'all-time';
+    const rows=filterUsersByCreatedAt(this._rows, dateFilter);
+    const headers=['ID','Email','Name','User ID','BTC','USDT','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
+    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.btc_balance||0,r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
+    downloadCSV('old_users.csv',[headers,...data]);
+  },
+  async bulkEditFiltered(){
+    const search = ($('#oldUserSearchInput')?.value || '').trim();
+    const dateFilter = $('#oldUserDateFilter')?.value || 'all-time';
+    const filtered = filterUsersByCreatedAt(this._rows, dateFilter).filter(r => {
+      if (!search) return true;
+      return `${r.id||''} ${r.user_id||''} ${r.email||''} ${r.name||''} ${r.phone||''} ${r.country||''}`.toLowerCase().includes(search.toLowerCase());
+    });
+    if (!filtered.length) { AdminUI.toast('No filtered users found.','warning'); return; }
+    EditOldUserModule._rows = filtered.map(row => ({ ...row, _activePlan:'', _activeContract:null }));
+    const oldSearch = $('#editOldUserSearchInput');
+    const oldPlan = $('#editOldUserPlanFilter');
+    if (oldSearch) oldSearch.value = search;
+    if (oldPlan) oldPlan.value = 'all';
+    AdminUI.activateTab('edit-old-user');
+    EditOldUserModule.openBulkEditForm();
+  }
+};
+window.OldUsersModule=OldUsersModule;
+
+/* ══════════════════════════════════════════════════════════════
+   §12C  EDIT OLD USER MODULE
 ══════════════════════════════════════════════════════════════ */
 const EditOldUserModule = {
   _rows:[], _page:1, _pageSize:15, _selectedUser:null,
@@ -1391,6 +1561,10 @@ function initFilters(){
   on('#transactionTypeFilter','change',e=>{ TransactionsModule.load(e.target.value||'all'); });
   on('#contractStatusFilter','change',e=>{ ContractsModule.load(); });
   on('#userStatusFilter','change',e=>{ UsersModule._renderPage(); });
+  on('#newUserDateFilter','change',e=>{ NewUsersModule.load(e.target.value||'today'); });
+  on('#oldUserDateFilter','change',e=>{ OldUsersModule.load(e.target.value||'all-time'); });
+  on('#newUserSearchInput','input',()=>{ NewUsersModule._page=1; NewUsersModule._renderPage(); });
+  on('#oldUserSearchInput','input',()=>{ OldUsersModule._page=1; OldUsersModule._renderPage(); });
   on('#editOldUserSearchInput','input',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
   on('#editOldUserPlanFilter','change',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
   on('#depositSearchInput','input',()=>{ DepositsModule._page=1; DepositsModule._renderPage(); });
@@ -1447,6 +1621,8 @@ function initRealtime(){
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>{
       UsersModule.load(); OverviewModule._userStats();
+      if(_loaded.has('new-users')) NewUsersModule.load($('#newUserDateFilter')?.value||'today');
+      if(_loaded.has('old-users')) OldUsersModule.load($('#oldUserDateFilter')?.value||'all-time');
       if(_loaded.has('edit-old-user')) EditOldUserModule.loadUsers();
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_logs'},()=>{
@@ -1487,7 +1663,9 @@ function initModals(){
 }
 
 async function loadSection(name){
-  if(_loaded.has(name))return; _loaded.add(name);
+  const alwaysReload = new Set(['new-users','old-users']);
+  if(_loaded.has(name) && !alwaysReload.has(name)) return;
+  _loaded.add(name);
   switch(name){
     case 'overview': await OverviewModule.load(); break;
     case 'deposits': await DepositsModule.load(); break;
@@ -1495,6 +1673,8 @@ async function loadSection(name){
     case 'transactions': await TransactionsModule.load(); break;
     case 'contracts': await ContractsModule.load(); break;
     case 'users': await UsersModule.load(); break;
+    case 'new-users': await NewUsersModule.load($('#newUserDateFilter')?.value||'today'); break;
+    case 'old-users': await OldUsersModule.load($('#oldUserDateFilter')?.value||'all-time'); break;
     case 'edit-old-user': await EditOldUserModule.loadUsers(); break;
     case 'referrals': await ReferralModule.load(); break;
     case 'notifications': await NotificationsModule.load(); break;
@@ -1531,7 +1711,7 @@ function closeEntityModal(){ hide('#entityModal'); }
    §26  PUBLIC EXPORTS
 ══════════════════════════════════════════════════════════════ */
 Object.assign(window,{
-  AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,EditOldUserModule,TransactionsModule,ContractsModule,
+  AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,NewUsersModule,OldUsersModule,EditOldUserModule,TransactionsModule,ContractsModule,
   OverviewModule,PriceService,NotificationsModule,ReferralModule,SecurityLogsModule,GlobalSearch,
   logAdminAction,closeEntityModal
 });
