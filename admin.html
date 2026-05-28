@@ -11,6 +11,7 @@
         window.CRYPTOVAULT_SUPABASE_KEY = "sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
 </head>
 <body>
     <div id="adminLoginScreen" class="login-screen">
@@ -224,7 +225,8 @@
                      </select>
                      <input type="text" id="oldUserSearchInput" placeholder="Search old users...">
                      <button class="admin-btn admin-btn-outline" onclick="OldUsersModule.export()">📥 CSV</button>
-                 </div>
+                 
+                     <button class="admin-btn admin-btn-primary" onclick="OldUsersModule.openEditModal()">✏️ Edit User</button></div>
                 <div class="table-container" id="oldUsersTableWrap"></div>
                 <div class="pagination-bar" id="oldUsersPagination"></div>
             </div>
@@ -246,5 +248,19 @@
     <div id="lightbox" class="lightbox hidden"><span class="lightbox-close">×</span><img id="lightbox-img" src="" alt="Screenshot"></div>
 
     <script src="admin.js"></script>
+
+    <!-- OLD USER EDIT MODAL -->
+    <div id="oldUserEditModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="oldUserEditModalTitle">Edit Old User</h3>
+                <button class="modal-close" onclick="OldUsersModule.closeEditModal()">×</button>
+            </div>
+            <div class="modal-body" id="oldUserEditModalBody">
+                <!-- Edit form will be injected here by JS -->
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
