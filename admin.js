@@ -79,7 +79,7 @@ const AdminUI = {
   activateTab(name) {
     $$('[data-admin-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab===name));
     $$('[data-admin-section]').forEach(sec => { const match=sec.dataset.adminSection===name; sec.classList.toggle('active',match); sec.style.display=match?'':'none'; });
-    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs' };
+    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs', 'edit-old-user':'Edit Old User' };
     setText('#adminPageTitle', TITLES[name]||name);
   },
 };
@@ -654,6 +654,165 @@ const UsersModule = {
 window.UsersModule=UsersModule;
 
 /* ══════════════════════════════════════════════════════════════
+   §12B  EDIT OLD USER MODULE
+══════════════════════════════════════════════════════════════ */
+const EditOldUserModule = {
+  _rows:[], _page:1, _pageSize:15, _selectedUser:null,
+  goPage(n){ this._page=n; this._renderPage(); },
+  _normalizePlan(plan){
+    const text=String(plan||'').trim().toLowerCase().replace(/\bplan\b/g,'').replace(/\s+/g,' ').trim();
+    if(text.includes('starter')) return 'starter';
+    if(text.includes('silver')) return 'silver';
+    if(text.includes('gold')) return 'gold';
+    if(text.includes('platinum')) return 'platinum';
+    return text;
+  },
+  _prettyPlan(plan){
+    const normalized=this._normalizePlan(plan);
+    return normalized ? normalized.charAt(0).toUpperCase()+normalized.slice(1) : '—';
+  },
+  _statusFromRow(row){
+    if(row?.is_banned) return 'banned';
+    if(row?.is_suspended) return 'suspended';
+    if(row?.is_active===false) return 'inactive';
+    return 'active';
+  },
+  _activeContractForRow(row){
+    return row?._activeContract || null;
+  },
+  async loadUsers(){
+    const container=document.getElementById('editOldUserTableWrap'); if(!container||!sb)return;
+    setHTML(container,AdminUI.loading('Loading users…'));
+    try{
+      const[{data:profiles,error:profilesError},{data:contracts,error:contractsError}]=await Promise.all([
+        sb.from('profiles').select('id,email,name,user_id,phone,country,usdt_balance,is_active,is_banned,is_suspended,created_at').order('created_at',{ascending:false}).limit(1000),
+        sb.from('contracts').select('id,user_id,plan,daily_profit,active,created_at').order('created_at',{ascending:false}).limit(1000)
+      ]);
+      if(profilesError) throw profilesError;
+      if(contractsError) throw contractsError;
+      const activeContractMap={};
+      (contracts||[]).forEach(contract=>{
+        const userKey=contract?.user_id;
+        if(!userKey) return;
+        if(contract.active===true && !activeContractMap[userKey]) activeContractMap[userKey]=contract;
+      });
+      this._rows=(profiles||[]).map(profile=>{
+        const activeContract=activeContractMap[profile.id] || activeContractMap[profile.user_id] || null;
+        return {...profile,_activeContract:activeContract,_activePlan:activeContract?.plan||''};
+      });
+      this._page=1;
+      this._renderPage();
+    }catch(err){
+      setHTML(container,AdminUI.error('Could not load users: '+err.message));
+    }
+  },
+  _filteredRows(){
+    const search=($('#editOldUserSearchInput')?.value||'').trim().toLowerCase();
+    const planFilter=($('#editOldUserPlanFilter')?.value||'all').toLowerCase();
+    let rows=this._rows.slice();
+    if(planFilter!=='all') rows=rows.filter(row=>this._normalizePlan(row._activePlan)===planFilter);
+    if(search){
+      rows=rows.filter(row=>{
+        const text=`${row.id||''} ${row.user_id||''} ${row.email||''} ${row.name||''} ${row.phone||''} ${row.country||''}`.toLowerCase();
+        return text.includes(search);
+      });
+    }
+    return rows;
+  },
+  _renderPage(){
+    const container=document.getElementById('editOldUserTableWrap'); if(!container)return;
+    const rows=this._filteredRows();
+    paginate(rows,this._pageSize,this._page,'editOldUserPagination',(pageRows)=>this._render(container,pageRows),'EditOldUserModule');
+  },
+  _render(container,rows){
+    if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
+    const html=rows.map(u=>{
+      const plan=this._prettyPlan(u._activePlan);
+      const status=this._statusFromRow(u);
+      const wallet=Number(u.usdt_balance||0).toFixed(2);
+      const daily=u._activeContract?.daily_profit!=null ? Number(u._activeContract.daily_profit).toFixed(8) : '—';
+      return`<tr>
+        <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(u.id||'').slice(0,8)}…</td>
+        <td style="${TD}"><div style="font-weight:600;color:#f1f5f9;">${u.name||'—'}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${u.user_id||'—'}</div></td>
+        <td style="${TD}">${u.email||'—'}</td>
+        <td style="${TD};font-weight:600;color:#f1f5f9;">${plan}</td>
+        <td style="${TD};font-family:monospace;color:#10b981;">${wallet} USDT</td>
+        <td style="${TD};font-family:monospace;color:#fbbf24;">${daily}</td>
+        <td style="${TD}">${AdminUI.badge(status)}</td>
+        <td style="${TD}"><button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.selectUser('${u.id}')">Edit</button></td>
+      </tr>`;
+    }).join('');
+    setHTML(container,`
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr><th style="${TH}">ID</th><th style="${TH}">Name</th><th style="${TH}">Email</th><th style="${TH}">Active Plan</th><th style="${TH}">Wallet</th><th style="${TH}">Daily Profit</th><th style="${TH}">Status</th><th style="${TH}">Action</th></tr></thead>
+        <tbody>${html}</tbody>
+      </table>
+    `);
+  },
+  async selectUser(userId){
+    const row=this._rows.find(item=>item.id===userId);
+    if(!row)return;
+    this._selectedUser=row;
+    const contract=this._activeContractForRow(row);
+    show('#editOldUserFormWrap');
+    $('#eouName').value=row.name||'';
+    $('#eouEmail').value=row.email||'';
+    $('#eouPhone').value=row.phone||'';
+    $('#eouCountry').value=row.country||'';
+    $('#eouPlan').value=this._normalizePlan(row._activePlan)||'starter';
+    $('#eouStatus').value=this._statusFromRow(row);
+    $('#eouWalletBalance').value=Number(row.usdt_balance||0);
+    $('#eouDailyProfit').value=Number(contract?.daily_profit||0);
+    window.scrollTo({ top:document.body.scrollHeight, behavior:'smooth' });
+  },
+  async saveUser(){
+    if(!this._selectedUser){ AdminUI.toast('No user selected.','error'); return; }
+    try{
+      const row=this._selectedUser;
+      const contract=this._activeContractForRow(row);
+      const status=($('#eouStatus')?.value||'active').toLowerCase();
+      const selectedPlan=this._normalizePlan($('#eouPlan')?.value||'starter');
+      const dailyProfit=parseFloat($('#eouDailyProfit')?.value||0);
+      const profilePatch={
+        name:($('#eouName')?.value||'').trim(),
+        email:($('#eouEmail')?.value||'').trim(),
+        phone:($('#eouPhone')?.value||'').trim(),
+        country:($('#eouCountry')?.value||'').trim(),
+        usdt_balance:parseFloat($('#eouWalletBalance')?.value||0),
+        is_active:status==='active',
+        is_suspended:status==='suspended',
+        is_banned:status==='banned'
+      };
+      const {error:profileError}=await sb.from('profiles').update(profilePatch).eq('id',row.id);
+      if(profileError) throw profileError;
+      if(contract?.id){
+        const contractPatch={ plan:selectedPlan || contract.plan || 'starter', daily_profit:dailyProfit };
+        const {error:contractError}=await sb.from('contracts').update(contractPatch).eq('id',contract.id);
+        if(contractError) throw contractError;
+      }
+      await logAdminAction('edit_old_user','profiles',row.id,row,{...profilePatch, plan:selectedPlan, daily_profit:dailyProfit});
+      if(contract?.id){
+        AdminUI.toast('User updated successfully.','success');
+      }else{
+        AdminUI.toast('User updated, but no active contract was found so plan and daily profit were not changed.','warning');
+      }
+      this.clearForm();
+      await this.loadUsers();
+    }catch(err){
+      AdminUI.toast('Update failed: '+err.message,'error');
+    }
+  },
+  clearForm(){
+    this._selectedUser=null;
+    hide('#editOldUserFormWrap');
+    ['#eouName','#eouEmail','#eouPhone','#eouCountry','#eouWalletBalance','#eouDailyProfit'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+    const planEl=$('#eouPlan'); if(planEl) planEl.value='starter';
+    const statusEl=$('#eouStatus'); if(statusEl) statusEl.value='active';
+  }
+};
+window.EditOldUserModule=EditOldUserModule;
+
+/* ══════════════════════════════════════════════════════════════
    §13  TRANSACTIONS MODULE
 ══════════════════════════════════════════════════════════════ */
 const TransactionsModule = {
@@ -1009,6 +1168,8 @@ function initFilters(){
   on('#transactionTypeFilter','change',e=>{ TransactionsModule.load(e.target.value||'all'); });
   on('#contractStatusFilter','change',e=>{ ContractsModule.load(); });
   on('#userStatusFilter','change',e=>{ UsersModule._renderPage(); });
+  on('#editOldUserSearchInput','input',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
+  on('#editOldUserPlanFilter','change',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
   on('#depositSearchInput','input',()=>{ DepositsModule._page=1; DepositsModule._renderPage(); });
   on('#withdrawalSearchInput','input',()=>{ WithdrawalsModule._page=1; WithdrawalsModule._renderPage(); });
   on('#transactionSearchInput','input',()=>{ TransactionsModule._page=1; TransactionsModule._renderPage(); });
@@ -1059,9 +1220,11 @@ function initRealtime(){
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'contracts'},()=>{
       ContractsModule.load();
+      if(_loaded.has('edit-old-user')) EditOldUserModule.loadUsers();
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>{
       UsersModule.load(); OverviewModule._userStats();
+      if(_loaded.has('edit-old-user')) EditOldUserModule.loadUsers();
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_logs'},()=>{
       if(_loaded.has('logs'))SecurityLogsModule.load();
@@ -1109,6 +1272,7 @@ async function loadSection(name){
     case 'transactions': await TransactionsModule.load(); break;
     case 'contracts': await ContractsModule.load(); break;
     case 'users': await UsersModule.load(); break;
+    case 'edit-old-user': await EditOldUserModule.loadUsers(); break;
     case 'referrals': await ReferralModule.load(); break;
     case 'notifications': await NotificationsModule.load(); break;
     case 'logs': await SecurityLogsModule.load(); break;
@@ -1143,7 +1307,7 @@ function closeEntityModal(){ hide('#entityModal'); }
    §26  PUBLIC EXPORTS
 ══════════════════════════════════════════════════════════════ */
 Object.assign(window,{
-  AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,TransactionsModule,ContractsModule,
+  AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,EditOldUserModule,TransactionsModule,ContractsModule,
   OverviewModule,PriceService,NotificationsModule,ReferralModule,SecurityLogsModule,GlobalSearch,
   logAdminAction,closeEntityModal
 });
