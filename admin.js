@@ -24,8 +24,8 @@ const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel); } cat
 const $$ = (sel, ctx = document) => { try { return [...ctx.querySelectorAll(sel)]; } catch { return []; } };
 function setHTML(sel, html)  { const el = resolve(sel); if (el) el.innerHTML = html; }
 function setText(sel, text)  { const el = resolve(sel); if (el) el.textContent = text; }
-function show(sel)           { const el=resolve(sel); if(el){ el.classList.remove('hidden'); el.classList.add('open'); } }
-function hide(sel)           { const el=resolve(sel); if(el){ el.classList.add('hidden'); el.classList.remove('open'); } }
+function show(sel)           { const el=resolve(sel); if(el){ el.classList.remove('hidden'); el.classList.add('open'); el.style.display=''; } }
+function hide(sel)           { const el=resolve(sel); if(el){ el.classList.add('hidden'); el.classList.remove('open'); el.style.display='none'; } }
 function on(sel, evt, fn, ctx = document) { const el = typeof sel === 'string' ? $(sel, ctx) : (sel || null); if (el) el.addEventListener(evt, fn); }
 function resolve(sel) { return typeof sel === 'string' ? $(sel) : (sel || null); }
 
