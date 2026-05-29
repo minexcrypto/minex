@@ -146,6 +146,14 @@ const PLAN_CONFIG_FALLBACK = {
 };
 let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
 
+const LIVE_HASHRATE_PRESETS = {
+  starter:  { base: 0.6, cap: 2.5, zeroChance: 0.46, boosts: [0.5, 1, 1.5, 2.5, 4] },
+  silver:   { base: 0.9, cap: 4.0, zeroChance: 0.40, boosts: [0.5, 1, 2, 3.5, 5] },
+  gold:     { base: 1.3, cap: 6.0, zeroChance: 0.34, boosts: [0.5, 1, 2, 4, 6] },
+  platinum: { base: 1.7, cap: 8.0, zeroChance: 0.28, boosts: [0.5, 1, 2.5, 5, 8] },
+  default:  { base: 0.8, cap: 4.5, zeroChance: 0.40, boosts: [0.5, 1, 2, 3, 5] },
+};
+
 function _hashCode(input) {
   let hash = 0;
   const str = String(input || '');
@@ -167,14 +175,84 @@ function _seededRandom(seed) {
   };
 }
 
-function _pickLiveHashrateDelta(rand) {
+function _getLivePreset(contract) {
+  const key = normalizePlanKey(contract?.plan || contract?.name);
+  return LIVE_HASHRATE_PRESETS[key] || LIVE_HASHRATE_PRESETS.default;
+}
+
+function _getLivePhase(refDate = new Date()) {
+  const hour = refDate.getHours();
+  if (hour >= 6 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'night';
+}
+
+function _getDailyTrendPercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const dayBucket = Math.floor(refDate.getTime() / (24 * 60 * 60 * 1000));
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'day',
+    dayBucket,
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const sign = rand() < 0.5 ? -1 : 1;
+  const trend = (0.35 + (rand() * 0.95)) * config.base;
+  return sign * Math.min(6, trend);
+}
+
+function _getPhaseOffsetPercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const phase = _getLivePhase(refDate);
+  const hourSeed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'phase',
+    Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS),
+  ].join('|'));
+  const rand = _seededRandom(hourSeed);
+  const jitter = 0.15 + (rand() * 0.35);
+
+  const phaseMap = {
+    night: -0.35,
+    morning: 0.15,
+    afternoon: 0.30,
+    evening: 0.45,
+  };
+
+  return (phaseMap[phase] || 0) * config.base * jitter;
+}
+
+function _getRareSpikePercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'spike',
+    Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS),
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const chance = 0.025 + (config.base * 0.0035);
+  if (rand() > chance) return 0;
+
+  const direction = rand() < 0.5 ? -1 : 1;
+  const spike = (2 + (rand() * 5)) * config.base;
+  return direction * Math.min(config.cap * 1.5, spike);
+}
+
+function _pickLiveHashrateDelta(rand, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
   const roll = rand();
-  if (roll < 0.40) return 0;
-  if (roll < 0.58) return rand() < 0.5 ? -0.5 : 0.5;
-  if (roll < 0.76) return rand() < 0.5 ? -1 : 1;
-  if (roll < 0.88) return rand() < 0.5 ? -2 : 2;
-  if (roll < 0.96) return rand() < 0.5 ? -5 : 5;
-  return rand() < 0.5 ? -10 : 10;
+  if (roll < config.zeroChance) return 0;
+
+  const tierRoll = rand();
+  const tierIndex =
+    tierRoll < 0.50 ? 0 :
+    tierRoll < 0.75 ? 1 :
+    tierRoll < 0.90 ? 2 :
+    tierRoll < 0.97 ? 3 : 4;
+  const boost = config.boosts[Math.min(tierIndex, config.boosts.length - 1)];
+  const sign = rand() < 0.5 ? -1 : 1;
+  return sign * Math.min(config.cap, config.base * boost);
 }
 
 function getLiveHashrateForContract(contract, refDate = new Date()) {
@@ -189,8 +267,22 @@ function getLiveHashrateForContract(contract, refDate = new Date()) {
     bucket,
   ].join('|'));
   const rand = _seededRandom(seed);
-  const delta = _pickLiveHashrateDelta(rand);
+  const preset = _getLivePreset(contract);
+  const delta =
+    _getDailyTrendPercent(contract, refDate, preset) +
+    _getPhaseOffsetPercent(contract, refDate, preset) +
+    _pickLiveHashrateDelta(rand, preset) +
+    _getRareSpikePercent(contract, refDate, preset);
   return Math.max(0, baseHashrate * (1 + (delta / 100)));
+}
+
+function getLiveHashrateMovementForContract(contract, refDate = new Date()) {
+  const baseHashrate = Number(contract?.hashrate || getPlanHashrate(contract?.plan || contract?.name, 0) || 0);
+  const liveHashrate = getLiveHashrateForContract(contract, refDate);
+  const delta = liveHashrate - baseHashrate;
+  const deltaPct = baseHashrate > 0 ? (delta / baseHashrate) * 100 : 0;
+  const direction = deltaPct > 0.04 ? 'up' : deltaPct < -0.04 ? 'down' : 'flat';
+  return { baseHashrate, liveHashrate, delta, deltaPct, direction };
 }
 
 function normalizePlanKey(planName) {
@@ -364,6 +456,7 @@ function renderPage(contract) {
   if (!contract) return;
 
   const planName = contract.plan || contract.name || 'Mining Contract';
+  const movement = getLiveHashrateMovementForContract(contract);
   const liveHashrate = getLiveHashrateForContract(contract);
   const hashrate = liveHashrate > 0 ? liveHashrate.toFixed(1) : '—';
   const expired = isContractExpired(contract);
@@ -418,11 +511,28 @@ function renderPage(contract) {
   setText('infoHashrate', hashrate + ' TH/s');
   setText('infoDailyProfit', dailyProfitStr + ' / day');
   setText('infoStatus', expired ? '● Expired' : (contract.active ? '● Active' : '● Inactive'));
+  updatePlanHashrateTrend(movement);
 
   if (_timerInterval) clearInterval(_timerInterval);
   _timerInterval = setInterval(() => updateTimer(contract), 1000);
   updateTimer(contract);
   drawEarningsChart(contract);
+}
+
+function updatePlanHashrateTrend(movement) {
+  const el = $('planHashrateTrend');
+  if (!el) return;
+
+  if (!movement?.baseHashrate) {
+    el.textContent = 'Live';
+    el.className = 'stat-change up';
+    return;
+  }
+
+  const pct = Math.abs(Number(movement.deltaPct || 0));
+  const arrow = movement.direction === 'down' ? '▼' : movement.direction === 'up' ? '▲' : '•';
+  el.textContent = movement.direction === 'flat' ? 'Stable' : `${arrow} ${pct.toFixed(2)}%`;
+  el.className = 'stat-change ' + (movement.direction === 'down' ? 'down' : 'up');
 }
 
 function formatUsdtDaily(amount) {
