@@ -137,6 +137,7 @@ const BTCPrice = (() => {
 
 /* ─── MINING PAYOUT HELPERS ─────────────────────────────── */
 const MINING_MS_PER_DAY = 24 * 60 * 60 * 1000;
+const LIVE_HASHRATE_INTERVAL_MS = 5 * 60 * 1000;
 const PLAN_CONFIG_FALLBACK = {
   starter:  { priceUsd: 500,   durationDays: 1460, monthlyRate: 0.05, hashrate: 10 },
   silver:   { priceUsd: 2500,  durationDays: 1095, monthlyRate: 0.10, hashrate: 50 },
@@ -144,6 +145,53 @@ const PLAN_CONFIG_FALLBACK = {
   platinum: { priceUsd: 10000, durationDays: 365,  monthlyRate: 0.20, hashrate: 300 },
 };
 let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
+
+function _hashCode(input) {
+  let hash = 0;
+  const str = String(input || '');
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash >>> 0;
+}
+
+function _seededRandom(seed) {
+  let value = seed >>> 0;
+  return function next() {
+    value += 0x6D2B79F5;
+    let t = value;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function _pickLiveHashrateDelta(rand) {
+  const roll = rand();
+  if (roll < 0.40) return 0;
+  if (roll < 0.58) return rand() < 0.5 ? -0.5 : 0.5;
+  if (roll < 0.76) return rand() < 0.5 ? -1 : 1;
+  if (roll < 0.88) return rand() < 0.5 ? -2 : 2;
+  if (roll < 0.96) return rand() < 0.5 ? -5 : 5;
+  return rand() < 0.5 ? -10 : 10;
+}
+
+function getLiveHashrateForContract(contract, refDate = new Date()) {
+  if (!contract || contract.active !== true || isContractExpired(contract, refDate)) return 0;
+
+  const baseHashrate = Number(contract?.hashrate || getPlanHashrate(contract?.plan || contract?.name, 0) || 0);
+  if (!baseHashrate) return 0;
+
+  const bucket = Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS);
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    bucket,
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const delta = _pickLiveHashrateDelta(rand);
+  return Math.max(0, baseHashrate * (1 + (delta / 100)));
+}
 
 function normalizePlanKey(planName) {
   return String(planName || '').trim().toLowerCase();
@@ -316,7 +364,8 @@ function renderPage(contract) {
   if (!contract) return;
 
   const planName = contract.plan || contract.name || 'Mining Contract';
-  const hashrate = contract.hashrate != null ? Number(contract.hashrate).toFixed(1) : '—';
+  const liveHashrate = getLiveHashrateForContract(contract);
+  const hashrate = liveHashrate > 0 ? liveHashrate.toFixed(1) : '—';
   const expired = isContractExpired(contract);
   const dailyProfit = expired ? 0 : getDailyProfitUsdt(contract);
   const dailyProfitStr = formatUsdtDaily(dailyProfit);
