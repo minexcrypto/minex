@@ -1,6 +1,6 @@
 /* --------------------------------------------------------------
-   CRYPTOVAULT � admin.js  ENTERPRISE EDITION
-   Tables: profiles � deposits � withdrawals � transactions � contracts � notifications � referrals � admin_logs
+   CRYPTOVAULT ? admin.js  ENTERPRISE EDITION
+   Tables: profiles ? deposits ? withdrawals ? transactions ? contracts ? notifications ? referrals ? admin_logs
 -------------------------------------------------------------- */
 'use strict';
 
@@ -12,7 +12,7 @@
 })();
 
 /* --------------------------------------------------------------
-   �1  SUPABASE CLIENT
+   ?1  SUPABASE CLIENT
 -------------------------------------------------------------- */
 let sb = null;
 function initSupabaseClient() {
@@ -25,7 +25,7 @@ function initSupabaseClient() {
 }
 
 /* --------------------------------------------------------------
-   �2  DOM HELPERS
+   ?2  DOM HELPERS
 -------------------------------------------------------------- */
 const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel); } catch { return null; } };
 const $$ = (sel, ctx = document) => { try { return [...ctx.querySelectorAll(sel)]; } catch { return []; } };
@@ -85,9 +85,10 @@ function filterUsersByCreatedAt(rows, filter) {
 async function fetchAllProfiles(columns) {
   if (!sb) return [];
   const rows = [];
-  const pageSize = 1000;
+  const pageSize = 200;
+  const maxRows = 2000;
   let from = 0;
-  while (true) {
+  while (rows.length < maxRows) {
     const { data, error } = await sb
       .from('profiles')
       .select(columns)
@@ -103,7 +104,7 @@ async function fetchAllProfiles(columns) {
 }
 
 /* --------------------------------------------------------------
-   �3  UI PRIMITIVES
+   ?3  UI PRIMITIVES
 -------------------------------------------------------------- */
 const AdminUI = {
   toast(msg, type = 'info', ms = 4000) {
@@ -130,7 +131,7 @@ const AdminUI = {
     b.style.cssText = `background:${c}18;border-bottom:1px solid ${c}44;padding:11px 24px;font-size:13px;font-weight:600;color:${c};text-align:center;`;
     b.textContent = msg; document.body.prepend(b);
   },
-  loading(msg='Loading�') { return `<div style="padding:48px;text-align:center;color:#475569;font-size:13px;"><div style="width:26px;height:26px;border:2px solid #1e2d45;border-top-color:#f59e0b;border-radius:50%;animation:_cvSpin .8s linear infinite;margin:0 auto 14px;"></div>${msg}</div>`; },
+  loading(msg='Loading?') { return `<div style="padding:48px;text-align:center;color:#475569;font-size:13px;"><div style="width:26px;height:26px;border:2px solid #1e2d45;border-top-color:#f59e0b;border-radius:50%;animation:_cvSpin .8s linear infinite;margin:0 auto 14px;"></div>${msg}</div>`; },
   error(msg='Failed to load data.') { return `<div style="padding:48px;text-align:center;color:#ef4444;font-size:13px;">? ${msg}</div>`; },
   empty(msg='No records found.') { return `<div style="padding:48px;text-align:center;color:#475569;font-size:13px;">?? ${msg}</div>`; },
   badge(status) {
@@ -146,7 +147,7 @@ const AdminUI = {
       announcement:{bg:'rgba(139,92,246,.15)',fg:'#8b5cf6',label:'Announcement'}, banned:{bg:'rgba(239,68,68,.15)',fg:'#ef4444',label:'Banned'},
       suspended:{bg:'rgba(245,158,11,.15)',fg:'#f59e0b',label:'Suspended'},
     };
-    const s = map[String(status).toLowerCase()] || {bg:'rgba(100,116,139,.15)',fg:'#64748b',label:status||'�'};
+    const s = map[String(status).toLowerCase()] || {bg:'rgba(100,116,139,.15)',fg:'#64748b',label:status||'?'};
     return `<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${s.bg};color:${s.fg};white-space:nowrap;">${s.label}</span>`;
   },
   activateTab(name) {
@@ -212,7 +213,7 @@ const TH = ['font-size:11px','font-weight:700','letter-spacing:.8px','text-trans
 const TD = 'padding:12px 16px;font-size:13px;color:#94a3b8;border-bottom:1px solid rgba(30,45,69,.5);';
 
 /* --------------------------------------------------------------
-   �4  ADMIN AUTH
+   ?4  ADMIN AUTH
 -------------------------------------------------------------- */
 const AdminAuth = {
   user: null,
@@ -234,7 +235,7 @@ const AdminAuth = {
 };
 
 /* --------------------------------------------------------------
-   �5  LOGIN FORM
+   ?5  LOGIN FORM
 -------------------------------------------------------------- */
 function initLoginForm() {
   const form=document.getElementById('adminLoginForm'); const errEl=document.getElementById('adminLoginError'); const btnEl=document.getElementById('adminLoginBtn'); const passEl=document.getElementById('adminLoginPassword'); const eyeEl=document.getElementById('adminTogglePassword');
@@ -243,7 +244,7 @@ function initLoginForm() {
   form.addEventListener('submit',async e=>{
     e.preventDefault(); const email=(document.getElementById('adminLoginEmail')?.value||'').trim(); const password=passEl?.value||'';
     if(!email||!password){ if(errEl)errEl.textContent='Email and password required.'; return; }
-    if(errEl)errEl.textContent=''; if(btnEl){btnEl.disabled=true; btnEl.textContent='Signing in�';}
+    if(errEl)errEl.textContent=''; if(btnEl){btnEl.disabled=true; btnEl.textContent='Signing in?';}
     try{ await AdminAuth.login(email,password); hide('#adminLoginScreen'); show('#adminAppShell'); await _bootPanel(); }
     catch(err){ if(errEl)errEl.textContent=err.message; }
     finally{ if(btnEl){btnEl.disabled=false; btnEl.textContent='Sign In';} }
@@ -251,63 +252,40 @@ function initLoginForm() {
 }
 
 /* --------------------------------------------------------------
-   �6  BTC PRICE
+   ?6  BTC PRICE
 -------------------------------------------------------------- */
 const PriceService = {
   _handlers:[], current:null, onChange(fn){this._handlers.push(fn);},
   async fetch(){ try{ const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),8000); const res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',{signal:ctrl.signal}); clearTimeout(timer); if(!res.ok)throw new Error('HTTP '+res.status); const json=await res.json(); const price=json?.bitcoin?.usd??null; const change=json?.bitcoin?.usd_24h_change??null; if(price!==null){this.current={price,change}; this._handlers.forEach(fn=>fn(this.current));} }catch{} },
-  fmt(n){ if(n==null)return'�'; return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); },
+  fmt(n){ if(n==null)return'?'; return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); },
   start(ms=30000){ this.fetch(); setInterval(()=>this.fetch(),ms); },
 };
 function initPriceWidget(){
   PriceService.onChange(({price,change})=>{
     $$('.admin-btc-price').forEach(el=>el.textContent=PriceService.fmt(price));
-    const up=change!=null&&change>=0; const changeStr=change!=null?((up?'? ':'? ')+Math.abs(change).toFixed(2)+'%'):'�'; const colour=change!=null?(up?'#10b981':'#ef4444'):'#64748b';
+    const up=change!=null&&change>=0; const changeStr=change!=null?((up?'? ':'? ')+Math.abs(change).toFixed(2)+'%'):'?'; const colour=change!=null?(up?'#10b981':'#ef4444'):'#64748b';
     $$('.admin-btc-change').forEach(el=>{ el.textContent=changeStr; el.style.color=colour; });
   });
   PriceService.start();
 }
 
 /* --------------------------------------------------------------
-   �7  OVERVIEW
+   ?7  OVERVIEW
 -------------------------------------------------------------- */
 const OverviewModule = {
   async load(){
     await Promise.allSettled([this._depositStats(),this._withdrawalStats(),this._userStats(),this._contractStats(),this._referralStats(),this._volumeStats()]);
     this._activityFeed();
   },
-  async _depositStats(){ try{ const{data,error}=await sb.from('deposits').select('status'); if(error)throw error; const rows=data||[]; const pending=rows.filter(r=>r.status==='pending').length; setText('#stat-pending-deposits',pending); setText('#sidebarDepositBadge',pending>0?String(pending):''); document.getElementById('sidebarDepositBadge').style.display=pending>0?'inline-flex':'none'; setText('#stat-total-deposits',rows.length); }catch(err){console.warn(err);} },
-  async _withdrawalStats(){ try{ const{data,error}=await sb.from('withdrawals').select('status'); if(error)throw error; const rows=data||[]; const pending=rows.filter(r=>r.status==='pending').length; setText('#stat-pending-withdrawals',pending); setText('#sidebarWithdrawalBadge',pending>0?String(pending):''); document.getElementById('sidebarWithdrawalBadge').style.display=pending>0?'inline-flex':'none'; }catch(err){console.warn(err);} },
-  async _userStats(){ try{ const{count,error}=await sb.from('profiles').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-users',count??'�'); }catch(err){console.warn(err);} },
-  async _contractStats(){ try{ const{data,error}=await sb.from('contracts').select('active'); if(error)throw error; const active=(data||[]).filter(r=>r.active===true).length; setText('#stat-active-contracts',active); }catch(err){console.warn(err);} },
+  async _depositStats(){ try{ const[{count:total,error:totalErr},{count:pending,error:pendingErr}]=await Promise.all([sb.from('deposits').select('id',{count:'exact',head:true}),sb.from('deposits').select('id',{count:'exact',head:true}).eq('status','pending')]); if(totalErr)throw totalErr; if(pendingErr)throw pendingErr; setText('#stat-pending-deposits',pending??0); setText('#sidebarDepositBadge',pending>0?String(pending):''); document.getElementById('sidebarDepositBadge').style.display=pending>0?'inline-flex':'none'; setText('#stat-total-deposits',total??0); }catch(err){console.warn(err);} },
+  async _withdrawalStats(){ try{ const{count,error}=await sb.from('withdrawals').select('id',{count:'exact',head:true}).eq('status','pending'); if(error)throw error; setText('#stat-pending-withdrawals',count??0); setText('#sidebarWithdrawalBadge',count>0?String(count):''); document.getElementById('sidebarWithdrawalBadge').style.display=count>0?'inline-flex':'none'; }catch(err){console.warn(err);} },
+  async _userStats(){ try{ const{count,error}=await sb.from('profiles').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-users',count??'?'); }catch(err){console.warn(err);} },
+  async _contractStats(){ try{ const{count,error}=await sb.from('contracts').select('id',{count:'exact',head:true}).eq('active',true); if(error)throw error; setText('#stat-active-contracts',count??0); }catch(err){console.warn(err);} },
   async _referralStats(){ try{ const{count,error}=await sb.from('referrals').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-referrals',count??0); }catch(err){console.warn(err);} },
   async _volumeStats(){
     try{
-      const walletRows = await fetchAllProfiles('usdt_balance');
-      const walletTotal = (walletRows || []).reduce((s, r) => s + Number(r.usdt_balance || 0), 0);
-      const sumContractsByField = async (field) => {
-        const { data, error } = await sb.from('contracts').select(field);
-        if (error) throw error;
-        return (data || []).reduce((s, r) => s + Number(r?.[field] || 0), 0);
-      };
-      let contractTotalValue = 0;
-      try {
-        contractTotalValue = await sumContractsByField('plan_price');
-      } catch {
-        try {
-          contractTotalValue = await sumContractsByField('price_usdt');
-        } catch {
-          try {
-            contractTotalValue = await sumContractsByField('amount');
-          } catch {
-            const fallback = await sumContractsByField('total_earned');
-            contractTotalValue = fallback;
-            console.warn('[Overview] Contract value column not found; fallback to total_earned.');
-          }
-        }
-      }
-      setText('#stat-total-wallet-balance', '$ ' + walletTotal.toFixed(2) + ' USDT');
-      setText('#stat-usdt-volume', '$ ' + contractTotalValue.toFixed(2) + ' USDT');
+      setText('#stat-total-wallet-balance', 'Loading...');
+      setText('#stat-usdt-volume', 'Loading...');
     }catch(err){console.warn(err);}
   },
   async _activityFeed(){
@@ -316,13 +294,13 @@ const OverviewModule = {
       const{data}=await sb.from('admin_logs').select('action,admin_email,created_at').order('created_at',{ascending:false}).limit(20);
       const rows=data||[];
       if(!rows.length){ wrap.innerHTML=AdminUI.empty('No recent activity.'); return; }
-      wrap.innerHTML=rows.map(r=>`<div style="padding:10px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:12px;color:#94a3b8;"><span style="color:#f59e0b;font-weight:600;">${r.action}</span> by ${r.admin_email||'Admin'} � ${new Date(r.created_at).toLocaleString()}</div>`).join('');
+      wrap.innerHTML=rows.map(r=>`<div style="padding:10px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:12px;color:#94a3b8;"><span style="color:#f59e0b;font-weight:600;">${r.action}</span> by ${r.admin_email||'Admin'} ? ${new Date(r.created_at).toLocaleString()}</div>`).join('');
     }catch{ wrap.innerHTML=AdminUI.error(); }
   }
 };
 
 /* --------------------------------------------------------------
-   �8  ADMIN LOGGER
+   ?8  ADMIN LOGGER
 -------------------------------------------------------------- */
 async function logAdminAction(action,targetTable,targetId,oldValue,newValue){
   if(!sb||!AdminAuth.user)return;
@@ -330,7 +308,7 @@ async function logAdminAction(action,targetTable,targetId,oldValue,newValue){
 }
 
 /* --------------------------------------------------------------
-   �9  PAGINATION HELPERS
+   ?9  PAGINATION HELPERS
 -------------------------------------------------------------- */
 function paginate(rows, pageSize, page, containerId, renderFn, moduleName) {
   const total = rows.length;
@@ -341,22 +319,22 @@ function paginate(rows, pageSize, page, containerId, renderFn, moduleName) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
   let html = `<button ${page===1?'disabled':''} onclick="${moduleName}.goPage(${page-1})">?</button>`;
-  for (let i=1;i<=pages;i++){ if(i===1||i===pages||(i>=page-2&&i<=page+2)){ html+=`<button class="${i===page?'active':''}" onclick="${moduleName}.goPage(${i})">${i}</button>`; } else if(i===page-3||i===page+3){ html+=`<span style="color:#475569;padding:0 4px;">�</span>`; } }
+  for (let i=1;i<=pages;i++){ if(i===1||i===pages||(i>=page-2&&i<=page+2)){ html+=`<button class="${i===page?'active':''}" onclick="${moduleName}.goPage(${i})">${i}</button>`; } else if(i===page-3||i===page+3){ html+=`<span style="color:#475569;padding:0 4px;">?</span>`; } }
   html+=`<button ${page===pages?'disabled':''} onclick="${moduleName}.goPage(${page+1})">?</button>`;
   wrap.innerHTML=html;
 }
 
 /* --------------------------------------------------------------
-   �10  DEPOSITS MODULE
+   ?10  DEPOSITS MODULE
 -------------------------------------------------------------- */
 const DepositsModule = {
   _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   async load(statusFilter='all'){
     const container=document.getElementById('depositsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading deposits�'));
+    setHTML(container,AdminUI.loading('Loading deposits?'));
     try{
-      let q=sb.from('deposits').select('*').order('created_at',{ascending:false}).limit(1000);
+      let q=sb.from('deposits').select('*').order('created_at',{ascending:false}).limit(250);
       if(statusFilter!=='all')q=q.eq('status',statusFilter);
       const{data,error}=await q; if(error)throw error; this._rows=data||[];
       const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
@@ -374,12 +352,12 @@ const DepositsModule = {
     if(!rows.length){ setHTML(container,AdminUI.empty('No deposit records.')); return; }
     const tbodyHTML=rows.map(d=>{
       const coinLabel=d.coin==='usdt_bep20'?'USDT (BEP20)':'BTC'; const decimals=d.coin==='usdt_bep20'?2:8; const amount=Number(d.amount||0).toFixed(decimals);
-      const email=d.user_email||(d.user_id?d.user_id.slice(0,8)+'�':'�'); const date=d.created_at?new Date(d.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'�';
+      const email=d.user_email||(d.user_id?d.user_id.slice(0,8)+'?':'?'); const date=d.created_at?new Date(d.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
       const screenshotBtn=d.screenshot_url?`<a href="${d.screenshot_url}" target="_blank" class="admin-btn admin-btn-outline" style="margin-left:4px;">??</a>`:'';
       const actions=d.status==='pending'
         ?`<button class="admin-btn admin-btn-approve" onclick="DepositsModule.updateStatus('${d.id}','approved')">? Approve</button><button class="admin-btn admin-btn-reject" onclick="DepositsModule.updateStatus('${d.id}','rejected')" style="margin-left:4px;">? Reject</button>${screenshotBtn}`
-        :`<span style="font-size:12px;color:#475569">�</span>${screenshotBtn}`;
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(d.id||'').slice(0,8)}�</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${email}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[d.user_id]?.user_id || '�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amount} <span style="font-size:10px;color:#64748b">${coinLabel}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${d.tx_hash?d.tx_hash.slice(0,20)+'�':'�'}</td><td style="${TD}">${AdminUI.badge(d.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="DepositsModule.openEditModal('${d.id}')" style="margin-left:4px;">??</button><button class="admin-btn admin-btn-danger" onclick="DepositsModule.deleteDeposit('${d.id}')" style="margin-left:4px;">??</button></td></tr>`;
+        :`<span style="font-size:12px;color:#475569">?</span>${screenshotBtn}`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(d.id||'').slice(0,8)}?</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${email}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[d.user_id]?.user_id || '?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amount} <span style="font-size:10px;color:#64748b">${coinLabel}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${d.tx_hash?d.tx_hash.slice(0,20)+'?':'?'}</td><td style="${TD}">${AdminUI.badge(d.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="DepositsModule.openEditModal('${d.id}')" style="margin-left:4px;">??</button><button class="admin-btn admin-btn-danger" onclick="DepositsModule.deleteDeposit('${d.id}')" style="margin-left:4px;">??</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Amount</th><th style="${TH}">TXID</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${tbodyHTML}</tbody></table>`);
   },
@@ -413,7 +391,7 @@ const DepositsModule = {
       const newBal=Number(profile[field]||0)+Number(dep.amount);
       const{error:updErr}=await sb.from('profiles').update({[field]:newBal}).eq('id',dep.user_id);
       if(updErr)throw updErr; await _createTx();
-    }catch(err){ AdminUI.toast('⚠ Deposit approved but balance credit failed.','warning',7000); }
+    }catch(err){ AdminUI.toast('? Deposit approved but balance credit failed.','warning',7000); }
   },
   _syncBadges(rows){
     const pending=rows.filter(r=>r.status==='pending').length;
@@ -476,16 +454,16 @@ const DepositsModule = {
 };
 
 /* --------------------------------------------------------------
-   �11  WITHDRAWALS MODULE
+   ?11  WITHDRAWALS MODULE
 -------------------------------------------------------------- */
 const WithdrawalsModule = {
   _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   async load(statusFilter='all'){
     const container=document.getElementById('withdrawalsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading withdrawals�'));
+    setHTML(container,AdminUI.loading('Loading withdrawals?'));
     try{
-      let q=sb.from('withdrawals').select('*').order('created_at',{ascending:false}).limit(1000);
+      let q=sb.from('withdrawals').select('*').order('created_at',{ascending:false}).limit(250);
       if(statusFilter!=='all')q=q.eq('status',statusFilter);
       const{data,error}=await q; if(error)throw error; this._rows=data||[];
       const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
@@ -502,11 +480,11 @@ const WithdrawalsModule = {
     if(!rows.length){ setHTML(container,AdminUI.empty('No withdrawals.')); return; }
     const html=rows.map(w=>{
       const coin=w.coin==='usdt_bep20'?'USDT':'BTC'; const amt=Number(w.amount||0).toFixed(w.coin==='usdt_bep20'?2:8);
-      const date=w.created_at?new Date(w.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'�';
+      const date=w.created_at?new Date(w.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
       const actions=w.status==='pending'
         ?`<button class="admin-btn admin-btn-approve" onclick="WithdrawalsModule.updateStatus('${w.id}','approved')">? Approve</button><button class="admin-btn admin-btn-reject" onclick="WithdrawalsModule.updateStatus('${w.id}','rejected')" style="margin-left:4px;">? Reject</button>`
-        :`<span style="font-size:12px;color:#475569">�</span>`;
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(w.id||'').slice(0,8)}�</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${w.user_email||'�'}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[w.user_id]?.user_id || '�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amt} ${coin}</td><td style="${TD};font-size:12px;color:#94a3b8">${w.address?w.address.slice(0,20)+'�':'�'}</td><td style="${TD}">${AdminUI.badge(w.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="WithdrawalsModule.openEditModal('${w.id}')" style="margin-left:4px;">??</button><button class="admin-btn admin-btn-danger" onclick="WithdrawalsModule.deleteWithdrawal('${w.id}')" style="margin-left:4px;">??</button></td></tr>`;
+        :`<span style="font-size:12px;color:#475569">?</span>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(w.id||'').slice(0,8)}?</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${w.user_email||'?'}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[w.user_id]?.user_id || '?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amt} ${coin}</td><td style="${TD};font-size:12px;color:#94a3b8">${w.address?w.address.slice(0,20)+'?':'?'}</td><td style="${TD}">${AdminUI.badge(w.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="WithdrawalsModule.openEditModal('${w.id}')" style="margin-left:4px;">??</button><button class="admin-btn admin-btn-danger" onclick="WithdrawalsModule.deleteWithdrawal('${w.id}')" style="margin-left:4px;">??</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Amount</th><th style="${TH}">Address</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -528,7 +506,7 @@ const WithdrawalsModule = {
     const{data:prof}=await sb.from('profiles').select(field).eq('id',row.user_id).maybeSingle();
     if(!prof)return;
     const current=Number(prof[field]||0); const debit=Number(row.amount||0);
-    if(current<debit){ AdminUI.toast('⚠ User balance insufficient for debit.','warning',6000); return; }
+    if(current<debit){ AdminUI.toast('? User balance insufficient for debit.','warning',6000); return; }
     const{error}=await sb.from('profiles').update({[field]:current-debit}).eq('id',row.user_id);
     if(error){ AdminUI.toast('Balance debit failed.','error'); return; }
     await sb.from('transactions').insert({user_id:row.user_id,type:'withdrawal',amount:debit,coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()});
@@ -599,16 +577,16 @@ const WithdrawalsModule = {
 };
 
 /* --------------------------------------------------------------
-   �12  USERS MODULE
+   ?12  USERS MODULE
 -------------------------------------------------------------- */
 const UsersModule = {
   _rows:[], _page:1, _pageSize:25,
   goPage(n){ this._page=n; this._renderPage(); },
   async load(){
     const container=document.getElementById('usersTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading users�'));
+    setHTML(container,AdminUI.loading('Loading users?'));
     try{
-      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at').order('created_at',{ascending:false}).limit(1000);
+      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at').order('created_at',{ascending:false}).limit(250);
       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage(); setText('#stat-total-users',this._rows.length);
     }catch(err){ setHTML(container,AdminUI.error('Could not load users: '+err.message)); }
   },
@@ -623,9 +601,9 @@ const UsersModule = {
   _render(container,rows){
     if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
     const html=rows.map(u=>{
-      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'�';
+      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'?';
       const usdt=Number(u.usdt_balance||0).toFixed(2); let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} <span style="font-size:10px;color:#64748b">USDT</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">👑</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">👁 View</button><button class="admin-btn admin-btn-outline" onclick="UsersModule.toggleActive('${u.id}')" style="margin-left:4px;">${u.is_active!==false?'Suspend':'Reinstate'}</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'?'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} <span style="font-size:10px;color:#64748b">USDT</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button><button class="admin-btn admin-btn-outline" onclick="UsersModule.toggleActive('${u.id}')" style="margin-left:4px;">${u.is_active!==false?'Suspend':'Reinstate'}</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -653,14 +631,14 @@ const UsersModule = {
       <div class="grid-2" style="margin-bottom:20px;">
         <div class="card"><div class="card-title">?? User Info</div>
           <div style="font-size:13px;color:#94a3b8;line-height:1.8;">
-            <div><strong style="color:#f1f5f9;">Name:</strong> ${u.name||'�'}</div>
-            <div><strong style="color:#f1f5f9;">Email:</strong> ${u.email||'�'}</div>
-            <div><strong style="color:#f1f5f9;">Phone:</strong> ${u.phone||'�'}</div>
-            <div><strong style="color:#f1f5f9;">Country:</strong> ${u.country||'�'}</div>
-            <div><strong style="color:#f1f5f9;">User ID:</strong> <span style="color:#f59e0b;font-weight:700;">${u.user_id || '�'}</span></div>
+            <div><strong style="color:#f1f5f9;">Name:</strong> ${u.name||'?'}</div>
+            <div><strong style="color:#f1f5f9;">Email:</strong> ${u.email||'?'}</div>
+            <div><strong style="color:#f1f5f9;">Phone:</strong> ${u.phone||'?'}</div>
+            <div><strong style="color:#f1f5f9;">Country:</strong> ${u.country||'?'}</div>
+            <div><strong style="color:#f1f5f9;">User ID:</strong> <span style="color:#f59e0b;font-weight:700;">${u.user_id || '?'}</span></div>
             <div><strong style="color:#f1f5f9;">Internal UUID:</strong> <span style="font-size:11px;color:#64748b;">${u.id}</span></div>
-            <div><strong style="color:#f1f5f9;">Ref Code:</strong> ${u.ref_code||'�'}</div>
-            <div><strong style="color:#f1f5f9;">Joined:</strong> ${u.created_at?new Date(u.created_at).toLocaleString():'�'}</div>
+            <div><strong style="color:#f1f5f9;">Ref Code:</strong> ${u.ref_code||'?'}</div>
+            <div><strong style="color:#f1f5f9;">Joined:</strong> ${u.created_at?new Date(u.created_at).toLocaleString():'?'}</div>
             <div><strong style="color:#f1f5f9;">Status:</strong> ${AdminUI.badge(statusText)} ${u.is_admin?'<span style="color:#f59e0b;">?? Admin</span>':''}</div>
           </div>
         </div>
@@ -671,7 +649,7 @@ const UsersModule = {
             <div><strong style="color:#f1f5f9;">Total Withdrawn:</strong> ${totalWit.toFixed(2)} USDT</div>
             <div><strong style="color:#f1f5f9;">Mining Income:</strong> ${mining.toFixed(2)} USDT</div>
             <div><strong style="color:#f1f5f9;">Referral Earnings:</strong> ${refEarn.toFixed(2)} USDT</div>
-            <div><strong style="color:#f1f5f9;">Active Contracts:</strong> ${activeContracts.length} � ${totalHash.toFixed(1)} TH/s</div>
+            <div><strong style="color:#f1f5f9;">Active Contracts:</strong> ${activeContracts.length} ? ${totalHash.toFixed(1)} TH/s</div>
             <div><strong style="color:#f1f5f9;">Daily Profit:</strong> ${dailyProfit.toFixed(2)} USDT</div>
           </div>
         </div>
@@ -758,14 +736,14 @@ const UsersModule = {
 window.UsersModule=UsersModule;
 
 /* --------------------------------------------------------------
-   �12A  NEW USERS MODULE
+   ?12A  NEW USERS MODULE
 -------------------------------------------------------------- */
 const NewUsersModule = {
   _rows:[], _page:1, _pageSize:25,
   goPage(n){ this._page=n; this._renderPage(); },
   async load(dateFilter='today'){
     const container=document.getElementById('newUsersTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading new users�'));
+    setHTML(container,AdminUI.loading('Loading new users?'));
     try{
       const data = await fetchAllProfiles('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
       this._rows = filterUsersByCreatedAt(data||[], dateFilter);
@@ -787,11 +765,11 @@ const NewUsersModule = {
   _render(container,rows){
     if(!rows.length){ setHTML(container,AdminUI.empty('No new users found for the selected date range.')); return; }
     const html=rows.map(u=>{
-      const joined=u.created_at?new Date(u.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'�';
+      const joined=u.created_at?new Date(u.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
       const usdt=Number(u.usdt_balance||0).toFixed(8);
       let status='active';
       if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'?'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -806,14 +784,14 @@ const NewUsersModule = {
 window.NewUsersModule=NewUsersModule;
 
 /* --------------------------------------------------------------
-   �12B  OLD USERS MODULE
+   ?12B  OLD USERS MODULE
 -------------------------------------------------------------- */
 const OldUsersModule = {
   _rows:[], _page:1, _pageSize:25,
   goPage(n){ this._page=n; this._renderPage(); },
   async load(dateFilter='all-time'){
     const container=document.getElementById('oldUsersTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading old users�'));
+    setHTML(container,AdminUI.loading('Loading old users?'));
     try{
       this._rows = await fetchAllProfiles('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
       this._page = 1;
@@ -835,11 +813,11 @@ const OldUsersModule = {
   _render(container,rows){
     if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
     const html=rows.map(u=>{
-      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'�';
+      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'?';
       const usdt=Number(u.usdt_balance||0).toFixed(8);
       let status='active';
       if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'�'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'�'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'?'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -870,7 +848,7 @@ const OldUsersModule = {
 window.OldUsersModule=OldUsersModule;
 
 /* --------------------------------------------------------------
-   �12C  EDIT OLD USER MODULE
+   ?12C  EDIT OLD USER MODULE
 -------------------------------------------------------------- */
 const EditOldUserModule = {
   _rows:[], _page:1, _pageSize:15, _selectedUser:null,
@@ -885,7 +863,7 @@ const EditOldUserModule = {
   },
   _prettyPlan(plan){
     const normalized=this._normalizePlan(plan);
-    return normalized ? normalized.charAt(0).toUpperCase()+normalized.slice(1) : '�';
+    return normalized ? normalized.charAt(0).toUpperCase()+normalized.slice(1) : '?';
   },
   _statusFromRow(row){
     if(row?.is_banned) return 'banned';
@@ -985,11 +963,11 @@ const EditOldUserModule = {
   },
   async loadUsers(){
     const container=document.getElementById('editOldUserTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading users�'));
+    setHTML(container,AdminUI.loading('Loading users?'));
     try{
       const[{data:profiles,error:profilesError},{data:contracts,error:contractsError}]=await Promise.all([
-        sb.from('profiles').select('id,email,name,user_id,phone,country,usdt_balance,is_active,is_banned,is_suspended,created_at').order('created_at',{ascending:false}).limit(1000),
-        sb.from('contracts').select('id,user_id,plan,daily_profit,active,created_at').order('created_at',{ascending:false}).limit(1000)
+        sb.from('profiles').select('id,email,name,user_id,phone,country,usdt_balance,is_active,is_banned,is_suspended,created_at').order('created_at',{ascending:false}).limit(250),
+        sb.from('contracts').select('id,user_id,plan,daily_profit,active,created_at').order('created_at',{ascending:false}).limit(250)
       ]);
       if(profilesError) throw profilesError;
       if(contractsError) throw contractsError;
@@ -1033,11 +1011,11 @@ const EditOldUserModule = {
       const plan=this._prettyPlan(u._activePlan);
       const status=this._statusFromRow(u);
       const wallet=Number(u.usdt_balance||0).toFixed(2);
-      const daily=u._activeContract?.daily_profit!=null ? Number(u._activeContract.daily_profit).toFixed(8) : '�';
+      const daily=u._activeContract?.daily_profit!=null ? Number(u._activeContract.daily_profit).toFixed(8) : '?';
       return`<tr>
-        <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(u.id||'').slice(0,8)}�</td>
-        <td style="${TD}"><div style="font-weight:600;color:#f1f5f9;">${u.name||'�'}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${u.user_id||'�'}</div></td>
-        <td style="${TD}">${u.email||'�'}</td>
+        <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(u.id||'').slice(0,8)}?</td>
+        <td style="${TD}"><div style="font-weight:600;color:#f1f5f9;">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${u.user_id||'?'}</div></td>
+        <td style="${TD}">${u.email||'?'}</td>
         <td style="${TD};font-weight:600;color:#f1f5f9;">${plan}</td>
         <td style="${TD};font-family:monospace;color:#10b981;">${wallet} USDT</td>
         <td style="${TD};font-family:monospace;color:#fbbf24;">${daily}</td>
@@ -1199,19 +1177,19 @@ const EditOldUserModule = {
 window.EditOldUserModule=EditOldUserModule;
 
 /* --------------------------------------------------------------
-   �13  TRANSACTIONS MODULE
+   ?13  TRANSACTIONS MODULE
 -------------------------------------------------------------- */
 const TransactionsModule = {
   _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   _txLabel(row){
-    return row?.type || '�';
+    return row?.type || '?';
   },
   async load(typeFilter='all'){
     const container=document.getElementById('transactionsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading transactions�'));
+    setHTML(container,AdminUI.loading('Loading transactions?'));
     try{
-      let q=sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(1000);
+      let q=sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(250);
       if(typeFilter!=='all')q=q.eq('type',typeFilter);
       const{data,error}=await q; if(error)throw error; this._rows=data||[];
       const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
@@ -1228,9 +1206,9 @@ const TransactionsModule = {
     if(!rows.length){ setHTML(container,AdminUI.empty('No transactions.')); return; }
     const html=rows.map(tx=>{
       const isUSDT=tx.coin==='usdt'||tx.coin==='usdt_bep20'; const coin=isUSDT?'USDT':'BTC'; const decimals=isUSDT?2:8;
-      const rawAmount=Number(tx.amount||0); const absAmount=Math.abs(rawAmount).toFixed(decimals); const date=tx.created_at?new Date(tx.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'�';
+      const rawAmount=Number(tx.amount||0); const absAmount=Math.abs(rawAmount).toFixed(decimals); const date=tx.created_at?new Date(tx.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
       const isOut=rawAmount<0 || tx.type==='withdrawal' || tx.type==='purchase'; const color=isOut?'#ef4444':'#10b981'; const sign=isOut?'-':'+'; 
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id||'').slice(0,8)}�</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[tx.user_id]?.user_id || (tx.user_id?tx.user_id.slice(0,8)+'�':'�')}</span></td><td style="${TD};font-size:12px;color:#f1f5f9;font-weight:600">${escapeHtml(String(this._txLabel(tx)))}</td><td style="${TD};font-family:monospace;color:${color};font-weight:600">${sign}${absAmount} ${coin}</td><td style="${TD}">${AdminUI.badge(tx.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openEditModal('${tx.id}')">??</button><button class="admin-btn admin-btn-danger" onclick="TransactionsModule.deleteTransaction('${tx.id}')" style="margin-left:4px;">??</button></td></tr>`;
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id||'').slice(0,8)}?</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[tx.user_id]?.user_id || (tx.user_id?tx.user_id.slice(0,8)+'?':'?')}</span></td><td style="${TD};font-size:12px;color:#f1f5f9;font-weight:600">${escapeHtml(String(this._txLabel(tx)))}</td><td style="${TD};font-family:monospace;color:${color};font-weight:600">${sign}${absAmount} ${coin}</td><td style="${TD}">${AdminUI.badge(tx.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openEditModal('${tx.id}')">??</button><button class="admin-btn admin-btn-danger" onclick="TransactionsModule.deleteTransaction('${tx.id}')" style="margin-left:4px;">??</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Name</th><th style="${TH}">Amount</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -1291,16 +1269,16 @@ const TransactionsModule = {
 };
 
 /* --------------------------------------------------------------
-   �14  CONTRACTS MODULE
+   ?14  CONTRACTS MODULE
 -------------------------------------------------------------- */
 const ContractsModule = {
   _rows:[], _page:1, _pageSize:25, _profileMap:{},
   goPage(n){ this._page=n; this._renderPage(); },
   async load(){
     const container=document.getElementById('contractsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading contracts�'));
+    setHTML(container,AdminUI.loading('Loading contracts?'));
     try{
-      const{data,error}=await sb.from('contracts').select('id,user_id,plan,hashrate,daily_profit,active,progress,created_at,last_payout_at,next_payout_at,total_earned').order('created_at',{ascending:false}).limit(1000);
+      const{data,error}=await sb.from('contracts').select('id,user_id,plan,hashrate,daily_profit,active,progress,created_at,last_payout_at,next_payout_at,total_earned').order('created_at',{ascending:false}).limit(250);
       if(error)throw error; this._rows=data||[];
       const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
       this._profileMap=await _fetchProfiles(userIds);
@@ -1316,9 +1294,9 @@ const ContractsModule = {
   _render(container,rows){
     if(!rows.length){ setHTML(container,AdminUI.empty('No contracts.')); return; }
     const html=rows.map(c=>{
-      const date=c.created_at?new Date(c.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'�';
-      const hashrate=c.hashrate!=null?Number(c.hashrate).toFixed(1)+' TH/s':'�'; const daily=c.daily_profit!=null?Number(c.daily_profit).toFixed(8):'�';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(c.id||'').slice(0,8)}�</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[c.user_id]?.user_id || (c.user_id?c.user_id.slice(0,8)+'�':'�')}</span></td><td style="${TD};font-weight:600;color:#f1f5f9">${c.plan||'�'}</td><td style="${TD};font-family:monospace;color:#fbbf24">${hashrate}</td><td style="${TD};font-family:monospace;color:#10b981;font-size:12px">${daily}</td><td style="${TD}">${AdminUI.badge(c.active?'active':'inactive')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="ContractsModule.openEditModal('${c.id}')">??</button><button class="admin-btn ${c.active?'admin-btn-reject':'admin-btn-approve'}" onclick="ContractsModule.toggleActive('${c.id}')" style="margin-left:4px;">${c.active?'Pause':'Resume'}</button><button class="admin-btn admin-btn-danger" onclick="ContractsModule.deleteContract('${c.id}')" style="margin-left:4px;">??</button></td></tr>`;
+      const date=c.created_at?new Date(c.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'?';
+      const hashrate=c.hashrate!=null?Number(c.hashrate).toFixed(1)+' TH/s':'?'; const daily=c.daily_profit!=null?Number(c.daily_profit).toFixed(8):'?';
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(c.id||'').slice(0,8)}?</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[c.user_id]?.user_id || (c.user_id?c.user_id.slice(0,8)+'?':'?')}</span></td><td style="${TD};font-weight:600;color:#f1f5f9">${c.plan||'?'}</td><td style="${TD};font-family:monospace;color:#fbbf24">${hashrate}</td><td style="${TD};font-family:monospace;color:#10b981;font-size:12px">${daily}</td><td style="${TD}">${AdminUI.badge(c.active?'active':'inactive')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="ContractsModule.openEditModal('${c.id}')">??</button><button class="admin-btn ${c.active?'admin-btn-reject':'admin-btn-approve'}" onclick="ContractsModule.toggleActive('${c.id}')" style="margin-left:4px;">${c.active?'Pause':'Resume'}</button><button class="admin-btn admin-btn-danger" onclick="ContractsModule.deleteContract('${c.id}')" style="margin-left:4px;">??</button></td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Plan</th><th style="${TH}">Hashrate</th><th style="${TH}">Daily</th><th style="${TH}">Status</th><th style="${TH}">Started</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -1412,12 +1390,12 @@ const ContractsModule = {
 };
 
 /* --------------------------------------------------------------
-   �15  NOTIFICATIONS MODULE
+   ?15  NOTIFICATIONS MODULE
 -------------------------------------------------------------- */
 const NotificationsModule = {
   async load(){
     const container=document.getElementById('adminNotifTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading notifications�'));
+    setHTML(container,AdminUI.loading('Loading notifications?'));
     try{
       const{data,error}=await sb.from('notifications').select('id,user_id,title,message,type,is_read,created_at').order('created_at',{ascending:false}).limit(100);
       if(error)throw error; const rows=data||[];
@@ -1425,8 +1403,8 @@ const NotificationsModule = {
       const userIds=[...new Set(rows.map(r=>r.user_id).filter(Boolean))];
       const profileMap=await _fetchProfiles(userIds);
       const html=rows.map(n=>{
-        const email=(profileMap[n.user_id]?.email||'All Users')||'All Users'; const name=(profileMap[n.user_id]?.name||email)||email; const date=n.created_at?new Date(n.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'�';
-        return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(n.id||'').slice(0,8)}�</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${name}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${profileMap[n.user_id]?.user_id || '�'}</div></td><td style="${TD}">${n.title||'�'}</td><td style="${TD};font-size:12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.message||'�'}</td><td style="${TD}">${AdminUI.badge(n.type)}</td><td style="${TD}">${AdminUI.badge(n.is_read?'success':'pending')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
+        const email=(profileMap[n.user_id]?.email||'All Users')||'All Users'; const name=(profileMap[n.user_id]?.name||email)||email; const date=n.created_at?new Date(n.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
+        return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(n.id||'').slice(0,8)}?</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${name}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${profileMap[n.user_id]?.user_id || '?'}</div></td><td style="${TD}">${n.title||'?'}</td><td style="${TD};font-size:12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.message||'?'}</td><td style="${TD}">${AdminUI.badge(n.type)}</td><td style="${TD}">${AdminUI.badge(n.is_read?'success':'pending')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
       }).join('');
       setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Title</th><th style="${TH}">Message</th><th style="${TH}">Type</th><th style="${TH}">Status</th><th style="${TH}">Date</th></tr></thead><tbody>${html}</tbody></table>`);
     }catch(err){ setHTML(container,AdminUI.error('Could not load notifications: '+err.message)); }
@@ -1434,7 +1412,7 @@ const NotificationsModule = {
   async send(){
     const target=document.getElementById('notifTarget')?.value||'all'; const title=document.getElementById('notifTitle')?.value.trim(); const message=document.getElementById('notifMessage')?.value.trim(); const type=document.getElementById('notifType')?.value||'info'; const email=document.getElementById('notifUserEmail')?.value.trim();
     if(!title||!message){ AdminUI.toast('Title and message required.','error'); return; } if(!sb){ AdminUI.toast('Supabase not ready.','error'); return; }
-    const btn=document.getElementById('sendNotifBtn'); if(btn){btn.disabled=true; btn.textContent='Sending�';}
+    const btn=document.getElementById('sendNotifBtn'); if(btn){btn.disabled=true; btn.textContent='Sending?';}
     try{
       let userIds=[];
       if(target==='all'){ const{data:profiles,error:profErr}=await sb.from('profiles').select('id'); if(profErr)throw profErr; userIds=(profiles||[]).map(p=>p.id); }
@@ -1450,23 +1428,23 @@ const NotificationsModule = {
 window.NotificationsModule=NotificationsModule;
 
 /* --------------------------------------------------------------
-   �16  REFERRAL MODULE
+   ?16  REFERRAL MODULE
 -------------------------------------------------------------- */
 const ReferralModule = {
   async load(){
     const wrap=document.getElementById('referralLeaderboardWrap'); if(!wrap||!sb)return;
     setHTML(wrap,AdminUI.loading());
     try{
-      const{data,error}=await sb.from('referrals').select('referrer_id,referred_user_id,earnings,created_at').limit(1000);
+      const{data,error}=await sb.from('referrals').select('referrer_id,referred_user_id,earnings,created_at').limit(250);
       if(error)throw error; const rows=data||[];
       const referrerMap={}; rows.forEach(r=>{ if(!referrerMap[r.referrer_id])referrerMap[r.referrer_id]={count:0,earnings:0}; referrerMap[r.referrer_id].count++; referrerMap[r.referrer_id].earnings+=Number(r.earnings||0); });
       const sorted=Object.entries(referrerMap).sort((a,b)=>b[1].earnings-a[1].earnings).slice(0,10);
       const userIds=sorted.map(([id])=>id); const profileMap=await _fetchProfiles(userIds);
-      const total=rows.length; const totalEarnings=rows.reduce((s,r)=>s+Number(r.earnings||0),0); const top=sorted[0]; const topName=top?(profileMap[top[0]]?.name||profileMap[top[0]]?.email||top[0]):'�';
-      setText('#refStatTotal',total); setText('#refStatEarnings',totalEarnings.toFixed(8)); setText('#refStatTop',topName); setText('#refStatConv',total>0?'�':'�');
+      const total=rows.length; const totalEarnings=rows.reduce((s,r)=>s+Number(r.earnings||0),0); const top=sorted[0]; const topName=top?(profileMap[top[0]]?.name||profileMap[top[0]]?.email||top[0]):'?';
+      setText('#refStatTotal',total); setText('#refStatEarnings',totalEarnings.toFixed(8)); setText('#refStatTop',topName); setText('#refStatConv',total>0?'?':'?');
       if(!sorted.length){ setHTML(wrap,AdminUI.empty('No referrals yet.')); return; }
       const html=sorted.map(([id,stats],i)=>{
-        const p=profileMap[id]||{}; const name=p.name||p.email||id.slice(0,8)+'�';
+        const p=profileMap[id]||{}; const name=p.name||p.email||id.slice(0,8)+'?';
         return`<tr><td style="${TD};font-weight:700;color:#f59e0b;">#${i+1}</td><td style="${TD}">${name}</td><td style="${TD}">${stats.count}</td><td style="${TD};font-family:monospace;color:#10b981">${stats.earnings.toFixed(8)}</td></tr>`;
       }).join('');
       setHTML(wrap,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">Rank</th><th style="${TH}">User</th><th style="${TH}">Referrals</th><th style="${TH}">Earnings</th></tr></thead><tbody>${html}</tbody></table>`);
@@ -1484,8 +1462,8 @@ const ReferralModule = {
       else{
         html+=`<div style="display:flex;flex-direction:column;gap:8px;">`;
         rows.forEach(r=>{
-          const p=refMap[r.referred_user_id]||{}; const name=p.name||p.email||r.referred_user_id.slice(0,8)+'�';
-          html+=`<div style="background:#0d1117;border:1px solid #1e2d45;border-radius:10px;padding:10px 14px;font-size:13px;color:#94a3b8;"><strong style="color:#f1f5f9;">${name}</strong> � Earnings: <span style="color:#10b981;">${Number(r.earnings||0).toFixed(8)}</span> � ${new Date(r.created_at).toLocaleDateString()}</div>`;
+          const p=refMap[r.referred_user_id]||{}; const name=p.name||p.email||r.referred_user_id.slice(0,8)+'?';
+          html+=`<div style="background:#0d1117;border:1px solid #1e2d45;border-radius:10px;padding:10px 14px;font-size:13px;color:#94a3b8;"><strong style="color:#f1f5f9;">${name}</strong> ? Earnings: <span style="color:#10b981;">${Number(r.earnings||0).toFixed(8)}</span> ? ${new Date(r.created_at).toLocaleDateString()}</div>`;
         });
         html+=`</div>`;
       }
@@ -1495,16 +1473,16 @@ const ReferralModule = {
 };
 
 /* --------------------------------------------------------------
-   �17  SECURITY LOGS MODULE
+   ?17  SECURITY LOGS MODULE
 -------------------------------------------------------------- */
 const SecurityLogsModule = {
   _rows:[], _page:1, _pageSize:25,
   goPage(n){ this._page=n; this._renderPage(); },
   async load(){
     const container=document.getElementById('logsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading logs�'));
+    setHTML(container,AdminUI.loading('Loading logs?'));
     try{
-      const{data,error}=await sb.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(1000);
+      const{data,error}=await sb.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(250);
       if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
     }catch(err){ setHTML(container,AdminUI.error('Could not load logs: '+err.message)); }
   },
@@ -1516,8 +1494,8 @@ const SecurityLogsModule = {
   _render(container,rows){
     if(!rows.length){ setHTML(container,AdminUI.empty('No logs.')); return; }
     const html=rows.map(l=>{
-      const date=l.created_at?new Date(l.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'�';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(l.id||'').slice(0,8)}�</td><td style="${TD}">${l.admin_email||'�'}</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;">${l.action}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${l.target_table||'�'} ${l.target_id?'<br><span style="font-size:10px;color:#64748b;">'+l.target_id.slice(0,12)+'�</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
+      const date=l.created_at?new Date(l.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
+      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(l.id||'').slice(0,8)}?</td><td style="${TD}">${l.admin_email||'?'}</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;">${l.action}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${l.target_table||'?'} ${l.target_id?'<br><span style="font-size:10px;color:#64748b;">'+l.target_id.slice(0,12)+'?</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
     }).join('');
     setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">Admin</th><th style="${TH}">Action</th><th style="${TH}">Target</th><th style="${TH}">Date</th></tr></thead><tbody>${html}</tbody></table>`);
   },
@@ -1529,12 +1507,12 @@ const SecurityLogsModule = {
 };
 
 /* --------------------------------------------------------------
-   �18  GLOBAL SEARCH
+   ?18  GLOBAL SEARCH
 -------------------------------------------------------------- */
 const GlobalSearch = {
   async execute(){
     const term=$('#globalSearchInput')?.value?.trim(); if(!term){ AdminUI.toast('Enter search term.','warning'); return; }
-    AdminUI.toast('Searching�','info',2000);
+    AdminUI.toast('Searching?','info',2000);
     try{
       const promises=[
         sb.from('profiles').select('id,email,name').or(`email.ilike.%${term}%,name.ilike.%${term}%`).limit(10),
@@ -1544,15 +1522,15 @@ const GlobalSearch = {
       ];
       const[{data:users},{data:deps},{data:withs},{data:txs}]=await Promise.all(promises);
       let html=`<div style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:16px;">?? Results for "${term}"</div>`;
-      html+=`<div style="margin-bottom:12px;"><strong style="color:#f59e0b;">Users (${(users||[]).length})</strong></div>`+(users||[]).map(u=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;cursor:pointer;" onclick="AdminUI.activateTab('users'); UsersModule.openUserModal('${u.id}')">${u.name||'�'} � ${u.email||'�'}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No users.</div>';
-      html+=`<div style="margin:16px 0 12px;"><strong style="color:#f59e0b;">Deposits (${(deps||[]).length})</strong></div>`+(deps||[]).map(d=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;">${d.user_email||'�'} � ${d.amount} ${d.coin||'BTC'} � ${AdminUI.badge(d.status)}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No deposits.</div>';
+      html+=`<div style="margin-bottom:12px;"><strong style="color:#f59e0b;">Users (${(users||[]).length})</strong></div>`+(users||[]).map(u=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;cursor:pointer;" onclick="AdminUI.activateTab('users'); UsersModule.openUserModal('${u.id}')">${u.name||'?'} ? ${u.email||'?'}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No users.</div>';
+      html+=`<div style="margin:16px 0 12px;"><strong style="color:#f59e0b;">Deposits (${(deps||[]).length})</strong></div>`+(deps||[]).map(d=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;">${d.user_email||'?'} ? ${d.amount} ${d.coin||'BTC'} ? ${AdminUI.badge(d.status)}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No deposits.</div>';
       AdminUI.toast(html,'info',8000);
     }catch(err){ AdminUI.toast('Search error: '+err.message,'error'); }
   }
 };
 
 /* --------------------------------------------------------------
-   �19  CSV EXPORT
+   ?19  CSV EXPORT
 -------------------------------------------------------------- */
 function downloadCSV(filename, rows){
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -1603,7 +1581,7 @@ function ensureEditOldUserBulkButton() {
 }
 
 /* --------------------------------------------------------------
-   �20  PROFILE FETCH HELPER
+   ?20  PROFILE FETCH HELPER
 -------------------------------------------------------------- */
 async function _fetchProfiles(userIds){
   if(!sb||!userIds.length)return{};
@@ -1613,7 +1591,7 @@ async function _fetchProfiles(userIds){
 }
 
 /* --------------------------------------------------------------
-   �21  SEARCH / FILTER WIRING
+   ?21  SEARCH / FILTER WIRING
 -------------------------------------------------------------- */
 function initFilters(){
   on('#depositStatusFilter','change',e=>{ DepositsModule.load(e.target.value||'all'); });
@@ -1643,7 +1621,7 @@ function initNotificationForm(){
 }
 
 /* --------------------------------------------------------------
-   �22  REALTIME
+   ?22  REALTIME
 -------------------------------------------------------------- */
 function initRealtime(){
   if(typeof sb?.channel!=='function')return;
@@ -1694,7 +1672,7 @@ function initRealtime(){
 }
 
 /* --------------------------------------------------------------
-   �23  NAVIGATION
+   ?23  NAVIGATION
 -------------------------------------------------------------- */
 const _loaded=new Set();
 
@@ -1743,7 +1721,7 @@ async function loadSection(name){
 }
 
 /* --------------------------------------------------------------
-   �24  PANEL BOOT
+   ?24  PANEL BOOT
 -------------------------------------------------------------- */
 async function _bootPanel(){
   _loaded.clear(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
@@ -1751,7 +1729,7 @@ async function _bootPanel(){
 }
 
 /* --------------------------------------------------------------
-   �25  ENTRY POINT
+   ?25  ENTRY POINT
 -------------------------------------------------------------- */
 console.log('[CryptoVault] admin.js enterprise loaded.');
 
@@ -1779,7 +1757,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
 function closeEntityModal(){ hide('#entityModal'); }
 
 /* --------------------------------------------------------------
-   �26  PUBLIC EXPORTS
+   ?26  PUBLIC EXPORTS
 -------------------------------------------------------------- */
 Object.assign(window,{
   AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,NewUsersModule,OldUsersModule,EditOldUserModule,TransactionsModule,ContractsModule,
