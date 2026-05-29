@@ -285,8 +285,11 @@ const OverviewModule = {
     try{
       const walletRows = await fetchAllProfiles('usdt_balance');
       const walletTotal = (walletRows || []).reduce((s, r) => s + Number(r.usdt_balance || 0), 0);
+      const { data: contractRows, error: contractErr } = await sb.from('contracts').select('total_earned');
+      if (contractErr) throw contractErr;
+      const contractTotalValue = (contractRows || []).reduce((s, r) => s + Number(r.total_earned || 0), 0);
       setText('#stat-total-wallet-balance', '$ ' + walletTotal.toFixed(2) + ' USDT');
-      setText('#stat-usdt-volume', '$ ' + walletTotal.toFixed(2) + ' USDT');
+      setText('#stat-usdt-volume', '$ ' + contractTotalValue.toFixed(2) + ' USDT');
     }catch(err){console.warn(err);}
   },
   async _activityFeed(){
