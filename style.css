@@ -3127,3 +3127,100 @@ select { cursor: pointer; appearance: none; }
     letter-spacing: 1px;
   }
 }
+
+/* Compact plan layout for mobile home/dashboard */
+@media (max-width: 600px) {
+  body:not(.admin-app) .plans-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  body:not(.admin-app) .plan-card {
+    border-radius: 14px;
+  }
+
+  body:not(.admin-app) .plan-card.featured {
+    transform: none;
+  }
+
+  body:not(.admin-app) .plan-card.featured:hover {
+    transform: translateY(-4px);
+  }
+
+  body:not(.admin-app) .plan-image {
+    height: 82px;
+  }
+
+  body:not(.admin-app) .plan-image svg {
+    width: 72%;
+  }
+
+  body:not(.admin-app) .plan-content {
+    padding: 12px 12px 14px;
+  }
+
+  body:not(.admin-app) .plan-header {
+    margin-bottom: 8px;
+  }
+
+  body:not(.admin-app) .plan-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  body:not(.admin-app) .plan-name {
+    font-size: 14px;
+  }
+
+  body:not(.admin-app) .plan-desc {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  body:not(.admin-app) .plan-price {
+    font-size: 18px;
+    margin: 6px 0 2px;
+  }
+
+  body:not(.admin-app) .plan-price span {
+    font-size: 11px;
+  }
+
+  body:not(.admin-app) .plan-period {
+    font-size: 10px;
+    letter-spacing: 0.8px;
+  }
+
+  body:not(.admin-app) .plan-divider {
+    margin: 10px 0;
+  }
+
+  body:not(.admin-app) .plan-stats {
+    gap: 6px;
+  }
+
+  body:not(.admin-app) .plan-stat {
+    font-size: 11px;
+  }
+
+  body:not(.admin-app) .plan-features {
+    margin: 10px 0 12px;
+  }
+
+  body:not(.admin-app) .plan-features li {
+    font-size: 10px;
+    padding: 3px 0;
+    gap: 6px;
+  }
+
+  body:not(.admin-app) .plan-features li:nth-child(n+4) {
+    display: none;
+  }
+
+  body:not(.admin-app) .plan-purchase-btn {
+    margin-top: auto;
+    padding: 8px 10px;
+    min-height: 38px;
+    font-size: 12px;
+  }
+}
