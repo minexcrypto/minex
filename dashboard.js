@@ -608,6 +608,21 @@ async function populateUserUI() {
 /* ══════════════════════════════════════════════════════════════
    UI — DASHBOARD STATS
 ══════════════════════════════════════════════════════════════ */
+function updateDashboardGreeting() {
+  const hour = Number(new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    hour12: false,
+  }).format(new Date()));
+
+  const greeting =
+    hour < 12 ? 'Good Morning! 👋' :
+    hour < 17 ? 'Good Afternoon! 👋' :
+                'Good Evening! 👋';
+
+  setText('dashboardGreeting', greeting);
+}
+
 async function populateDashboardStats(contracts) {
   const summary = getMiningSummary(contracts);
   setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
@@ -2213,6 +2228,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!ok) return;
 
   await populateUserUI();
+  updateDashboardGreeting();
+  setInterval(updateDashboardGreeting, 60 * 1000);
 
   wireLogout();
   wireMobileMenu();
