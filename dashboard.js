@@ -768,7 +768,8 @@ async function populateUserUI() {
 
   // Referral stats update
   setText('refCountEl',    profile.ref_count    || 0);
-  setText('refEarningsEl', '₿ ' + (Number(profile.ref_earnings) || 0).toFixed(8));
+  const refEarnings = Number(profile.ref_earnings) || 0;
+  setText('refEarningsEl', '$ ' + refEarnings.toFixed(2) + ' USDT');
   setText('activeRefEl',   profile.ref_count    || 0);
 
   const sName  = $('settingName');
