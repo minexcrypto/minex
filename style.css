@@ -3120,7 +3120,25 @@ select { cursor: pointer; appearance: none; }
     text-align: center;
   }
   .plan-detail-stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .plan-detail-stat-card {
+    padding: 14px 12px;
+  }
+  .plan-detail-stat-icon {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  .plan-detail-stat-label {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  .plan-detail-stat-value {
+    font-size: 16px;
+  }
+  .plan-detail-stat-sub {
+    font-size: 11px;
   }
   .plan-detail-timer-countdown {
     font-size: 32px;
