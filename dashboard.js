@@ -1166,6 +1166,15 @@ function updatePortfolioValue() {
   setText('portfolioTotalUSD', str);
 }
 
+function setSidebarOpen(isOpen) {
+  const sidebar = $('sidebar');
+  const overlay = $('sidebarOverlay');
+  if (!sidebar || !overlay) return;
+  sidebar.classList.toggle('open', !!isOpen);
+  overlay.classList.toggle('open', !!isOpen);
+  document.body.classList.toggle('sidebar-open', !!isOpen);
+}
+
 /* ══════════════════════════════════════════════════════════════
    TAB NAVIGATION
 ══════════════════════════════════════════════════════════════ */
@@ -1193,23 +1202,15 @@ function switchTab(name) {
     Notifications.markRead(null, ['deposit','withdrawal','mining','purchase','referral']);
   }
 
-  $('sidebar')?.classList.remove('open');
-  $('sidebarOverlay')?.classList.remove('open');
+  setSidebarOpen(false);
 }
 
 /* ─── SIDEBAR TOGGLE ─────────────────────────────────────── */
 function toggleSidebar() {
   const sidebar = $('sidebar');
-  const overlay = $('sidebarOverlay');
   if (!sidebar) return;
   const isOpen = sidebar.classList.contains('open');
-  if (isOpen) {
-    sidebar.classList.remove('open');
-    overlay?.classList.remove('open');
-  } else {
-    sidebar.classList.add('open');
-    overlay?.classList.add('open');
-  }
+  setSidebarOpen(!isOpen);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1650,15 +1651,12 @@ function wireLogout() {
 function wireMobileMenu() {
   const toggle  = $('menuToggle');
   const sidebar = $('sidebar');
-  const overlay = $('sidebarOverlay');
   if (!toggle || !sidebar) return;
   toggle.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
-    overlay?.classList.toggle('open');
+    toggleSidebar();
   });
-  overlay?.addEventListener('click', () => {
-    sidebar.classList.remove('open');
-    overlay?.classList.remove('open');
+  $('sidebarOverlay')?.addEventListener('click', () => {
+    setSidebarOpen(false);
   });
 }
 
