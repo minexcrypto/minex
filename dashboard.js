@@ -95,6 +95,7 @@ function normalizeTxType(raw) {
 }
 
 const PLAN_MS_PER_DAY = 24 * 60 * 60 * 1000;
+const LIVE_HASHRATE_INTERVAL_MS = 5 * 60 * 1000;
 const PLAN_CONFIG_FALLBACK = {
   starter:  { priceUsd: 500,   hashrate: 10,  durationDays: 1460, monthlyRate: 0.05, icon: '🌱', color: 'var(--green)' },
   silver:   { priceUsd: 2500,  hashrate: 50,  durationDays: 1095, monthlyRate: 0.10, icon: '🥈', color: 'var(--blue)' },
@@ -103,6 +104,9 @@ const PLAN_CONFIG_FALLBACK = {
 };
 
 let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
+let _latestContracts = [];
+let _liveHashrateAlignTimer = null;
+let _liveHashrateRefreshTimer = null;
 
 function normalizePlanKey(planName) {
   return String(planName || '').trim().toLowerCase();
@@ -231,15 +235,80 @@ function getContractHashrate(contract) {
   return Number.isFinite(planHash) && planHash > 0 ? planHash : 0;
 }
 
-function getMiningSummary(contracts = [], refDate = new Date()) {
+function _hashCode(input) {
+  let hash = 0;
+  const str = String(input || '');
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash >>> 0;
+}
+
+function _seededRandom(seed) {
+  let value = seed >>> 0;
+  return function next() {
+    value += 0x6D2B79F5;
+    let t = value;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function _pickLiveHashrateDelta(rand) {
+  const roll = rand();
+  if (roll < 0.40) return 0;
+  if (roll < 0.58) return rand() < 0.5 ? -0.5 : 0.5;
+  if (roll < 0.76) return rand() < 0.5 ? -1 : 1;
+  if (roll < 0.88) return rand() < 0.5 ? -2 : 2;
+  if (roll < 0.96) return rand() < 0.5 ? -5 : 5;
+  return rand() < 0.5 ? -10 : 10;
+}
+
+function getLiveHashrateForContract(contract, refDate = new Date()) {
+  if (!contract || contract.active !== true || isContractExpired(contract, refDate)) return 0;
+
+  const baseHashrate = getContractHashrate(contract);
+  if (!baseHashrate) return 0;
+
+  const bucket = Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS);
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    bucket,
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const delta = _pickLiveHashrateDelta(rand);
+  return Math.max(0, baseHashrate * (1 + (delta / 100)));
+}
+
+function getLiveHashrateSummary(contracts = [], refDate = new Date()) {
   const activeContracts = (contracts || []).filter(c => c?.active === true && !isContractExpired(c, refDate));
   const count = activeContracts.length;
-  const totalHashrate = activeContracts.reduce((sum, contract) => sum + getContractHashrate(contract), 0);
+  const totalHashrate = activeContracts.reduce((sum, contract) => sum + getLiveHashrateForContract(contract, refDate), 0);
   const totalPower = totalHashrate * 32;
   const dailyProfit = activeContracts.reduce((sum, contract) => sum + getContractDailyProfitUsd(contract), 0);
   const monthlyProjection = dailyProfit * 30;
   const efficiency = totalHashrate > 0 ? (dailyProfit / totalHashrate) : 0;
   return { activeContracts, count, totalHashrate, totalPower, dailyProfit, monthlyProjection, efficiency };
+}
+
+function getLiveHashrateSeries(contracts = [], points = 24, refDate = new Date()) {
+  const safePoints = Math.max(2, points);
+  const series = [];
+  const nowBucket = Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS);
+
+  for (let offset = safePoints - 1; offset >= 0; offset--) {
+    const sampleDate = new Date((nowBucket - offset) * LIVE_HASHRATE_INTERVAL_MS);
+    const sampleSummary = getLiveHashrateSummary(contracts, sampleDate);
+    series.push(sampleSummary.totalHashrate);
+  }
+
+  return series;
+}
+
+function getMiningSummary(contracts = [], refDate = new Date()) {
+  return getLiveHashrateSummary(contracts, refDate);
 }
 
 function formatActiveContractCount(count) {
@@ -623,7 +692,7 @@ function updateDashboardGreeting() {
   setText('dashboardGreeting', greeting);
 }
 
-async function populateDashboardStats(contracts) {
+async function populateDashboardStats(contracts, options = {}) {
   const summary = getMiningSummary(contracts);
   setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('liveHashrate2', summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
@@ -636,20 +705,58 @@ async function populateDashboardStats(contracts) {
   if (statChangeHashrate)  statChangeHashrate.textContent  = formatActiveContractCount(summary.count);
   if (statChangeContracts) statChangeContracts.textContent = summary.count ? 'Mining income active' : 'No active contracts';
 
-  const user = Auth.getUser();
-  if (user && _supabase) {
-    const { data: miningTxns } = await _supabase
-      .from('transactions')
-      .select('amount,type')
-      .eq('user_id', user.id)
-      .in('type', ['mining', 'mining_reward', 'reward']);
-    const totalMined = (miningTxns || [])
-      .filter(t => normalizeTxType(t.type) === 'mining')
-      .reduce((s, t) => s + Number(t.amount || 0), 0);
-    setText('totalMinedEl', '$ ' + totalMined.toFixed(2) + ' USDT');
-  } else {
-    setText('totalMinedEl', '$ 0.00 USDT');
+  if (!options.skipMinedQuery) {
+    const user = Auth.getUser();
+    if (user && _supabase) {
+      const { data: miningTxns } = await _supabase
+        .from('transactions')
+        .select('amount,type')
+        .eq('user_id', user.id)
+        .in('type', ['mining', 'mining_reward', 'reward']);
+      const totalMined = (miningTxns || [])
+        .filter(t => normalizeTxType(t.type) === 'mining')
+        .reduce((s, t) => s + Number(t.amount || 0), 0);
+      setText('totalMinedEl', '$ ' + totalMined.toFixed(2) + ' USDT');
+    } else {
+      setText('totalMinedEl', '$ 0.00 USDT');
+    }
   }
+}
+
+function refreshLiveMiningUI(contracts = _latestContracts) {
+  const summary = getMiningSummary(contracts);
+  setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('liveHashrate2', summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('dailyProfitEl', '$ ' + summary.dailyProfit.toFixed(2) + ' USDT');
+  updateMiningCardStates(summary);
+  renderContracts(contracts);
+  renderMiningStats(contracts);
+  initHashrateChart(contracts);
+}
+
+function startLiveHashrateRefreshLoop() {
+  if (_liveHashrateAlignTimer) {
+    clearTimeout(_liveHashrateAlignTimer);
+    _liveHashrateAlignTimer = null;
+  }
+  if (_liveHashrateRefreshTimer) {
+    clearInterval(_liveHashrateRefreshTimer);
+    _liveHashrateRefreshTimer = null;
+  }
+
+  const remaining = LIVE_HASHRATE_INTERVAL_MS - (Date.now() % LIVE_HASHRATE_INTERVAL_MS);
+  const delay = remaining === 0 ? LIVE_HASHRATE_INTERVAL_MS : remaining;
+
+  _liveHashrateAlignTimer = setTimeout(() => {
+    if (_latestContracts.length) {
+      refreshLiveMiningUI(_latestContracts);
+    }
+    _liveHashrateRefreshTimer = setInterval(() => {
+      if (_latestContracts.length) {
+        refreshLiveMiningUI(_latestContracts);
+      }
+    }, LIVE_HASHRATE_INTERVAL_MS);
+  }, delay);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -903,7 +1010,8 @@ function renderContracts(contracts) {
     const progress    = getContractProgressPercent(c);
     const remaining   = getContractRemainingDays(c);
     const daysLeft    = remaining != null ? remaining + ' days left' : 'Unlimited';
-    const hashrate    = c.hashrate  != null ? Number(c.hashrate).toFixed(1) + ' TH/s' : '—';
+    const liveHashrate = getLiveHashrateForContract(c);
+    const hashrate    = liveHashrate > 0 ? liveHashrate.toFixed(1) + ' TH/s' : '—';
     const dailyProfit = getContractDailyProfitUsd(c) > 0
       ? '$ ' + getContractDailyProfitUsd(c).toFixed(2) + ' USDT'
       : '—';
@@ -957,7 +1065,8 @@ function renderContractProgress(active) {
     const remaining = getContractRemainingDays(c);
     const daysLeft = remaining != null ? remaining + ' days left' : 'Unlimited';
     const planName = c.plan || c.name || 'Contract';
-    const hashrate = c.hashrate != null ? c.hashrate.toFixed(1) : '—';
+    const liveHashrate = getLiveHashrateForContract(c);
+    const hashrate = liveHashrate > 0 ? liveHashrate.toFixed(1) : '—';
     return `
       <div style="margin-bottom:16px;">
         <div class="progress-label">
@@ -1060,13 +1169,14 @@ function initHashrateChart(contracts) {
     return;
   }
 
-  const totalHash = summary.totalHashrate;
-  const flatData  = Array(24).fill(totalHash);
+  const liveData = getLiveHashrateSeries(active, 24);
+  const peakHash = Math.max(...liveData);
+  const avgHash = liveData.reduce((sum, value) => sum + value, 0) / liveData.length;
 
-  _drawLineChart(canvas, flatData, '#22c55e', 'rgba(34,197,94,0.2)');
+  _drawLineChart(canvas, liveData, '#22c55e', 'rgba(34,197,94,0.2)');
 
-  setText('hashrateStatPeak', totalHash.toFixed(1) + ' TH/s');
-  setText('hashrateStatAvg',  totalHash.toFixed(1) + ' TH/s');
+  setText('hashrateStatPeak', peakHash.toFixed(1) + ' TH/s');
+  setText('hashrateStatAvg',  avgHash.toFixed(1) + ' TH/s');
   setText('hashrateStatEff',  summary.efficiency.toFixed(3) + ' USDT/TH');
 }
 
@@ -1927,6 +2037,7 @@ async function refreshAll() {
     loadDeposits(),
     loadContracts(),
   ]);
+  _latestContracts = contracts;
   _allTransactions = txns;
   _allDeposits     = deps;
 
@@ -2247,6 +2358,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadPlanCatalog();
 
   await refreshAll();
+  startLiveHashrateRefreshLoop();
   updateBTCPrice();
 
   BTCPrice.onChange(() => {
