@@ -708,7 +708,9 @@ async function populateUserUI() {
   setText('walletBigBalance',     walletDisplay);
   setText('walletBigUSD',         walletDisplay);
   setText('walletItemUSD',        walletDisplay);
+  setText('walletUSDTBalance',    usdtBalance.toFixed(2) + ' USDT');
   setText('portfolioBTCusd',      walletDisplay);
+  setText('portfolioSubLabel',    '≈ ' + usdtBalance.toFixed(2) + ' USDT');
   setText('usdtBalanceEl',        usdtBalance.toFixed(2) + ' USDT');
 
   const hour = new Date().getHours();
@@ -1227,11 +1229,16 @@ function renderWalletSummary() {
   setText('walletTotalWithdrawn',  '$ ' + totalWithdrawn.toFixed(2) + ' USDT');
   setText('walletMiningIncome',    '$ ' + miningIncome.toFixed(2) + ' USDT');
   setText('walletReferralBonuses', '$ ' + referralBonuses.toFixed(2) + ' USDT');
+  setText('walletTotalMinedEarnings', '$ ' + miningIncome.toFixed(2) + ' USDT');
+  setText('walletTotalReferralEarnings', '$ ' + referralBonuses.toFixed(2) + ' USDT');
 
   const profile    = Auth.getProfile();
   const usdtBalance = toUsdt(profile.usdt_balance);
   setText('walletBTCAmount', usdtBalance.toFixed(2) + ' USDT');
   setText('walletUSDTAmount', usdtBalance.toFixed(2) + ' USDT');
+  setText('walletUSDTBalance', usdtBalance.toFixed(2) + ' USDT');
+  setText('portfolioUSDTusd', '$' + usdtBalance.toFixed(2));
+  setText('portfolioSubLabel', '≈ ' + usdtBalance.toFixed(2) + ' USDT');
 }
 
 /* ══════════════════════════════════════════════════════════════
