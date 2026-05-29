@@ -108,6 +108,14 @@ let _latestContracts = [];
 let _liveHashrateAlignTimer = null;
 let _liveHashrateRefreshTimer = null;
 
+const LIVE_HASHRATE_PRESETS = {
+  starter:  { base: 0.6, cap: 2.5, zeroChance: 0.46, boosts: [0.5, 1, 1.5, 2.5, 4] },
+  silver:   { base: 0.9, cap: 4.0, zeroChance: 0.40, boosts: [0.5, 1, 2, 3.5, 5] },
+  gold:     { base: 1.3, cap: 6.0, zeroChance: 0.34, boosts: [0.5, 1, 2, 4, 6] },
+  platinum: { base: 1.7, cap: 8.0, zeroChance: 0.28, boosts: [0.5, 1, 2.5, 5, 8] },
+  default:  { base: 0.8, cap: 4.5, zeroChance: 0.40, boosts: [0.5, 1, 2, 3, 5] },
+};
+
 function normalizePlanKey(planName) {
   return String(planName || '').trim().toLowerCase();
 }
@@ -256,14 +264,84 @@ function _seededRandom(seed) {
   };
 }
 
-function _pickLiveHashrateDelta(rand) {
+function _getLivePreset(contract) {
+  const key = normalizePlanKey(contract?.plan || contract?.name);
+  return LIVE_HASHRATE_PRESETS[key] || LIVE_HASHRATE_PRESETS.default;
+}
+
+function _getLivePhase(refDate = new Date()) {
+  const hour = refDate.getHours();
+  if (hour >= 6 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'night';
+}
+
+function _getDailyTrendPercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const dayBucket = Math.floor(refDate.getTime() / (24 * 60 * 60 * 1000));
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'day',
+    dayBucket,
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const sign = rand() < 0.5 ? -1 : 1;
+  const trend = (0.35 + (rand() * 0.95)) * config.base;
+  return sign * Math.min(6, trend);
+}
+
+function _getPhaseOffsetPercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const phase = _getLivePhase(refDate);
+  const hourSeed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'phase',
+    Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS),
+  ].join('|'));
+  const rand = _seededRandom(hourSeed);
+  const jitter = 0.15 + (rand() * 0.35);
+
+  const phaseMap = {
+    night: -0.35,
+    morning: 0.15,
+    afternoon: 0.30,
+    evening: 0.45,
+  };
+
+  return (phaseMap[phase] || 0) * config.base * jitter;
+}
+
+function _getRareSpikePercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'spike',
+    Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS),
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const chance = 0.025 + (config.base * 0.0035);
+  if (rand() > chance) return 0;
+
+  const direction = rand() < 0.5 ? -1 : 1;
+  const spike = (2 + (rand() * 5)) * config.base;
+  return direction * Math.min(config.cap * 1.5, spike);
+}
+
+function _pickLiveHashrateDelta(rand, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
   const roll = rand();
-  if (roll < 0.40) return 0;
-  if (roll < 0.58) return rand() < 0.5 ? -0.5 : 0.5;
-  if (roll < 0.76) return rand() < 0.5 ? -1 : 1;
-  if (roll < 0.88) return rand() < 0.5 ? -2 : 2;
-  if (roll < 0.96) return rand() < 0.5 ? -5 : 5;
-  return rand() < 0.5 ? -10 : 10;
+  if (roll < config.zeroChance) return 0;
+
+  const tierRoll = rand();
+  const tierIndex =
+    tierRoll < 0.50 ? 0 :
+    tierRoll < 0.75 ? 1 :
+    tierRoll < 0.90 ? 2 :
+    tierRoll < 0.97 ? 3 : 4;
+  const boost = config.boosts[Math.min(tierIndex, config.boosts.length - 1)];
+  const sign = rand() < 0.5 ? -1 : 1;
+  return sign * Math.min(config.cap, config.base * boost);
 }
 
 function getLiveHashrateForContract(contract, refDate = new Date()) {
@@ -278,7 +356,12 @@ function getLiveHashrateForContract(contract, refDate = new Date()) {
     bucket,
   ].join('|'));
   const rand = _seededRandom(seed);
-  const delta = _pickLiveHashrateDelta(rand);
+  const preset = _getLivePreset(contract);
+  const delta =
+    _getDailyTrendPercent(contract, refDate, preset) +
+    _getPhaseOffsetPercent(contract, refDate, preset) +
+    _pickLiveHashrateDelta(rand, preset) +
+    _getRareSpikePercent(contract, refDate, preset);
   return Math.max(0, baseHashrate * (1 + (delta / 100)));
 }
 
@@ -291,6 +374,26 @@ function getLiveHashrateSummary(contracts = [], refDate = new Date()) {
   const monthlyProjection = dailyProfit * 30;
   const efficiency = totalHashrate > 0 ? (dailyProfit / totalHashrate) : 0;
   return { activeContracts, count, totalHashrate, totalPower, dailyProfit, monthlyProjection, efficiency };
+}
+
+function getStaticMiningSummary(contracts = [], refDate = new Date()) {
+  const activeContracts = (contracts || []).filter(c => c?.active === true && !isContractExpired(c, refDate));
+  const count = activeContracts.length;
+  const totalHashrate = activeContracts.reduce((sum, contract) => sum + getContractHashrate(contract), 0);
+  const totalPower = totalHashrate * 32;
+  const dailyProfit = activeContracts.reduce((sum, contract) => sum + getContractDailyProfitUsd(contract), 0);
+  const monthlyProjection = dailyProfit * 30;
+  const efficiency = totalHashrate > 0 ? (dailyProfit / totalHashrate) : 0;
+  return { activeContracts, count, totalHashrate, totalPower, dailyProfit, monthlyProjection, efficiency };
+}
+
+function getLiveHashrateMovement(contracts = [], refDate = new Date()) {
+  const live = getLiveHashrateSummary(contracts, refDate);
+  const base = getStaticMiningSummary(contracts, refDate);
+  const delta = live.totalHashrate - base.totalHashrate;
+  const deltaPct = base.totalHashrate > 0 ? (delta / base.totalHashrate) * 100 : 0;
+  const direction = deltaPct > 0.04 ? 'up' : deltaPct < -0.04 ? 'down' : 'flat';
+  return { live, base, delta, deltaPct, direction };
 }
 
 function getLiveHashrateSeries(contracts = [], points = 24, refDate = new Date()) {
@@ -694,6 +797,7 @@ function updateDashboardGreeting() {
 
 async function populateDashboardStats(contracts, options = {}) {
   const summary = getMiningSummary(contracts);
+  updateLiveHashrateTrend(getLiveHashrateMovement(contracts));
   setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('liveHashrate2', summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
 
@@ -725,13 +829,33 @@ async function populateDashboardStats(contracts, options = {}) {
 
 function refreshLiveMiningUI(contracts = _latestContracts) {
   const summary = getMiningSummary(contracts);
+  const movement = getLiveHashrateMovement(contracts);
   setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('liveHashrate2', summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
   setText('dailyProfitEl', '$ ' + summary.dailyProfit.toFixed(2) + ' USDT');
   updateMiningCardStates(summary);
+  updateLiveHashrateTrend(movement);
   renderContracts(contracts);
   renderMiningStats(contracts);
   initHashrateChart(contracts);
+}
+
+function updateLiveHashrateTrend(movement) {
+  const el = $('liveHashrateChange');
+  if (!el) return;
+
+  const pct = Number(movement?.deltaPct || 0);
+  const absPct = Math.abs(pct);
+  if (!movement?.base?.totalHashrate) {
+    el.textContent = 'No active contracts';
+    el.className = 'stat-change up';
+    return;
+  }
+
+  const arrow = movement.direction === 'down' ? '▼' : movement.direction === 'up' ? '▲' : '•';
+  const label = movement.direction === 'flat' ? 'Stable' : `${arrow} ${absPct.toFixed(2)}%`;
+  el.textContent = label;
+  el.className = 'stat-change ' + (movement.direction === 'down' ? 'down' : 'up');
 }
 
 function startLiveHashrateRefreshLoop() {
@@ -1173,7 +1297,7 @@ function initHashrateChart(contracts) {
   const peakHash = Math.max(...liveData);
   const avgHash = liveData.reduce((sum, value) => sum + value, 0) / liveData.length;
 
-  _drawLineChart(canvas, liveData, '#22c55e', 'rgba(34,197,94,0.2)');
+  _drawLineChart(canvas, liveData, '#22c55e', 'rgba(34,197,94,0.2)', { moodZones: true });
 
   setText('hashrateStatPeak', peakHash.toFixed(1) + ' TH/s');
   setText('hashrateStatAvg',  avgHash.toFixed(1) + ' TH/s');
@@ -1227,7 +1351,7 @@ function initDonut(profile) {
   ctx.fillText('$ ' + usdt.toFixed(2), cx, cy + 8);
 }
 
-function _drawLineChart(canvas, data, lineColor, fillColor) {
+function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const w = canvas.width  = canvas.offsetWidth || 400;
@@ -1238,6 +1362,32 @@ function _drawLineChart(canvas, data, lineColor, fillColor) {
 
   const getX = i => (i / (data.length - 1)) * (w - 40) + 20;
   const getY = v => h - 20 - ((v - min) / range) * (h - 50);
+
+  if (options.moodZones) {
+    const top = 20;
+    const height = h - 40;
+    const bandHeight = height / 3;
+    const zones = [
+      { y: top, fill: 'rgba(34,197,94,0.06)', stroke: 'rgba(34,197,94,0.15)' },
+      { y: top + bandHeight, fill: 'rgba(245,158,11,0.06)', stroke: 'rgba(245,158,11,0.12)' },
+      { y: top + bandHeight * 2, fill: 'rgba(239,68,68,0.05)', stroke: 'rgba(239,68,68,0.12)' },
+    ];
+    zones.forEach(zone => {
+      ctx.fillStyle = zone.fill;
+      ctx.fillRect(20, zone.y, w - 40, bandHeight);
+      ctx.strokeStyle = zone.stroke;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(20, zone.y);
+      ctx.lineTo(w - 20, zone.y);
+      ctx.stroke();
+    });
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.beginPath();
+    ctx.moveTo(20, top + height);
+    ctx.lineTo(w - 20, top + height);
+    ctx.stroke();
+  }
 
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
   gradient.addColorStop(0, fillColor);
