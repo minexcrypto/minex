@@ -1265,7 +1265,9 @@ function initEarningsChart(transactions) {
   const hasData = data.some(v => v > 0);
 
   const total12d = data.reduce((s, v) => s + v, 0);
-  const avgDaily = total12d / days;
+  const earningDays = data.filter(v => v > 0).length;
+  // Average only across days that actually earned mining rewards.
+  const avgDaily = earningDays > 0 ? total12d / earningDays : 0;
   const bestDay  = Math.max(...data);
   setText('chartTotal12d', hasData ? '$ ' + total12d.toFixed(2) + ' USDT' : '$ 0.00 USDT');
   setText('chartAvgDaily', hasData ? '$ ' + avgDaily.toFixed(2) + ' USDT' : '$ 0.00 USDT');
