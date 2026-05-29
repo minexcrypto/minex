@@ -285,9 +285,27 @@ const OverviewModule = {
     try{
       const walletRows = await fetchAllProfiles('usdt_balance');
       const walletTotal = (walletRows || []).reduce((s, r) => s + Number(r.usdt_balance || 0), 0);
-      const { data: contractRows, error: contractErr } = await sb.from('contracts').select('total_earned');
-      if (contractErr) throw contractErr;
-      const contractTotalValue = (contractRows || []).reduce((s, r) => s + Number(r.total_earned || 0), 0);
+      const sumContractsByField = async (field) => {
+        const { data, error } = await sb.from('contracts').select(field);
+        if (error) throw error;
+        return (data || []).reduce((s, r) => s + Number(r?.[field] || 0), 0);
+      };
+      let contractTotalValue = 0;
+      try {
+        contractTotalValue = await sumContractsByField('plan_price');
+      } catch {
+        try {
+          contractTotalValue = await sumContractsByField('price_usdt');
+        } catch {
+          try {
+            contractTotalValue = await sumContractsByField('amount');
+          } catch {
+            const fallback = await sumContractsByField('total_earned');
+            contractTotalValue = fallback;
+            console.warn('[Overview] Contract value column not found; fallback to total_earned.');
+          }
+        }
+      }
       setText('#stat-total-wallet-balance', '$ ' + walletTotal.toFixed(2) + ' USDT');
       setText('#stat-usdt-volume', '$ ' + contractTotalValue.toFixed(2) + ' USDT');
     }catch(err){console.warn(err);}
