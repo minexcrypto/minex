@@ -283,14 +283,10 @@ const OverviewModule = {
   async _referralStats(){ try{ const{count,error}=await sb.from('referrals').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-referrals',count??0); }catch(err){console.warn(err);} },
   async _volumeStats(){
     try{
-      const [{ data: walletRows }, { data: depositRows }] = await Promise.all([
-        sb.from('profiles').select('usdt_balance'),
-        sb.from('deposits').select('amount,coin,status').eq('status','approved'),
-      ]);
+      const { data: walletRows } = await sb.from('profiles').select('usdt_balance');
       const walletTotal = (walletRows || []).reduce((s, r) => s + Number(r.usdt_balance || 0), 0);
-      const depositTotal = (depositRows || []).reduce((s, r) => s + Number(r.amount || 0), 0);
       setText('#stat-total-wallet-balance', '$ ' + walletTotal.toFixed(2) + ' USDT');
-      setText('#stat-usdt-volume', '$ ' + depositTotal.toFixed(2) + ' USDT');
+      setText('#stat-usdt-volume', '$ ' + walletTotal.toFixed(2) + ' USDT');
     }catch(err){console.warn(err);}
   },
   async _activityFeed(){
