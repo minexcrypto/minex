@@ -539,6 +539,15 @@ async function populateUserUI() {
   setText('portfolioBTCusd',      walletDisplay);
   setText('usdtBalanceEl',        usdtBalance.toFixed(2) + ' USDT');
 
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? 'Good Morning! 👋' :
+    hour < 17 ? 'Good Afternoon! 👋' :
+                'Good Evening! 👋';
+  setText('dashboardGreeting', greeting);
+  setText('dashboardWelcomeText', `Here is what is happening with your mining today, ${name}.`);
+  setText('dashboardHeroStatus', profile?.usdt_balance > 0 ? 'Earning' : 'Live');
+
   BTCPrice.onChange(({ price, change }) => {
     const pctStr = change != null
       ? ((change >= 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(2) + '%')
