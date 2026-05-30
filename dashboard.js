@@ -8,10 +8,19 @@
 const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
 let _supabase = null;
+const AUTH_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
+function _assertSafePublicKey(key) {
+  const token = String(key || '').trim();
+  if (!token || /service_role/i.test(token) || /^sb_secret_/i.test(token)) {
+    throw new Error('Unsafe Supabase key configuration.');
+  }
+  return token;
+}
 
 try {
   if (typeof supabase !== 'undefined' && supabase.createClient) {
-    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    _supabase = supabase.createClient(SUPABASE_URL, _assertSafePublicKey(SUPABASE_KEY));
   } else {
     console.error('Supabase library not loaded.');
   }
@@ -512,6 +521,7 @@ const Auth = (() => {
     try {
       const { session, role } = await _roleAuth.getSessionWithRole(_supabase);
       if (!session) { window.location.replace('login.html'); return false; }
+      if (!session?.user?.email_confirmed_at) { await _supabase.auth.signOut(); window.location.replace('login.html'); return false; }
       if (role === 'admin') { window.location.replace('admin.html'); return false; }
       _session = session;
 
@@ -1910,7 +1920,7 @@ async function changePasswordWithOldPassword(e) {
 
   if (!user || !email) { Toast.show('Auth required. Please log in again.', 'error'); return; }
   if (!oldPassword || !newPassword || !confirmNewPassword) { Toast.show('Please fill all password fields.', 'error'); return; }
-  if (newPassword.length < 6) { Toast.show('New password must be at least 6 characters.', 'error'); return; }
+  if (!window.CVAuthRole?.isStrongPassword(newPassword)) { Toast.show(window.CVAuthRole?.passwordPolicyMessage?.() || 'Use a stronger password.', 'error'); return; }
   if (newPassword !== confirmNewPassword) { Toast.show('New password and confirm password do not match.', 'error'); return; }
   if (oldPassword === newPassword) { Toast.show('New password must be different from current password.', 'warning'); return; }
 
@@ -2495,6 +2505,7 @@ function initAdminChangeRealtime() {
    MAIN INIT
 ══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
+  window.CVAuthRole?.startSessionInactivityGuard?.(() => Auth.logout(), AUTH_IDLE_TIMEOUT_MS);
   const ok = await Auth.init();
   if (!ok) return;
 
