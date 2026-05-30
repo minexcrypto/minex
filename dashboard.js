@@ -106,8 +106,8 @@ function renderReferralDetailsRows(rows = []) {
   body.innerHTML = rows.map((row) => {
     const rawUuid = String(row?.referred_user_id || '').trim();
     const shortUuid = rawUuid ? `${rawUuid.slice(0, 8)}...${rawUuid.slice(-4)}` : '—';
-    const userId = row?.user_code ? escapeHtml(String(row.user_code)) : escapeHtml(shortUuid);
-    const email = row?.email ? escapeHtml(String(row.email)) : '—';
+    const userId = row?.user_code ? escapeHtml(String(row.user_code)) : escapeHtml(shortUuid || 'Pending');
+    const email = row?.email ? escapeHtml(String(row.email)) : 'Profile pending';
     const wallet = Number(row?.wallet_balance || 0);
     const contractCount = Number(row?.contract_count || 0);
     const isActive = row?.id_active === true;
@@ -2701,4 +2701,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log('CryptoVault dashboard initialized — real data only.');
 });
+
 
