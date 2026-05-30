@@ -99,16 +99,19 @@ function renderReferralDetailsRows(rows = []) {
   if (!body) return;
 
   if (!Array.isArray(rows) || !rows.length) {
-    body.innerHTML = '<tr><td colspan="5" style="padding:16px 10px;color:var(--text-muted);">No referred users found yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" style="padding:16px 10px;color:var(--text-muted);">No referred users found yet.</td></tr>';
     return;
   }
 
   body.innerHTML = rows.map((row) => {
-    const userId = row?.referred_user_id ? escapeHtml(String(row.referred_user_id)) : '—';
+    const rawUuid = String(row?.referred_user_id || '').trim();
+    const shortUuid = rawUuid ? `${rawUuid.slice(0, 8)}...${rawUuid.slice(-4)}` : '—';
+    const userId = row?.user_code ? escapeHtml(String(row.user_code)) : escapeHtml(shortUuid);
     const email = row?.email ? escapeHtml(String(row.email)) : '—';
     const wallet = Number(row?.wallet_balance || 0);
     const contractCount = Number(row?.contract_count || 0);
     const isActive = row?.id_active === true;
+    const earning = Number(row?.referral_earning || 0);
     return `
       <tr style="border-bottom:1px solid rgba(30,45,69,0.45);">
         <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${userId}</td>
@@ -116,6 +119,7 @@ function renderReferralDetailsRows(rows = []) {
         <td style="padding:12px 10px;font-size:13px;color:var(--green);">$ ${wallet.toFixed(2)} USDT</td>
         <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${contractCount}</td>
         <td style="padding:12px 10px;font-size:13px;color:${isActive ? 'var(--green)' : 'var(--red)'};font-weight:600;">${isActive ? 'Active' : 'Inactive'}</td>
+        <td style="padding:12px 10px;font-size:13px;color:var(--gold);font-weight:600;">$ ${earning.toFixed(2)} USDT</td>
       </tr>
     `;
   }).join('');
