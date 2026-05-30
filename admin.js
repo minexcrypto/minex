@@ -1530,6 +1530,10 @@ window.NotificationsModule=NotificationsModule;
 const ReferralModule = {
   async load(){
     const wrap=document.getElementById('referralLeaderboardWrap'); if(!wrap||!sb)return;
+    const detailWrap=document.getElementById('referralLeaderDetailsWrap');
+    if (detailWrap) {
+      setHTML(detailWrap, `<div style="color:#64748b;font-size:12px;">Click <strong style="color:#f59e0b;">View</strong> to see invited users details.</div>`);
+    }
     setHTML(wrap,AdminUI.loading());
     try{
       const{data,error}=await sb.from('referrals').select('referrer_id,referred_user_id,earnings,created_at').limit(250);
@@ -1542,10 +1546,76 @@ const ReferralModule = {
       if(!sorted.length){ setHTML(wrap,AdminUI.empty('No referrals yet.')); return; }
       const html=sorted.map(([id,stats],i)=>{
         const p=profileMap[id]||{}; const name=p.name||p.email||id.slice(0,8)+'?';
-        return`<tr><td style="${TD};font-weight:700;color:#f59e0b;">#${i+1}</td><td style="${TD}">${name}</td><td style="${TD}">${stats.count}</td><td style="${TD};font-family:monospace;color:#10b981">${stats.earnings.toFixed(8)}</td></tr>`;
+        return`<tr><td style="${TD};font-weight:700;color:#f59e0b;">#${i+1}</td><td style="${TD}">${name}</td><td style="${TD}">${stats.count}</td><td style="${TD};font-family:monospace;color:#10b981">${stats.earnings.toFixed(8)}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" style="padding:6px 10px;font-size:12px;" onclick="ReferralModule.viewLeader('${id}')">View</button></td></tr>`;
       }).join('');
-      setHTML(wrap,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">Rank</th><th style="${TH}">User</th><th style="${TH}">Referrals</th><th style="${TH}">Earnings</th></tr></thead><tbody>${html}</tbody></table>`);
+      setHTML(wrap,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">Rank</th><th style="${TH}">User</th><th style="${TH}">Referrals</th><th style="${TH}">Earnings</th><th style="${TH}">Action</th></tr></thead><tbody>${html}</tbody></table>`);
     }catch(err){ setHTML(wrap,AdminUI.error(err.message)); }
+  },
+  async viewLeader(referrerId){
+    const detailWrap = document.getElementById('referralLeaderDetailsWrap');
+    if (!detailWrap || !sb || !referrerId) return;
+    setHTML(detailWrap, AdminUI.loading('Loading invited users...'));
+    try{
+      const [{ data: leaderProfile }, { data: refs, error: refsErr }] = await Promise.all([
+        sb.from('profiles').select('id,name,email,user_id').eq('id', referrerId).maybeSingle(),
+        sb.from('referrals').select('referred_user_id').eq('referrer_id', referrerId),
+      ]);
+      if (refsErr) throw refsErr;
+
+      const referredIds = [...new Set((refs || []).map(r => r.referred_user_id).filter(Boolean))];
+      if (!referredIds.length) {
+        const leaderName = leaderProfile?.name || leaderProfile?.email || 'Selected leader';
+        setHTML(detailWrap, `<div style="color:#94a3b8;font-size:13px;"><strong style="color:#f1f5f9;">${leaderName}</strong> has not invited any users yet.</div>`);
+        return;
+      }
+
+      const [{ data: invitedProfiles }, { data: contracts }] = await Promise.all([
+        sb.from('profiles').select('id,email,user_id,usdt_balance').in('id', referredIds),
+        sb.from('contracts').select('user_id').in('user_id', referredIds),
+      ]);
+
+      const profileById = Object.fromEntries((invitedProfiles || []).map(p => [p.id, p]));
+      const planCountByUser = {};
+      (contracts || []).forEach(c => {
+        const key = String(c?.user_id || '').trim();
+        if (!key) return;
+        planCountByUser[key] = Number(planCountByUser[key] || 0) + 1;
+      });
+
+      const rowsHtml = referredIds.map((uid, idx) => {
+        const p = profileById[uid] || {};
+        const email = p?.email || 'Profile pending';
+        const userCode = p?.user_id || String(uid).slice(0, 8) + '...';
+        const plans = Number(planCountByUser[String(uid)] || 0);
+        const balance = Number(p?.usdt_balance || 0);
+        return `<tr>
+          <td style="${TD};">${idx + 1}</td>
+          <td style="${TD};color:#f1f5f9;">${email}</td>
+          <td style="${TD};color:#94a3b8;">${userCode}</td>
+          <td style="${TD};">${plans}</td>
+          <td style="${TD};font-family:monospace;color:#10b981;">$ ${balance.toFixed(2)} USDT</td>
+        </tr>`;
+      }).join('');
+
+      const leaderName = leaderProfile?.name || leaderProfile?.email || referrerId;
+      const header = `<div style="font-size:13px;color:#94a3b8;margin-bottom:10px;"><strong style="color:#f1f5f9;">${leaderName}</strong> invited <span style="color:#f59e0b;">${referredIds.length}</span> users</div>`;
+      const table = `<table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="${TH}">#</th>
+            <th style="${TH}">Email</th>
+            <th style="${TH}">User ID</th>
+            <th style="${TH}">Total Plans</th>
+            <th style="${TH}">Wallet Balance</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+
+      setHTML(detailWrap, header + table);
+    }catch(err){
+      setHTML(detailWrap, AdminUI.error('Could not load invited users: ' + err.message));
+    }
   },
   async loadTree(){
     const email=$('#referralTreeSearch')?.value?.trim(); const wrap=document.getElementById('referralTreeWrap'); if(!email||!wrap||!sb)return;
@@ -1568,6 +1638,7 @@ const ReferralModule = {
     }catch(err){ setHTML(wrap,AdminUI.error(err.message)); }
   }
 };
+window.ReferralModule = ReferralModule;
 
 /* --------------------------------------------------------------
    ?17  SECURITY LOGS MODULE
