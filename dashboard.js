@@ -516,9 +516,30 @@ const Auth = (() => {
   let _profile = null;
   const _roleAuth = window.CVAuthRole;
 
+  async function _resolveReferrerId(user) {
+    const meta = user?.user_metadata || {};
+    if (meta.referrer_id) return meta.referrer_id;
+    if (_profile?.referred_by) return _profile.referred_by;
+    if (_profile?.referred_by_user_id) return _profile.referred_by_user_id;
+    if (_profile?.referrer_id) return _profile.referrer_id;
+
+    const refCode = String(meta.referrer_code || '').trim().toUpperCase();
+    if (!refCode || !_supabase) return null;
+    const { data: refProfile, error } = await _supabase
+      .from('profiles')
+      .select('id')
+      .eq('ref_code', refCode)
+      .maybeSingle();
+    if (error) {
+      console.warn('[Referral] code lookup failed:', error.message);
+      return null;
+    }
+    return refProfile?.id || null;
+  }
+
   async function _ensureReferralLinkFromMetadata(user) {
     const referredUserId = user?.id;
-    const referrerId = user?.user_metadata?.referrer_id;
+    const referrerId = await _resolveReferrerId(user);
     if (!_supabase || !referredUserId || !referrerId || referrerId === referredUserId) return;
     try {
       const { data: existing } = await _supabase
@@ -536,7 +557,7 @@ const Auth = (() => {
         created_at: new Date().toISOString(),
       });
       if (insertErr) {
-        console.warn('[Referral] insert failed:', insertErr.message);
+        console.warn('[Referral] insert failed:', insertErr.message, insertErr);
         return;
       }
 
