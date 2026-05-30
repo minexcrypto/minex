@@ -271,12 +271,11 @@
   }
 
   async function precheckLoginLimit(email) {
-    const { data, error } = await _supabase.functions.invoke('auth-rate-limit', {
-      body: {
-        action: 'precheck',
-        email: String(email || '').toLowerCase(),
-        device_id: getAuthDeviceId()
-      }
+    const { data, error } = await _supabase.rpc('auth_rate_limit', {
+      p_action: 'precheck',
+      p_email: String(email || '').toLowerCase(),
+      p_device_id: getAuthDeviceId(),
+      p_success: null
     });
     if (error) throw error;
     if (!data?.allowed) {
@@ -286,13 +285,11 @@
   }
 
   async function recordLoginResult(email, success) {
-    await _supabase.functions.invoke('auth-rate-limit', {
-      body: {
-        action: 'record',
-        email: String(email || '').toLowerCase(),
-        device_id: getAuthDeviceId(),
-        success: !!success
-      }
+    await _supabase.rpc('auth_rate_limit', {
+      p_action: 'record',
+      p_email: String(email || '').toLowerCase(),
+      p_device_id: getAuthDeviceId(),
+      p_success: !!success
     });
   }
 
