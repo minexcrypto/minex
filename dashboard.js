@@ -776,11 +776,24 @@ async function populateUserUI() {
     }
   }
 
-  // Referral stats update
-  setText('refCountEl',    profile.ref_count    || 0);
-  const refEarnings = Number(profile.ref_earnings) || 0;
+  // Referral stats update (source of truth: referrals table)
+  let referralCount = Number(profile.ref_count) || 0;
+  let refEarnings = Number(profile.ref_earnings) || 0;
+  if (_supabase && user?.id) {
+    try {
+      const { data: refs } = await _supabase
+        .from('referrals')
+        .select('earnings')
+        .eq('referrer_id', user.id);
+      if (Array.isArray(refs)) {
+        referralCount = refs.length;
+        refEarnings = refs.reduce((sum, row) => sum + Number(row?.earnings || 0), 0);
+      }
+    } catch {}
+  }
+  setText('refCountEl', referralCount);
   setText('refEarningsEl', '$ ' + refEarnings.toFixed(2) + ' USDT');
-  setText('activeRefEl',   profile.ref_count    || 0);
+  setText('activeRefEl', referralCount);
 
   const sName  = $('settingName');
   const sEmail = $('settingEmail');
@@ -1838,6 +1851,11 @@ async function approveDeposit(deposit) {
   if (!_supabase || !deposit?.id || !deposit?.user_id) {
     throw new Error('Invalid approveDeposit payload.');
   }
+  const sessionUser = Auth.getUser();
+  const isAdmin = await window.CVAuthRole?.isAdminUser?.(_supabase, sessionUser);
+  if (!isAdmin) {
+    throw new Error('Forbidden: admin access required.');
+  }
 
   const coin = String(deposit.coin || '').toLowerCase();
   const amount = Number(deposit.amount || 0);
@@ -2332,7 +2350,7 @@ const Notifications = (() => {
     let query = _supabase.from('notifications').update({ is_read: true });
 
     if (ids) {
-      query = query.in('id', Array.isArray(ids) ? ids : [ids]);
+      query = query.eq('user_id', user.id).in('id', Array.isArray(ids) ? ids : [ids]);
     } else if (types) {
       const typeArr = Array.isArray(types) ? types : [types];
       query = query.eq('user_id', user.id).eq('is_read', false).in('type', typeArr);
