@@ -237,7 +237,62 @@ const AdminAuth = {
       return true;
     }catch{return false;}
   },
-  async login(email,password){ if(!sb || !this._roleAuth)throw new Error('Supabase client not ready.'); const deviceId=localStorage.getItem('cv_auth_device_id')||'admin-browser'; try{ const{data:precheck,error:preErr}=await sb.functions.invoke('auth-rate-limit',{body:{action:'precheck',email:String(email||'').toLowerCase(),device_id:deviceId}}); if(!preErr && precheck && precheck.allowed===false)throw new Error(`Too many attempts. Try again in ${Math.max(1,Number(precheck.retry_after_seconds||0))}s.`);}catch(e){ if((e?.message||'').toLowerCase().includes('too many attempts')) throw e; console.warn('Rate limit precheck unavailable, continuing admin login:', e?.message||e);} const{data,error}=await sb.auth.signInWithPassword({email,password}); if(error){ try{await sb.functions.invoke('auth-rate-limit',{body:{action:'record',email:String(email||'').toLowerCase(),device_id:deviceId,success:false}});}catch{} throw new Error(error.message);} if(!data?.user?.email_confirmed_at){ await sb.auth.signOut().catch(()=>{}); throw new Error('Please verify your email before logging in.'); } const role = await this._roleAuth.resolveUserRole(sb, data.user); if(role!=='admin'){await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); throw new Error('Access denied.');} try{await sb.functions.invoke('auth-rate-limit',{body:{action:'record',email:String(email||'').toLowerCase(),device_id:deviceId,success:true}});}catch{} this._roleAuth.touchAuthActivity?.(); this.user=data.user; this._fillUI(data.user); return data.user; },
+  async login(email,password){
+    if(!sb || !this._roleAuth) throw new Error('Supabase client not ready.');
+    const deviceId = localStorage.getItem('cv_auth_device_id') || 'admin-browser';
+    try{
+      const { data:precheck, error:preErr } = await sb.rpc('auth_rate_limit', {
+        p_action: 'precheck',
+        p_email: String(email || '').toLowerCase(),
+        p_device_id: deviceId,
+        p_success: null
+      });
+      if(!preErr && precheck && precheck.allowed===false){
+        throw new Error(`Too many attempts. Try again in ${Math.max(1,Number(precheck.retry_after_seconds||0))}s.`);
+      }
+    }catch(e){
+      if((e?.message||'').toLowerCase().includes('too many attempts')) throw e;
+      console.warn('Rate limit precheck unavailable, continuing admin login:', e?.message||e);
+    }
+
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){
+      try{
+        await sb.rpc('auth_rate_limit', {
+          p_action: 'record',
+          p_email: String(email || '').toLowerCase(),
+          p_device_id: deviceId,
+          p_success: false
+        });
+      }catch{}
+      throw new Error(error.message);
+    }
+
+    if(!data?.user?.email_confirmed_at){
+      await sb.auth.signOut().catch(()=>{});
+      throw new Error('Please verify your email before logging in.');
+    }
+    const role = await this._roleAuth.resolveUserRole(sb, data.user);
+    if(role!=='admin'){
+      await sb.auth.signOut().catch(()=>{});
+      this._roleAuth.clearRole();
+      throw new Error('Access denied.');
+    }
+
+    try{
+      await sb.rpc('auth_rate_limit', {
+        p_action: 'record',
+        p_email: String(email || '').toLowerCase(),
+        p_device_id: deviceId,
+        p_success: true
+      });
+    }catch{}
+
+    this._roleAuth.touchAuthActivity?.();
+    this.user = data.user;
+    this._fillUI(data.user);
+    return data.user;
+  },
   async logout(){ if(sb)await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); this.user=null; window.location.replace('login.html'); },
   _fillUI(user){ setText('#adminUserEmail', user.email||''); },
 };
