@@ -5,15 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CryptoVault Admin</title>
     <script>
-        (function () {
-            var path = (window.location.pathname || '/').toLowerCase();
-            var isAdminRoute = path.endsWith('/admin') || path.endsWith('/admin.html');
-            if (!isAdminRoute) {
-                // If hosting rewrite accidentally serves admin page on public routes
-                // (e.g. /dashboard), force user area page.
-                window.location.replace('/dashboard.html');
-            }
-        })();
+        // Keep admin route handling permissive here; auth checks in admin.js decide access.
+        // This avoids accidental redirect loops caused by host/path rewrites.
     </script>
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="style.css">
@@ -102,8 +95,14 @@
                     <div class="stat-card approved"><div class="stat-label">Total Deposits</div><div class="stat-value" id="stat-total-deposits">0</div></div>
                     <div class="stat-card blue"><div class="stat-label">Active Contracts</div><div class="stat-value" id="stat-active-contracts">0</div></div>
                     <div class="stat-card orange"><div class="stat-label">Total Referrals</div><div class="stat-value" id="stat-total-referrals">0</div></div>
-                    <div class="stat-card green"><div class="stat-label">BTC Volume</div><div class="stat-value" id="stat-btc-volume">0</div></div>
-                    <div class="stat-card green"><div class="stat-label">USDT Volume</div><div class="stat-value" id="stat-usdt-volume">0</div></div>
+                    <div class="stat-card green">
+                        <div class="stat-label">Wallet Balance</div>
+                        <div class="stat-value" id="stat-total-wallet-balance">0</div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="stat-label">Total Contract Value</div>
+                        <div class="stat-value" id="stat-usdt-volume">0</div>
+                    </div>
                 </div>
                 <div class="grid-2">
                     <div class="card"><div class="card-header"><div class="card-title">Live Activity</div></div><div id="overviewActivityFeed" style="max-height:300px;overflow-y:auto;"></div></div>
@@ -393,3 +392,7 @@
 
 </body>
 </html>
+
+
+
+
