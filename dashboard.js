@@ -206,17 +206,14 @@ async function loadReferralDetailsFallback() {
 
     let contractsByUser = {};
     if (referredIds.length) {
-      const profileUserCodes = Object.values(profilesById)
-        .map(p => String(p?.user_id || '').trim())
-        .filter(Boolean);
-      const joinKeys = Array.from(new Set([
-        ...referredIds.map(id => String(id)),
-        ...profileUserCodes,
-      ]));
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const uuidKeys = Array.from(new Set(
+        referredIds.map(id => String(id).trim()).filter(id => UUID_RE.test(id))
+      ));
       const { data: contracts, error: ctrErr } = await _supabase
         .from('contracts')
         .select('user_id, active, plan, created_at')
-        .in('user_id', joinKeys);
+        .in('user_id', uuidKeys);
       if (ctrErr) {
         console.warn('[Referral] fallback contracts query failed:', ctrErr.message);
       } else {
