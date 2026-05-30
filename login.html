@@ -391,11 +391,14 @@
 
         /* Persist referral relationship for admin analytics/table views */
         if (referredByUserId) {
-          await _supabase.rpc('create_referral_link', {
+          const { data: linkCreated, error: linkErr } = await _supabase.rpc('create_referral_link', {
             p_referrer_id: referredByUserId,
             p_referred_user_id: data.user.id,
             p_referral_code: refCode || null
           });
+          if (linkErr || linkCreated === false) {
+            console.warn('[Referral] create_referral_link failed:', linkErr?.message || 'returned false');
+          }
         }
 
         /* Credit referrer +1 count for profile-based widgets */
