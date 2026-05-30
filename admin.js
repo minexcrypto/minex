@@ -1528,9 +1528,81 @@ window.NotificationsModule=NotificationsModule;
    ?16  REFERRAL MODULE
 -------------------------------------------------------------- */
 const ReferralModule = {
+  _ensureDetailsWrap(){
+    let detailWrap = document.getElementById('referralLeaderDetailsWrap');
+    if (detailWrap) return detailWrap;
+    const boardWrap = document.getElementById('referralLeaderboardWrap');
+    if (!boardWrap || !boardWrap.parentElement) return null;
+    detailWrap = document.createElement('div');
+    detailWrap.id = 'referralLeaderDetailsWrap';
+    detailWrap.style.margin = '12px 16px 16px';
+    boardWrap.parentElement.appendChild(detailWrap);
+    return detailWrap;
+  },
+  _formatContractSummary(contracts = []){
+    const counts = {};
+    (contracts || []).forEach(c => {
+      const key = String(c?.plan || '').trim().toLowerCase();
+      if (!key) return;
+      counts[key] = Number(counts[key] || 0) + 1;
+    });
+    const items = Object.entries(counts)
+      .sort((a, b) => (b[1] - a[1]) || String(a[0]).localeCompare(String(b[0])))
+      .map(([plan, count]) => `${plan.charAt(0).toUpperCase()}${plan.slice(1)} ${count}`);
+    return items.length ? items.join(', ') : 'No Contract';
+  },
+  async _buildReferralUserRows(referrerId){
+    const { data: refs, error: refsErr } = await sb
+      .from('referrals')
+      .select('referred_user_id, earnings, created_at')
+      .eq('referrer_id', referrerId);
+    if (refsErr) throw refsErr;
+
+    const referredIds = [...new Set((refs || []).map(r => r.referred_user_id).filter(Boolean))];
+    if (!referredIds.length) return [];
+
+    const { data: profiles } = await sb
+      .from('profiles')
+      .select('id,email,user_id,usdt_balance')
+      .in('id', referredIds);
+    const profileById = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+
+    const userKeys = [...new Set((profiles || []).flatMap(p => [String(p?.id || '').trim(), String(p?.user_id || '').trim()]).filter(Boolean))];
+    let contracts = [];
+    if (userKeys.length) {
+      const { data: cRows } = await sb
+        .from('contracts')
+        .select('user_id,plan,active,created_at');
+      contracts = (cRows || []).filter(c => userKeys.includes(String(c?.user_id || '').trim()));
+    }
+
+    const contractByUserKey = {};
+    contracts.forEach(c => {
+      const key = String(c?.user_id || '').trim();
+      if (!key) return;
+      if (!contractByUserKey[key]) contractByUserKey[key] = [];
+      contractByUserKey[key].push(c);
+    });
+
+    return referredIds.map((uid) => {
+      const p = profileById[uid] || {};
+      const keys = [String(uid).trim(), String(p?.user_id || '').trim()].filter(Boolean);
+      const userContracts = keys.flatMap(k => contractByUserKey[k] || []);
+      const active = userContracts.some(c => c?.active === true);
+      return {
+        referred_user_id: uid,
+        email: p?.email || 'Profile pending',
+        user_code: p?.user_id || String(uid).slice(0, 8) + '...',
+        wallet_balance: Number(p?.usdt_balance || 0),
+        contract_count: userContracts.length,
+        contract_summary: this._formatContractSummary(userContracts),
+        id_active: active,
+      };
+    });
+  },
   async load(){
     const wrap=document.getElementById('referralLeaderboardWrap'); if(!wrap||!sb)return;
-    const detailWrap=document.getElementById('referralLeaderDetailsWrap');
+    const detailWrap=this._ensureDetailsWrap();
     if (detailWrap) {
       setHTML(detailWrap, `<div style="color:#64748b;font-size:12px;">Click <strong style="color:#f59e0b;">View</strong> to see invited users details.</div>`);
     }
@@ -1546,59 +1618,40 @@ const ReferralModule = {
       if(!sorted.length){ setHTML(wrap,AdminUI.empty('No referrals yet.')); return; }
       const html=sorted.map(([id,stats],i)=>{
         const p=profileMap[id]||{}; const name=p.name||p.email||id.slice(0,8)+'?';
-        return`<tr><td style="${TD};font-weight:700;color:#f59e0b;">#${i+1}</td><td style="${TD}">${name}</td><td style="${TD}">${stats.count}</td><td style="${TD};font-family:monospace;color:#10b981">${stats.earnings.toFixed(8)}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" style="padding:6px 10px;font-size:12px;" onclick="ReferralModule.viewLeader('${id}')">View</button></td></tr>`;
+        return`<tr><td style="${TD};font-weight:700;color:#f59e0b;">#${i+1}</td><td style="${TD}">${name}</td><td style="${TD}">${stats.count}</td><td style="${TD};font-family:monospace;color:#10b981">${stats.earnings.toFixed(8)}</td><td style="${TD}"><button class="admin-btn admin-btn-outline referral-view-btn" style="padding:6px 10px;font-size:12px;" data-referrer-id="${id}">View</button></td></tr>`;
       }).join('');
       setHTML(wrap,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">Rank</th><th style="${TH}">User</th><th style="${TH}">Referrals</th><th style="${TH}">Earnings</th><th style="${TH}">Action</th></tr></thead><tbody>${html}</tbody></table>`);
+      $$('.referral-view-btn', wrap).forEach(btn => {
+        btn.addEventListener('click', () => this.viewLeader(btn.dataset.referrerId));
+      });
     }catch(err){ setHTML(wrap,AdminUI.error(err.message)); }
   },
   async viewLeader(referrerId){
-    const detailWrap = document.getElementById('referralLeaderDetailsWrap');
+    const detailWrap = this._ensureDetailsWrap();
     if (!detailWrap || !sb || !referrerId) return;
     setHTML(detailWrap, AdminUI.loading('Loading invited users...'));
     try{
-      const [{ data: leaderProfile }, { data: refs, error: refsErr }] = await Promise.all([
-        sb.from('profiles').select('id,name,email,user_id').eq('id', referrerId).maybeSingle(),
-        sb.from('referrals').select('referred_user_id').eq('referrer_id', referrerId),
-      ]);
-      if (refsErr) throw refsErr;
-
-      const referredIds = [...new Set((refs || []).map(r => r.referred_user_id).filter(Boolean))];
-      if (!referredIds.length) {
+      const { data: leaderProfile } = await sb.from('profiles').select('id,name,email,user_id').eq('id', referrerId).maybeSingle();
+      const rows = await this._buildReferralUserRows(referrerId);
+      if (!rows.length) {
         const leaderName = leaderProfile?.name || leaderProfile?.email || 'Selected leader';
         setHTML(detailWrap, `<div style="color:#94a3b8;font-size:13px;"><strong style="color:#f1f5f9;">${leaderName}</strong> has not invited any users yet.</div>`);
         return;
       }
-
-      const [{ data: invitedProfiles }, { data: contracts }] = await Promise.all([
-        sb.from('profiles').select('id,email,user_id,usdt_balance').in('id', referredIds),
-        sb.from('contracts').select('user_id').in('user_id', referredIds),
-      ]);
-
-      const profileById = Object.fromEntries((invitedProfiles || []).map(p => [p.id, p]));
-      const planCountByUser = {};
-      (contracts || []).forEach(c => {
-        const key = String(c?.user_id || '').trim();
-        if (!key) return;
-        planCountByUser[key] = Number(planCountByUser[key] || 0) + 1;
-      });
-
-      const rowsHtml = referredIds.map((uid, idx) => {
-        const p = profileById[uid] || {};
-        const email = p?.email || 'Profile pending';
-        const userCode = p?.user_id || String(uid).slice(0, 8) + '...';
-        const plans = Number(planCountByUser[String(uid)] || 0);
-        const balance = Number(p?.usdt_balance || 0);
+      const rowsHtml = rows.map((r, idx) => {
         return `<tr>
           <td style="${TD};">${idx + 1}</td>
-          <td style="${TD};color:#f1f5f9;">${email}</td>
-          <td style="${TD};color:#94a3b8;">${userCode}</td>
-          <td style="${TD};">${plans}</td>
-          <td style="${TD};font-family:monospace;color:#10b981;">$ ${balance.toFixed(2)} USDT</td>
+          <td style="${TD};color:#f1f5f9;">${r.email}</td>
+          <td style="${TD};color:#94a3b8;">${r.user_code}</td>
+          <td style="${TD};">${r.contract_count}</td>
+          <td style="${TD};">${r.contract_summary}</td>
+          <td style="${TD};color:${r.id_active ? '#10b981' : '#ef4444'};">${r.id_active ? 'Active' : 'Inactive'}</td>
+          <td style="${TD};font-family:monospace;color:#10b981;">$ ${r.wallet_balance.toFixed(2)} USDT</td>
         </tr>`;
       }).join('');
 
       const leaderName = leaderProfile?.name || leaderProfile?.email || referrerId;
-      const header = `<div style="font-size:13px;color:#94a3b8;margin-bottom:10px;"><strong style="color:#f1f5f9;">${leaderName}</strong> invited <span style="color:#f59e0b;">${referredIds.length}</span> users</div>`;
+      const header = `<div style="font-size:13px;color:#94a3b8;margin-bottom:10px;"><strong style="color:#f1f5f9;">${leaderName}</strong> invited <span style="color:#f59e0b;">${rows.length}</span> users</div>`;
       const table = `<table style="width:100%;border-collapse:collapse">
         <thead>
           <tr>
@@ -1606,6 +1659,8 @@ const ReferralModule = {
             <th style="${TH}">Email</th>
             <th style="${TH}">User ID</th>
             <th style="${TH}">Total Plans</th>
+            <th style="${TH}">Contract Details</th>
+            <th style="${TH}">Active</th>
             <th style="${TH}">Wallet Balance</th>
           </tr>
         </thead>
@@ -1622,17 +1677,33 @@ const ReferralModule = {
     setHTML(wrap,AdminUI.loading());
     try{
       const{data:prof}=await sb.from('profiles').select('id,email,name,ref_code').eq('email',email).maybeSingle(); if(!prof){ setHTML(wrap,AdminUI.empty('User not found.')); return; }
-      const{data:refs}=await sb.from('referrals').select('referred_user_id,earnings,created_at').eq('referrer_id',prof.id);
-      const rows=refs||[]; const refIds=rows.map(r=>r.referred_user_id); const refMap=await _fetchProfiles(refIds);
+      const rows = await this._buildReferralUserRows(prof.id);
       let html=`<div style="font-size:14px;font-weight:600;color:#f1f5f9;margin-bottom:12px;">${prof.name||prof.email} <span style="color:#f59e0b;">(${rows.length} referrals)</span></div>`;
       if(!rows.length){ html+=`<div style="color:#475569;font-size:13px;">No referrals found.</div>`; }
       else{
-        html+=`<div style="display:flex;flex-direction:column;gap:8px;">`;
-        rows.forEach(r=>{
-          const p=refMap[r.referred_user_id]||{}; const name=p.name||p.email||r.referred_user_id.slice(0,8)+'?';
-          html+=`<div style="background:#0d1117;border:1px solid #1e2d45;border-radius:10px;padding:10px 14px;font-size:13px;color:#94a3b8;"><strong style="color:#f1f5f9;">${name}</strong> ? Earnings: <span style="color:#10b981;">${Number(r.earnings||0).toFixed(8)}</span> ? ${new Date(r.created_at).toLocaleDateString()}</div>`;
-        });
-        html+=`</div>`;
+        const tbody = rows.map((r, idx) => `<tr>
+          <td style="${TD};">${idx + 1}</td>
+          <td style="${TD};color:#f1f5f9;">${r.email}</td>
+          <td style="${TD};color:#94a3b8;">${r.user_code}</td>
+          <td style="${TD};">${r.contract_count}</td>
+          <td style="${TD};">${r.contract_summary}</td>
+          <td style="${TD};color:${r.id_active ? '#10b981' : '#ef4444'};">${r.id_active ? 'Active' : 'Inactive'}</td>
+          <td style="${TD};font-family:monospace;color:#10b981;">$ ${r.wallet_balance.toFixed(2)} USDT</td>
+        </tr>`).join('');
+        html += `<table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="${TH}">#</th>
+              <th style="${TH}">Email</th>
+              <th style="${TH}">User ID</th>
+              <th style="${TH}">Total Plans</th>
+              <th style="${TH}">Contract Details</th>
+              <th style="${TH}">Active</th>
+              <th style="${TH}">Wallet Balance</th>
+            </tr>
+          </thead>
+          <tbody>${tbody}</tbody>
+        </table>`;
       }
       setHTML(wrap,html);
     }catch(err){ setHTML(wrap,AdminUI.error(err.message)); }
