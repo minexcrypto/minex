@@ -225,14 +225,15 @@
   /* ─── Supabase Init ─── */
   const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
-  const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const USER_HOME_PATH = 'dashboard.html';
-  const ADMIN_HOME_PATH = 'admin.html';
   const RoleAuth = window.CVAuthRole;
   if (!RoleAuth) {
     alert('Authentication bootstrap failed. Please refresh the page.');
     window.location.replace('login.html');
   }
+  const safePublicKey = RoleAuth.assertSafePublicKey(SUPABASE_KEY);
+  const _supabase = supabase.createClient(SUPABASE_URL, safePublicKey);
+  const USER_HOME_PATH = 'dashboard.html';
+  const ADMIN_HOME_PATH = 'admin.html';
 
   /* ─── Check URL for prefilled ref code ─── */
   (async () => {
@@ -257,6 +258,36 @@
     const el = document.getElementById('message');
     el.textContent = text;
     el.className = type;
+  }
+
+  function getAuthDeviceId() {
+    const key = 'cv_auth_device_id';
+    let value = localStorage.getItem(key);
+    if (!value) {
+      value = (crypto?.randomUUID?.() || ('cv-' + Date.now() + '-' + Math.random().toString(16).slice(2)));
+      localStorage.setItem(key, value);
+    }
+    return value;
+  }
+
+  async function precheckLoginLimit(email) {
+    const { data, error } = await _supabase.rpc('auth_precheck_login_attempt', {
+      p_email: String(email || '').toLowerCase(),
+      p_device_id: getAuthDeviceId(),
+    });
+    if (error) throw error;
+    if (!data?.allowed) {
+      const sec = Number(data?.retry_after_seconds || 0);
+      throw new Error(`Too many attempts. Try again in ${Math.max(1, sec)}s.`);
+    }
+  }
+
+  async function recordLoginResult(email, success) {
+    await _supabase.rpc('auth_record_login_result', {
+      p_email: String(email || '').toLowerCase(),
+      p_device_id: getAuthDeviceId(),
+      p_success: !!success,
+    });
   }
 
   function setLoading(btnId, loading, defaultText) {
@@ -311,7 +342,7 @@
     const refCode  = document.getElementById('registerRefCode').value.trim().toUpperCase();
 
     if (!email || !password) { showMsg('Please fill in all fields.', 'error'); return; }
-    if (password.length < 6) { showMsg('Password must be at least 6 characters.', 'error'); return; }
+    if (!RoleAuth.isStrongPassword(password)) { showMsg(RoleAuth.passwordPolicyMessage(), 'error'); return; }
 
     setLoading('registerBtn', true, 'Create Account');
 
@@ -382,13 +413,29 @@
 
     setLoading('loginBtn', true, 'Login To Dashboard');
 
+    try {
+      await precheckLoginLimit(email);
+    } catch (e) {
+      setLoading('loginBtn', false, 'Login To Dashboard');
+      showMsg(e.message || 'Too many login attempts. Please wait.', 'error');
+      return;
+    }
+
     const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
 
     setLoading('loginBtn', false, 'Login To Dashboard');
 
     if (error) {
+      await recordLoginResult(email, false);
       showMsg(error.message, 'error');
     } else {
+      if (!data?.user?.email_confirmed_at) {
+        await _supabase.auth.signOut();
+        await recordLoginResult(email, false);
+        showMsg('Please verify your email before logging in.', 'error');
+        return;
+      }
+
       const { data: prof } = await _supabase
         .from('profiles').select('*').eq('id', data.user.id).single();
 
@@ -407,6 +454,8 @@
       if (document.getElementById('rememberMe').checked) {
         localStorage.setItem('cv_remember', '1');
       }
+      RoleAuth.touchAuthActivity();
+      await recordLoginResult(email, true);
       const role = await RoleAuth.resolveUserRole(_supabase, data.user);
       window.location.replace(role === 'admin' ? ADMIN_HOME_PATH : USER_HOME_PATH);
     }
