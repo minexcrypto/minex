@@ -1,50 +1,92 @@
-/* --------------------------------------------------------------
-   CRYPTOVAULT ? admin.js  ENTERPRISE EDITION
-   Tables: profiles ? deposits ? withdrawals ? transactions ? contracts ? notifications ? referrals ? admin_logs
--------------------------------------------------------------- */
+/* ══════════════════════════════════════════════════════════════
+   CRYPTOVAULT — dashboard.js
+   Premium Vanilla JS · Production Ready
+══════════════════════════════════════════════════════════════ */
 'use strict';
 
-/* Admin page should run only on /admin or /admin.html */
-(() => {
-  const path = (window.location.pathname || '/').toLowerCase();
-  const isAdminRoute = path.endsWith('/admin') || path.endsWith('/admin.html');
-  if (!isAdminRoute) window.location.replace('dashboard.html');
-})();
-
-/* --------------------------------------------------------------
-   ?1  SUPABASE CLIENT
--------------------------------------------------------------- */
-let sb = null;
+/* ─── SUPABASE INIT ─────────────────────────────────────── */
+const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
+let _supabase = null;
 const AUTH_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-function assertSafePublicKey(key) {
+
+function _assertSafePublicKey(key) {
   const token = String(key || '').trim();
   if (!token || /service_role/i.test(token) || /^sb_secret_/i.test(token)) {
     throw new Error('Unsafe Supabase key configuration.');
   }
   return token;
 }
-function initSupabaseClient() {
-  const url = window.CRYPTOVAULT_SUPABASE_URL || '';
-  const key = window.CRYPTOVAULT_SUPABASE_KEY || '';
-  if (!url || !key) { AdminUI.banner('? Supabase credentials missing.', 'error'); return false; }
-  if (typeof window.supabase?.createClient !== 'function') { AdminUI.banner('? Supabase SDK not found.', 'error'); return false; }
-  try { sb = window.supabase.createClient(url, assertSafePublicKey(key)); console.log('[CryptoVault] Supabase client initialized.'); return true; }
-  catch (err) { AdminUI.banner('? Supabase init error: ' + err.message, 'error'); return false; }
+
+try {
+  if (typeof supabase !== 'undefined' && supabase.createClient) {
+    _supabase = supabase.createClient(SUPABASE_URL, _assertSafePublicKey(SUPABASE_KEY));
+  } else {
+    console.error('Supabase library not loaded.');
+  }
+} catch (err) {
+  console.error('Failed to initialize Supabase client:', err);
 }
 
-/* --------------------------------------------------------------
-   ?2  DOM HELPERS
--------------------------------------------------------------- */
-const $  = (sel, ctx = document) => { try { return ctx.querySelector(sel); } catch { return null; } };
-const $$ = (sel, ctx = document) => { try { return [...ctx.querySelectorAll(sel)]; } catch { return []; } };
-function setHTML(sel, html)  { const el = resolve(sel); if (el) el.innerHTML = html; }
-function setText(sel, text)  { const el = resolve(sel); if (el) el.textContent = text; }
-function show(sel)           { const el=resolve(sel); if(el){ el.classList.remove('hidden'); el.classList.add('open'); el.style.display=''; } }
-function hide(sel)           { const el=resolve(sel); if(el){ el.classList.add('hidden'); el.classList.remove('open'); el.style.display='none'; } }
-function on(sel, evt, fn, ctx = document) { const el = typeof sel === 'string' ? $(sel, ctx) : (sel || null); if (el) el.addEventListener(evt, fn); }
-function resolve(sel) { return typeof sel === 'string' ? $(sel) : (sel || null); }
-function escapeHtml(text='') {
-  return String(text)
+/* ─── TOAST ──────────────────────────────────────────────── */
+const Toast = (() => {
+  function show(msg, type = 'info', duration = 3500) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      Object.assign(container.style, {
+        position: 'fixed', bottom: '24px', right: '24px',
+        zIndex: '9999', display: 'flex', flexDirection: 'column', gap: '10px',
+      });
+      document.body.appendChild(container);
+    }
+    const icons   = { success: '✅', error: '❌', info: '💡', warning: '⚠️' };
+    const colours = { success: '#22c55e', error: '#ef4444', info: '#f59e0b', warning: '#f97316' };
+    const border  = colours[type] || colours.info;
+    const toast   = document.createElement('div');
+    toast.style.cssText = [
+      'background:#111827', 'border:1px solid #1e2d45',
+      `border-left:3px solid ${border}`, 'border-radius:12px',
+      'padding:14px 18px', 'display:flex', 'align-items:center', 'gap:12px',
+      'font-size:13px', 'color:#94a3b8', 'min-width:260px', 'max-width:380px',
+      'box-shadow:0 4px 24px rgba(0,0,0,.45)',
+      'transition:all .3s ease',
+    ].join(';');
+    toast.innerHTML =
+      `<span style="font-size:17px;flex-shrink:0">${icons[type] || '💡'}</span>` +
+      `<span style="flex:1;line-height:1.45">${msg}</span>`;
+    container.appendChild(toast);
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateX(0)';
+    });
+    setTimeout(() => {
+      Object.assign(toast.style, { opacity: '0', transform: 'translateX(16px)' });
+      setTimeout(() => toast.remove(), 320);
+    }, duration);
+  }
+  return { show };
+})();
+
+/* Global wrappers */
+function showToast(msg, type, duration) { Toast.show(msg, type, duration); }
+
+/* ─── DOM HELPERS ────────────────────────────────────────── */
+function $(id)            { return document.getElementById(id); }
+function setText(id, val) { const el = $(id); if (el) el.textContent = val; }
+function toNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+function toUsdt(value, fallback = 0) {
+  const n = toNumber(value, fallback);
+  return n < 0 ? 0 : n;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -52,1822 +94,2491 @@ function escapeHtml(text='') {
     .replace(/'/g, '&#039;');
 }
 
-function getLocalDayRange(date = new Date()) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
+function normalizeTxType(raw) {
+  const t = String(raw || '').trim().toLowerCase();
+  if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposit';
+  if (['withdrawal', 'withdrawals'].includes(t)) return 'withdrawal';
+  if (['mining', 'mining_reward', 'reward'].includes(t)) return 'mining';
+  if (['purchase', 'purchases', 'plan_purchase'].includes(t)) return 'purchase';
+  return t || 'other';
 }
 
-function getDateRangeForFilter(filter) {
-  const normalized = String(filter || '').toLowerCase();
-  if (normalized === 'all' || normalized === 'all-time' || normalized === '') return null;
-
-  const { start, end } = getLocalDayRange(new Date());
-  if (normalized === 'today') return { start, end };
-
-  if (normalized === 'last-week') {
-    start.setDate(start.getDate() - 6);
-    return { start, end };
-  }
-
-  if (normalized === 'last-month') {
-    start.setDate(start.getDate() - 29);
-    return { start, end };
-  }
-
-  return null;
-}
-
-function filterUsersByCreatedAt(rows, filter) {
-  const range = getDateRangeForFilter(filter);
-  if (!range) return rows.slice();
-  return rows.filter(row => {
-    if (!row?.created_at) return false;
-    const createdAt = new Date(row.created_at);
-    return createdAt >= range.start && createdAt <= range.end;
-  });
-}
-
-async function fetchAllProfiles(columns) {
-  if (!sb) return [];
-  const rows = [];
-  const pageSize = 200;
-  const maxRows = 2000;
-  let from = 0;
-  while (rows.length < maxRows) {
-    const { data, error } = await sb
-      .from('profiles')
-      .select(columns)
-      .order('created_at', { ascending: false })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    const batch = data || [];
-    rows.push(...batch);
-    if (batch.length < pageSize) break;
-    from += pageSize;
-  }
-  return rows;
-}
-
-/* --------------------------------------------------------------
-   ?3  UI PRIMITIVES
--------------------------------------------------------------- */
-const AdminUI = {
-  toast(msg, type = 'info', ms = 4000) {
-    let wrap = document.getElementById('_cvToastWrap');
-    if (!wrap) {
-      wrap = document.createElement('div'); wrap.id = '_cvToastWrap';
-      Object.assign(wrap.style, { position:'fixed', bottom:'24px', right:'24px', zIndex:'9999', display:'flex', flexDirection:'column', gap:'10px' });
-      document.body.appendChild(wrap);
-    }
-    const palette = { success:'#10b981', error:'#ef4444', info:'#f59e0b', warning:'#f97316' };
-    const icons   = { success:'?', error:'?', info:'??', warning:'??' };
-    const borderColor = palette[type] || palette.info;
-    const t = document.createElement('div');
-    t.style.cssText = 'background:#111720;border:1px solid #1e2d45;border-left:3px solid '+borderColor+';border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;font-size:13px;color:#94a3b8;min-width:280px;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.45);animation:_cvSlideIn .3s ease;';
-    t.innerHTML = `<span style="font-size:17px;flex-shrink:0">${icons[type]||'??'}</span><span style="flex:1;line-height:1.45">${msg}</span>`;
-    wrap.appendChild(t);
-    setTimeout(() => { Object.assign(t.style,{opacity:'0',transform:'translateX(16px)',transition:'.3s ease'}); setTimeout(()=>t.remove(),320); }, ms);
-  },
-  banner(msg, type='warning') {
-    const colours = { warning:'#f59e0b', error:'#ef4444', success:'#10b981', info:'#3b82f6' };
-    const c = colours[type] || colours.warning;
-    document.getElementById('_cvBanner')?.remove();
-    const b = document.createElement('div'); b.id='_cvBanner';
-    b.style.cssText = `background:${c}18;border-bottom:1px solid ${c}44;padding:11px 24px;font-size:13px;font-weight:600;color:${c};text-align:center;`;
-    b.textContent = msg; document.body.prepend(b);
-  },
-  loading(msg='Loading?') { return `<div style="padding:48px;text-align:center;color:#475569;font-size:13px;"><div style="width:26px;height:26px;border:2px solid #1e2d45;border-top-color:#f59e0b;border-radius:50%;animation:_cvSpin .8s linear infinite;margin:0 auto 14px;"></div>${msg}</div>`; },
-  error(msg='Failed to load data.') { return `<div style="padding:48px;text-align:center;color:#ef4444;font-size:13px;">? ${msg}</div>`; },
-  empty(msg='No records found.') { return `<div style="padding:48px;text-align:center;color:#475569;font-size:13px;">?? ${msg}</div>`; },
-  badge(status) {
-    const map = {
-      pending:{bg:'rgba(245,158,11,.15)',fg:'#f59e0b',label:'Pending'}, approved:{bg:'rgba(16,185,129,.15)',fg:'#10b981',label:'Approved'},
-      rejected:{bg:'rgba(239,68,68,.15)',fg:'#ef4444',label:'Rejected'}, success:{bg:'rgba(16,185,129,.15)',fg:'#10b981',label:'Success'},
-      failed:{bg:'rgba(239,68,68,.15)',fg:'#ef4444',label:'Failed'}, active:{bg:'rgba(16,185,129,.15)',fg:'#10b981',label:'Active'},
-      inactive:{bg:'rgba(100,116,139,.15)',fg:'#64748b',label:'Inactive'}, completed:{bg:'rgba(59,130,246,.15)',fg:'#3b82f6',label:'Completed'},
-      mining:{bg:'rgba(249,115,22,.15)',fg:'#f97316',label:'Mining'}, deposit:{bg:'rgba(16,185,129,.15)',fg:'#10b981',label:'Deposit'},
-      withdrawal:{bg:'rgba(239,68,68,.15)',fg:'#ef4444',label:'Withdrawal'}, referral:{bg:'rgba(139,92,246,.15)',fg:'#8b5cf6',label:'Referral'},
-      purchase:{bg:'rgba(59,130,246,.15)',fg:'#3b82f6',label:'Purchase'}, info:{bg:'rgba(59,130,246,.15)',fg:'#3b82f6',label:'Info'},
-      warning:{bg:'rgba(245,158,11,.15)',fg:'#f59e0b',label:'Warning'}, error:{bg:'rgba(239,68,68,.15)',fg:'#ef4444',label:'Error'},
-      announcement:{bg:'rgba(139,92,246,.15)',fg:'#8b5cf6',label:'Announcement'}, banned:{bg:'rgba(239,68,68,.15)',fg:'#ef4444',label:'Banned'},
-      suspended:{bg:'rgba(245,158,11,.15)',fg:'#f59e0b',label:'Suspended'},
-    };
-    const s = map[String(status).toLowerCase()] || {bg:'rgba(100,116,139,.15)',fg:'#64748b',label:status||'?'};
-    return `<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${s.bg};color:${s.fg};white-space:nowrap;">${s.label}</span>`;
-  },
-  activateTab(name) {
-    $$('[data-admin-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.adminTab===name));
-    $$('[data-admin-section]').forEach(sec => { const match=sec.dataset.adminSection===name; sec.classList.toggle('active',match); sec.style.display=match?'':'none'; });
-    const TITLES = { overview:'Dashboard Overview', deposits:'Deposit Requests', withdrawals:'Withdrawal Requests', transactions:'Transaction History', contracts:'Mining Contracts', users:'User Management', referrals:'Referral Analytics', notifications:'Send Notifications', logs:'Security Logs', 'new-users':'New User', 'old-users':'Old User', 'edit-old-user':'Edit Old User' };
-    setText('#adminPageTitle', TITLES[name]||name);
-  },
+const PLAN_MS_PER_DAY = 24 * 60 * 60 * 1000;
+const LIVE_HASHRATE_INTERVAL_MS = 5 * 60 * 1000;
+const PLAN_CONFIG_FALLBACK = {
+  starter:  { priceUsd: 500,   hashrate: 10,  durationDays: 1460, monthlyRate: 0.05, icon: '🌱', color: 'var(--green)' },
+  silver:   { priceUsd: 2500,  hashrate: 50,  durationDays: 1095, monthlyRate: 0.10, icon: '🥈', color: 'var(--blue)' },
+  gold:     { priceUsd: 5000,  hashrate: 100, durationDays: 730,  monthlyRate: 0.15, icon: '🥇', color: 'var(--gold)' },
+  platinum: { priceUsd: 10000, hashrate: 300, durationDays: 365,  monthlyRate: 0.20, icon: '💎', color: 'var(--purple)' },
 };
 
-/* inject keyframes */
-(() => {
-  if (document.getElementById('_cvKF')) return;
-  const s = document.createElement('style'); s.id='_cvKF';
-  s.textContent = `
-    @keyframes _cvSlideIn { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:translateX(0)} }
-    @keyframes _cvSpin { to{transform:rotate(360deg)} }
-    .hidden { display:none !important; }
-    .admin-btn { display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:inherit;white-space:nowrap; }
-    .admin-btn:disabled { opacity:.5;cursor:default; }
-    .admin-btn-approve { background:rgba(16,185,129,.15);color:#10b981; } .admin-btn-approve:hover:not(:disabled) { background:rgba(16,185,129,.25); }
-    .admin-btn-reject { background:rgba(239,68,68,.15);color:#ef4444; } .admin-btn-reject:hover:not(:disabled) { background:rgba(239,68,68,.25); }
-    .admin-btn-outline { background:rgba(255,255,255,.04);color:#94a3b8;border:1px solid #1e2d45; } .admin-btn-outline:hover:not(:disabled) { border-color:#f59e0b;color:#f59e0b; }
-    .admin-btn-primary { background:linear-gradient(135deg,#f59e0b,#f97316);color:#080b10; } .admin-btn-primary:hover:not(:disabled) { filter:brightness(1.1); }
-    .admin-btn-danger { background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.2); } .admin-btn-danger:hover:not(:disabled) { background:rgba(239,68,68,.25); }
-    .admin-btn-blue { background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.2); } .admin-btn-blue:hover:not(:disabled) { background:rgba(59,130,246,.25); }
-    .pagination-bar { display:flex;gap:6px;justify-content:center;padding:16px; }
-    .pagination-bar button { min-width:32px;height:32px;border-radius:6px;background:#111720;border:1px solid #1e2d45;color:#94a3b8;font-size:12px;cursor:pointer; }
-    .pagination-bar button.active { background:rgba(245,158,11,.15);color:#f59e0b;border-color:rgba(245,158,11,.3); }
-    .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto; }
-    .modal-overlay.open { display:flex; }
-    .modal { background:#111720;border:1px solid #1e2d45;border-radius:20px;width:100%;max-width:460px;padding:28px;animation:modalIn .3s ease; }
-    .modal-xl { max-width:900px; }
-    .modal-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
-    .modal-close { width:32px;height:32px;border-radius:8px;background:#1a2236;border:none;cursor:pointer;color:#94a3b8;font-size:18px;display:flex;align-items:center;justify-content:center; }
-    .modal-close:hover { background:rgba(239,68,68,.15);color:#ef4444; }
-    .modal-body { max-height:70vh;overflow-y:auto; }
-    .form-group { margin-bottom:14px; }
-    .form-group label { display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:6px; }
-    .form-group input, .form-group select, .form-group textarea { width:100%;background:#0d1117;border:1px solid #1e2d45;border-radius:10px;padding:10px 14px;font-size:13px;color:#f1f5f9;outline:none; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:#f59e0b; }
-    .filters { display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center; }
-    .filters input, .filters select { background:#0d1117;border:1px solid #1e2d45;border-radius:10px;padding:8px 12px;font-size:13px;color:#f1f5f9;outline:none; }
-    .global-search-wrap { display:flex;gap:8px; }
-    .global-search-wrap input { background:#0d1117;border:1px solid #1e2d45;border-radius:10px;padding:8px 14px;font-size:13px;color:#f1f5f9;width:260px; }
-    .table-container table { width:100%;border-collapse:collapse; }
-    .table-container th { font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#475569;padding:11px 16px;text-align:left;white-space:nowrap;border-bottom:1px solid #1e2d45;background:#0d1117; }
-    .table-container td { padding:12px 16px;font-size:13px;color:#94a3b8;border-bottom:1px solid rgba(30,45,69,.5); }
-    .table-container tr:hover td { background:rgba(255,255,255,.02); }
-    .topbar { display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:64px;border-bottom:1px solid #1e2d45;background:rgba(13,17,23,.9);backdrop-filter:blur(20px);position:sticky;top:0;z-index:90; }
-    .topbar-left, .topbar-right { display:flex;align-items:center;gap:12px; }
-    .card { background:#111720;border:1px solid #1e2d45;border-radius:18px;padding:24px; }
-    .card-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:16px; }
-    .card-title { font-size:16px;font-weight:700;color:#f1f5f9; }
-    .stats-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px; }
-    @media(max-width:900px){ .stats-grid{grid-template-columns:repeat(2,1fr);} .global-search-wrap input{width:180px;} .modal-xl{max-width:100%;} }
-    @media(max-width:600px){ .stats-grid{grid-template-columns:1fr;} .filters input,.filters select{width:100%;} .global-search-wrap{width:100%;} .global-search-wrap input{width:100%;} }
-  `;
-  document.head.appendChild(s);
+let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
+let _latestContracts = [];
+let _liveHashrateAlignTimer = null;
+let _liveHashrateRefreshTimer = null;
+
+const LIVE_HASHRATE_PRESETS = {
+  starter:  { base: 0.6, cap: 2.5, zeroChance: 0.46, boosts: [0.5, 1, 1.5, 2.5, 4] },
+  silver:   { base: 0.9, cap: 4.0, zeroChance: 0.40, boosts: [0.5, 1, 2, 3.5, 5] },
+  gold:     { base: 1.3, cap: 6.0, zeroChance: 0.34, boosts: [0.5, 1, 2, 4, 6] },
+  platinum: { base: 1.7, cap: 8.0, zeroChance: 0.28, boosts: [0.5, 1, 2.5, 5, 8] },
+  default:  { base: 0.8, cap: 4.5, zeroChance: 0.40, boosts: [0.5, 1, 2, 3, 5] },
+};
+
+function normalizePlanKey(planName) {
+  return String(planName || '').trim().toLowerCase();
+}
+
+function getPlanConfig(planName) {
+  return PLAN_CONFIG[normalizePlanKey(planName)] || null;
+}
+
+function normalizeMonthlyRate(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n > 1 ? n / 100 : n;
+}
+
+function getPlanPriceFromSource(source, fallback = null) {
+  const price = Number(source?.priceUsd ?? source?.plan_price ?? source?.price ?? source?.amount ?? fallback);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function getPlanMonthlyRateFromSource(source, fallback = null) {
+  const rate = normalizeMonthlyRate(source?.monthlyRate ?? source?.plan_monthly_rate ?? source?.monthly_return_pct ?? source?.monthly_return ?? fallback);
+  return rate ?? null;
+}
+
+function getPlanDurationFromSource(source, fallback = null) {
+  const days = Number(source?.durationDays ?? source?.duration_days ?? fallback);
+  return Number.isFinite(days) && days > 0 ? Math.floor(days) : null;
+}
+
+function getContractPriceUsd(contract) {
+  const planCfg = getPlanConfig(contract?.plan || contract?.name);
+  return getPlanPriceFromSource(contract, planCfg?.priceUsd) ?? 0;
+}
+
+function getContractMonthlyRate(contract) {
+  const planCfg = getPlanConfig(contract?.plan || contract?.name);
+  return Number(planCfg?.monthlyRate || 0) || 0;
+}
+
+function getContractDurationDays(contract) {
+  return getPlanDurationDays(contract?.plan || contract?.name) ?? 0;
+}
+
+function getPlanDurationDays(planName, fallbackDays = null) {
+  return getPlanDurationFromSource(getPlanConfig(planName), fallbackDays);
+}
+
+function getPlanPriceUsd(planName, fallbackPrice = null) {
+  return getPlanPriceFromSource(getPlanConfig(planName), fallbackPrice);
+}
+
+function getPlanHashrate(planName, fallbackHashrate = null) {
+  const plan = getPlanConfig(planName);
+  return Number.isFinite(Number(plan?.hashrate ?? fallbackHashrate)) ? Number(plan?.hashrate ?? fallbackHashrate) : null;
+}
+
+function getPlanMonthlyRate(planName, fallbackRate = null) {
+  return getPlanMonthlyRateFromSource(getPlanConfig(planName), fallbackRate) ?? 0;
+}
+
+function getPlanDailyProfitUsd(planName, priceUsd = null) {
+  const price = Number.isFinite(Number(priceUsd)) ? Number(priceUsd) : getPlanPriceUsd(planName, 0);
+  const monthlyRate = getPlanMonthlyRate(planName, 0);
+  return price > 0 ? (price * monthlyRate) / 30 : 0;
+}
+
+function getPlanMonthlyProfitUsd(planName, priceUsd = null) {
+  const price = Number.isFinite(Number(priceUsd)) ? Number(priceUsd) : getPlanPriceUsd(planName, 0);
+  return price > 0 ? price * getPlanMonthlyRate(planName, 0) : 0;
+}
+
+function getContractDurationDays(contract) {
+  return getPlanDurationDays(contract?.plan || contract?.name) || 0;
+}
+
+function getContractExpiryDate(contract) {
+  const createdAt = new Date(contract?.created_at || Date.now());
+  const durationDays = getContractDurationDays(contract);
+  if (!durationDays || !Number.isFinite(createdAt.getTime())) return null;
+  return new Date(createdAt.getTime() + durationDays * PLAN_MS_PER_DAY);
+}
+
+function getContractRemainingDays(contract, refDate = new Date()) {
+  const durationDays = getContractDurationDays(contract);
+  if (!durationDays) return null;
+  const createdAt = new Date(contract?.created_at || Date.now());
+  const elapsedDays = Math.max(0, (refDate.getTime() - createdAt.getTime()) / PLAN_MS_PER_DAY);
+  const remaining = durationDays - elapsedDays;
+  if (remaining <= 0) return 0;
+  return Math.max(1, Math.ceil(remaining));
+}
+
+function isContractExpired(contract, refDate = new Date()) {
+  const expiryDate = getContractExpiryDate(contract);
+  return !!expiryDate && refDate.getTime() >= expiryDate.getTime();
+}
+
+function getContractProgressPercent(contract, refDate = new Date()) {
+  const durationDays = getContractDurationDays(contract);
+  if (!durationDays) return Math.min(100, Math.max(0, Number(contract?.progress || 0)));
+  const createdAt = new Date(contract?.created_at || Date.now());
+  const elapsedDays = Math.max(0, (refDate.getTime() - createdAt.getTime()) / PLAN_MS_PER_DAY);
+  return Math.min(100, Math.max(0, (elapsedDays / durationDays) * 100));
+}
+
+function getContractDailyProfitUsd(contract) {
+  const daily = Number(contract?.daily_profit);
+  if (Number.isFinite(daily) && daily > 0) return daily;
+  const price = getContractPriceUsd(contract);
+  const monthlyRate = getContractMonthlyRate(contract);
+  return price > 0 && monthlyRate > 0 ? (price * monthlyRate) / 30 : 0;
+}
+
+function getContractMonthlyProfitUsd(contract) {
+  const price = getContractPriceUsd(contract);
+  const monthlyRate = getContractMonthlyRate(contract);
+  return price > 0 && monthlyRate > 0 ? price * monthlyRate : getContractDailyProfitUsd(contract) * 30;
+}
+
+function getContractHashrate(contract) {
+  const direct = Number(contract?.hashrate ?? contract?.hash_rate ?? 0);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const plan = getPlanConfig(contract?.plan || contract?.name);
+  const planHash = Number(plan?.hashrate ?? 0);
+  return Number.isFinite(planHash) && planHash > 0 ? planHash : 0;
+}
+
+function _hashCode(input) {
+  let hash = 0;
+  const str = String(input || '');
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash >>> 0;
+}
+
+function _seededRandom(seed) {
+  let value = seed >>> 0;
+  return function next() {
+    value += 0x6D2B79F5;
+    let t = value;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function _getLivePreset(contract) {
+  const key = normalizePlanKey(contract?.plan || contract?.name);
+  return LIVE_HASHRATE_PRESETS[key] || LIVE_HASHRATE_PRESETS.default;
+}
+
+function _getLivePhase(refDate = new Date()) {
+  const hour = refDate.getHours();
+  if (hour >= 6 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'night';
+}
+
+function _getDailyTrendPercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const dayBucket = Math.floor(refDate.getTime() / (24 * 60 * 60 * 1000));
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'day',
+    dayBucket,
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const sign = rand() < 0.5 ? -1 : 1;
+  const trend = (0.35 + (rand() * 0.95)) * config.base;
+  return sign * Math.min(6, trend);
+}
+
+function _getPhaseOffsetPercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const phase = _getLivePhase(refDate);
+  const hourSeed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'phase',
+    Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS),
+  ].join('|'));
+  const rand = _seededRandom(hourSeed);
+  const jitter = 0.15 + (rand() * 0.35);
+
+  const phaseMap = {
+    night: -0.35,
+    morning: 0.15,
+    afternoon: 0.30,
+    evening: 0.45,
+  };
+
+  return (phaseMap[phase] || 0) * config.base * jitter;
+}
+
+function _getRareSpikePercent(contract, refDate, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    'spike',
+    Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS),
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const chance = 0.025 + (config.base * 0.0035);
+  if (rand() > chance) return 0;
+
+  const direction = rand() < 0.5 ? -1 : 1;
+  const spike = (2 + (rand() * 5)) * config.base;
+  return direction * Math.min(config.cap * 1.5, spike);
+}
+
+function _pickLiveHashrateDelta(rand, preset) {
+  const config = preset || LIVE_HASHRATE_PRESETS.default;
+  const roll = rand();
+  if (roll < config.zeroChance) return 0;
+
+  const tierRoll = rand();
+  const tierIndex =
+    tierRoll < 0.50 ? 0 :
+    tierRoll < 0.75 ? 1 :
+    tierRoll < 0.90 ? 2 :
+    tierRoll < 0.97 ? 3 : 4;
+  const boost = config.boosts[Math.min(tierIndex, config.boosts.length - 1)];
+  const sign = rand() < 0.5 ? -1 : 1;
+  return sign * Math.min(config.cap, config.base * boost);
+}
+
+function getLiveHashrateForContract(contract, refDate = new Date()) {
+  if (!contract || contract.active !== true || isContractExpired(contract, refDate)) return 0;
+
+  const baseHashrate = getContractHashrate(contract);
+  if (!baseHashrate) return 0;
+
+  const bucket = Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS);
+  const seed = _hashCode([
+    contract.id || contract.user_id || contract.plan || contract.name || 'contract',
+    bucket,
+  ].join('|'));
+  const rand = _seededRandom(seed);
+  const preset = _getLivePreset(contract);
+  const delta =
+    _getDailyTrendPercent(contract, refDate, preset) +
+    _getPhaseOffsetPercent(contract, refDate, preset) +
+    _pickLiveHashrateDelta(rand, preset) +
+    _getRareSpikePercent(contract, refDate, preset);
+  return Math.max(0, baseHashrate * (1 + (delta / 100)));
+}
+
+function getLiveHashrateSummary(contracts = [], refDate = new Date()) {
+  const activeContracts = (contracts || []).filter(c => c?.active === true && !isContractExpired(c, refDate));
+  const count = activeContracts.length;
+  const totalHashrate = activeContracts.reduce((sum, contract) => sum + getLiveHashrateForContract(contract, refDate), 0);
+  const totalPower = totalHashrate * 32;
+  const dailyProfit = activeContracts.reduce((sum, contract) => sum + getContractDailyProfitUsd(contract), 0);
+  const monthlyProjection = dailyProfit * 30;
+  const efficiency = totalHashrate > 0 ? (dailyProfit / totalHashrate) : 0;
+  return { activeContracts, count, totalHashrate, totalPower, dailyProfit, monthlyProjection, efficiency };
+}
+
+function getStaticMiningSummary(contracts = [], refDate = new Date()) {
+  const activeContracts = (contracts || []).filter(c => c?.active === true && !isContractExpired(c, refDate));
+  const count = activeContracts.length;
+  const totalHashrate = activeContracts.reduce((sum, contract) => sum + getContractHashrate(contract), 0);
+  const totalPower = totalHashrate * 32;
+  const dailyProfit = activeContracts.reduce((sum, contract) => sum + getContractDailyProfitUsd(contract), 0);
+  const monthlyProjection = dailyProfit * 30;
+  const efficiency = totalHashrate > 0 ? (dailyProfit / totalHashrate) : 0;
+  return { activeContracts, count, totalHashrate, totalPower, dailyProfit, monthlyProjection, efficiency };
+}
+
+function getLiveHashrateMovement(contracts = [], refDate = new Date()) {
+  const live = getLiveHashrateSummary(contracts, refDate);
+  const base = getStaticMiningSummary(contracts, refDate);
+  const delta = live.totalHashrate - base.totalHashrate;
+  const deltaPct = base.totalHashrate > 0 ? (delta / base.totalHashrate) * 100 : 0;
+  const direction = deltaPct > 0.04 ? 'up' : deltaPct < -0.04 ? 'down' : 'flat';
+  return { live, base, delta, deltaPct, direction };
+}
+
+function getLiveHashrateSeries(contracts = [], points = 24, refDate = new Date()) {
+  const safePoints = Math.max(2, points);
+  const series = [];
+  const nowBucket = Math.floor(refDate.getTime() / LIVE_HASHRATE_INTERVAL_MS);
+
+  for (let offset = safePoints - 1; offset >= 0; offset--) {
+    const sampleDate = new Date((nowBucket - offset) * LIVE_HASHRATE_INTERVAL_MS);
+    const sampleSummary = getLiveHashrateSummary(contracts, sampleDate);
+    series.push(sampleSummary.totalHashrate);
+  }
+
+  return series;
+}
+
+function getMiningSummary(contracts = [], refDate = new Date()) {
+  return getLiveHashrateSummary(contracts, refDate);
+}
+
+function formatActiveContractCount(count) {
+  if (!count) return 'No active contracts';
+  return count === 1 ? '1 Active Contract' : `${count} Active Contracts`;
+}
+
+function updateMiningHeaderSubtitle(text) {
+  const title = [...document.querySelectorAll('#tab-mining .card-title')]
+    .find(el => (el.textContent || '').trim() === 'Active Mining Contracts');
+  const subtitle = title?.closest('.card-header')?.querySelector('.card-subtitle');
+  if (subtitle) subtitle.textContent = text;
+}
+
+function updateMiningCardStates(summary) {
+  const liveCard = document.getElementById('liveHashrate')?.closest('.stat-card');
+  const dailyCard = document.getElementById('dailyProfitEl')?.closest('.stat-card');
+  const liveStatus = liveCard?.querySelector('.stat-change');
+  const dailyStatus = dailyCard?.querySelector('.stat-change');
+
+  if (liveStatus) liveStatus.textContent = summary.count ? formatActiveContractCount(summary.count) : 'No active contracts';
+  if (dailyStatus) dailyStatus.textContent = summary.dailyProfit > 0 ? 'Daily mining income active' : 'No active contracts';
+
+  updateMiningHeaderSubtitle(summary.count ? 'Your active mining contracts' : 'No active contracts');
+}
+
+async function loadPlanCatalog() {
+  if (!_supabase) return PLAN_CONFIG;
+  try {
+    const { data, error } = await _supabase
+      .from('plans')
+      .select('*');
+    if (error || !Array.isArray(data) || !data.length) return PLAN_CONFIG;
+
+    const next = { ...PLAN_CONFIG_FALLBACK };
+    data.forEach(row => {
+      const key = normalizePlanKey(row?.name || row?.plan_name || row?.title || row?.slug);
+      if (!key) return;
+      next[key] = {
+        ...next[key],
+        priceUsd: getPlanPriceFromSource(row, next[key]?.priceUsd) ?? next[key]?.priceUsd,
+        hashrate: Number(row?.hashrate ?? row?.hash_rate ?? next[key]?.hashrate ?? 0) || next[key]?.hashrate,
+        durationDays: getPlanDurationFromSource(row, next[key]?.durationDays) ?? next[key]?.durationDays,
+        monthlyRate: getPlanMonthlyRateFromSource(row, next[key]?.monthlyRate) ?? next[key]?.monthlyRate,
+      };
+    });
+    PLAN_CONFIG = next;
+  } catch (err) {
+    console.warn('[CryptoVault] loadPlanCatalog failed:', err.message);
+  }
+  return PLAN_CONFIG;
+}
+
+function normalizeContractLifecycle(contract) {
+  if (!contract) return contract;
+  const plan = contract.plan || contract.name || '';
+  const priceUsd = getPlanPriceUsd(plan, contract.plan_price);
+  return {
+    ...contract,
+    plan_price: priceUsd ?? contract.plan_price ?? null,
+    active: contract.active === true && !isContractExpired(contract),
+  };
+}
+
+/* ─── COPY UTILITY ───────────────────────────────────────── */
+function copyToClipboard(text, msg = 'Copied!') {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => Toast.show(msg, 'success'))
+      .catch(() => _fallbackCopy(text, msg));
+  } else {
+    _fallbackCopy(text, msg);
+  }
+}
+function _fallbackCopy(text, msg) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    Object.assign(ta.style, { position: 'fixed', opacity: '0' });
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    Toast.show(msg, 'success');
+  } catch {
+    Toast.show('Copy failed.', 'error');
+  }
+}
+
+/* ─── AUTH MODULE ───────────────────────────────────────── */
+const Auth = (() => {
+  let _session = null;
+  let _profile = null;
+  const _roleAuth = window.CVAuthRole;
+
+  async function init() {
+    if (!_supabase || !_roleAuth) { window.location.replace('login.html'); return false; }
+    try {
+      const { session, role } = await _roleAuth.getSessionWithRole(_supabase);
+      if (!session) { window.location.replace('login.html'); return false; }
+      if (!session?.user?.email_confirmed_at) { await _supabase.auth.signOut(); window.location.replace('login.html'); return false; }
+      if (role === 'admin') { window.location.replace('admin.html'); return false; }
+      _session = session;
+
+      const { data: prof, error } = await _supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error || !prof) {
+        const ref_code = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const { data: newProf } = await _supabase
+          .from('profiles')
+          .upsert({
+            id:           session.user.id,
+            email:        session.user.email,
+            usdt_balance: 0,
+            ref_code,
+          })
+          .select()
+          .single();
+        _profile = newProf || {
+          id: session.user.id,
+          email: session.user.email,
+          usdt_balance: 0,
+          ref_code,
+        };
+      } else {
+        _profile = prof;
+        if (!_profile.ref_code && _supabase) {
+          const ref_code = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+          await _supabase.from('profiles').update({ ref_code }).eq('id', session.user.id);
+          _profile.ref_code = ref_code;
+        }
+      }
+
+      _supabase.auth.onAuthStateChange(event => {
+        if (event === 'SIGNED_OUT') {
+          _roleAuth.clearRole();
+          window.location.replace('login.html');
+        }
+      });
+      return true;
+    } catch (err) {
+      console.error('Auth init failed:', err);
+      window.location.replace('login.html');
+      return false;
+    }
+  }
+
+  async function logout() {
+    try { if (_supabase) await _supabase.auth.signOut(); } catch { /* ignore */ }
+    _roleAuth.clearRole();
+    window.location.replace('login.html');
+  }
+
+  function getUser()    { return _session?.user || null; }
+  function getProfile() { return _profile       || {};   }
+
+  async function refreshProfile() {
+    if (!_session || !_supabase) return;
+    const { data } = await _supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', _session.user.id)
+      .single();
+    if (data) _profile = data;
+    return _profile;
+  }
+
+  async function updateProfile(fields) {
+    if (!_session || !_supabase) return null;
+    const { data, error } = await _supabase
+      .from('profiles')
+      .update(fields)
+      .eq('id', _session.user.id)
+      .select()
+      .single();
+    if (!error && data) _profile = data;
+    return error ? null : data;
+  }
+
+  return { init, logout, getUser, getProfile, refreshProfile, updateProfile };
 })();
 
-const TH = ['font-size:11px','font-weight:700','letter-spacing:.8px','text-transform:uppercase','color:#475569','padding:11px 16px','text-align:left','white-space:nowrap','border-bottom:1px solid #1e2d45'].join(';');
-const TD = 'padding:12px 16px;font-size:13px;color:#94a3b8;border-bottom:1px solid rgba(30,45,69,.5);';
+/* ─── BTC PRICE ──────────────────────────────────────────── */
+const BTCPrice = (() => {
+  let _data = null;
+  let _cbs  = [];
 
-/* --------------------------------------------------------------
-   ?4  ADMIN AUTH
--------------------------------------------------------------- */
-const AdminAuth = {
-  user: null,
-  _roleAuth: window.CVAuthRole,
-  async check() {
-    if(!sb || !this._roleAuth) return false;
-    try{
-      const { session, user, role } = await this._roleAuth.getSessionWithRole(sb);
-      if(!session || !user) return false;
-      if(role !== 'admin') return 'forbidden';
-      this.user=user;
-      this._fillUI(user);
-      return true;
-    }catch{return false;}
-  },
-  async login(email,password){
-    if(!sb || !this._roleAuth) throw new Error('Supabase client not ready.');
-    const deviceId = localStorage.getItem('cv_auth_device_id') || 'admin-browser';
-    try{
-      const { data:precheck, error:preErr } = await sb.rpc('auth_rate_limit', {
-        p_action: 'precheck',
-        p_email: String(email || '').toLowerCase(),
-        p_device_id: deviceId,
-        p_success: null
-      });
-      if(!preErr && precheck && precheck.allowed===false){
-        throw new Error(`Too many attempts. Try again in ${Math.max(1,Number(precheck.retry_after_seconds||0))}s.`);
+  function onChange(cb) { _cbs.push(cb); if (_data) cb(_data); }
+
+  async function _fetch() {
+    try {
+      const r = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'
+      );
+      if (r.ok) {
+        const j = await r.json();
+        const price  = j.bitcoin?.usd            ?? null;
+        const change = j.bitcoin?.usd_24h_change ?? null;
+        if (price !== null) {
+          _data = { price, change };
+          _cbs.forEach(cb => cb(_data));
+        }
       }
-    }catch(e){
-      if((e?.message||'').toLowerCase().includes('too many attempts')) throw e;
-      console.warn('Rate limit precheck unavailable, continuing admin login:', e?.message||e);
+    } catch { /* keep stale */ }
+  }
+
+  _fetch();
+  setInterval(_fetch, 60_000);
+
+  function fmt(n) {
+    if (n == null) return '—';
+    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function get() { return _data?.price ?? null; }
+
+  return { onChange, get, fmt };
+})();
+
+function updateBTCPrice() {
+  BTCPrice.onChange(({ price, change }) => {
+    const tickerPrice  = $('tickerPrice');
+    const tickerChange = $('tickerChange');
+    if (tickerPrice)  tickerPrice.textContent  = BTCPrice.fmt(price);
+    if (tickerChange) {
+      const pctStr = change != null
+        ? ((change >= 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(2) + '%')
+        : '';
+      const pctClass = change != null ? (change >= 0 ? 'ticker-up' : 'ticker-down') : '';
+      tickerChange.textContent = pctStr;
+      tickerChange.className   = 'ticker-change ' + pctClass;
     }
-
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){
-      try{
-        await sb.rpc('auth_rate_limit', {
-          p_action: 'record',
-          p_email: String(email || '').toLowerCase(),
-          p_device_id: deviceId,
-          p_success: false
-        });
-      }catch{}
-      throw new Error(error.message);
-    }
-
-    if(!data?.user?.email_confirmed_at){
-      await sb.auth.signOut().catch(()=>{});
-      throw new Error('Please verify your email before logging in.');
-    }
-    const role = await this._roleAuth.resolveUserRole(sb, data.user);
-    if(role!=='admin'){
-      await sb.auth.signOut().catch(()=>{});
-      this._roleAuth.clearRole();
-      throw new Error('Access denied.');
-    }
-
-    try{
-      await sb.rpc('auth_rate_limit', {
-        p_action: 'record',
-        p_email: String(email || '').toLowerCase(),
-        p_device_id: deviceId,
-        p_success: true
-      });
-    }catch{}
-
-    this._roleAuth.touchAuthActivity?.();
-    this.user = data.user;
-    this._fillUI(data.user);
-    return data.user;
-  },
-  async logout(){ if(sb)await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); this.user=null; window.location.replace('login.html'); },
-  _fillUI(user){ setText('#adminUserEmail', user.email||''); },
-};
-
-/* --------------------------------------------------------------
-   ?5  LOGIN FORM
--------------------------------------------------------------- */
-function initLoginForm() {
-  const form=document.getElementById('adminLoginForm'); const errEl=document.getElementById('adminLoginError'); const btnEl=document.getElementById('adminLoginBtn'); const passEl=document.getElementById('adminLoginPassword'); const eyeEl=document.getElementById('adminTogglePassword');
-  if(!form)return;
-  on(eyeEl,'click',()=>{ if(!passEl)return; passEl.type=passEl.type==='password'?'text':'password'; if(eyeEl)eyeEl.textContent=passEl.type==='password'?'??':'??'; });
-  form.addEventListener('submit',async e=>{
-    e.preventDefault(); const email=(document.getElementById('adminLoginEmail')?.value||'').trim(); const password=passEl?.value||'';
-    if(!email||!password){ if(errEl)errEl.textContent='Email and password required.'; return; }
-    if(errEl)errEl.textContent=''; if(btnEl){btnEl.disabled=true; btnEl.textContent='Signing in?';}
-    try{ await AdminAuth.login(email,password); hide('#adminLoginScreen'); show('#adminAppShell'); await _bootPanel(); }
-    catch(err){ if(errEl)errEl.textContent=err.message; }
-    finally{ if(btnEl){btnEl.disabled=false; btnEl.textContent='Sign In';} }
   });
 }
 
-/* --------------------------------------------------------------
-   ?6  BTC PRICE
--------------------------------------------------------------- */
-const PriceService = {
-  _handlers:[], current:null, onChange(fn){this._handlers.push(fn);},
-  async fetch(){ try{ const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),8000); const res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true',{signal:ctrl.signal}); clearTimeout(timer); if(!res.ok)throw new Error('HTTP '+res.status); const json=await res.json(); const price=json?.bitcoin?.usd??null; const change=json?.bitcoin?.usd_24h_change??null; if(price!==null){this.current={price,change}; this._handlers.forEach(fn=>fn(this.current));} }catch{} },
-  fmt(n){ if(n==null)return'?'; return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); },
-  start(ms=30000){ this.fetch(); setInterval(()=>this.fetch(),ms); },
-};
-function initPriceWidget(){
-  PriceService.onChange(({price,change})=>{
-    $$('.admin-btc-price').forEach(el=>el.textContent=PriceService.fmt(price));
-    const up=change!=null&&change>=0; const changeStr=change!=null?((up?'? ':'? ')+Math.abs(change).toFixed(2)+'%'):'?'; const colour=change!=null?(up?'#10b981':'#ef4444'):'#64748b';
-    $$('.admin-btc-change').forEach(el=>{ el.textContent=changeStr; el.style.color=colour; });
+/* ══════════════════════════════════════════════════════════════
+   DATA LOADERS
+══════════════════════════════════════════════════════════════ */
+async function loadTransactions() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return [];
+  const { data, error } = await _supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadTransactions:', error); return []; }
+  return data || [];
+}
+
+async function loadDeposits() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return [];
+  const { data, error } = await _supabase
+    .from('deposits')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadDeposits:', error); return []; }
+  return data || [];
+}
+
+async function loadContracts() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return [];
+  const { data, error } = await _supabase
+    .from('contracts')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadContracts:', error); return []; }
+  return (data || []).map(normalizeContractLifecycle);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — POPULATE USER DATA
+══════════════════════════════════════════════════════════════ */
+async function populateUserUI() {
+  const user    = Auth.getUser();
+  const profile = Auth.getProfile();
+  const email   = user?.email || '';
+  const name    = profile.name || email.split('@')[0] || 'User';
+  const initial = name.charAt(0).toUpperCase();
+
+  document.querySelectorAll('.user-avatar-display').forEach(el => { el.textContent = initial; });
+  document.querySelectorAll('.user-name-display').forEach(el  => { el.textContent = name; });
+  document.querySelectorAll('.user-email-display').forEach(el => { el.textContent = email; });
+
+  const usdtBalance = toUsdt(profile.usdt_balance);
+  const walletDisplay = '$' + usdtBalance.toFixed(2) + ' USDT';
+  setText('walletBalanceCounter', walletDisplay);
+  setText('walletBigBalance',     walletDisplay);
+  setText('walletBigUSD',         walletDisplay);
+  setText('walletItemUSD',        walletDisplay);
+  setText('walletUSDTBalance',    usdtBalance.toFixed(2) + ' USDT');
+  setText('portfolioBTCusd',      walletDisplay);
+  setText('portfolioSubLabel',    '≈ ' + usdtBalance.toFixed(2) + ' USDT');
+  setText('usdtBalanceEl',        usdtBalance.toFixed(2) + ' USDT');
+
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? 'Good Morning! 👋' :
+    hour < 17 ? 'Good Afternoon! 👋' :
+                'Good Evening! 👋';
+  setText('dashboardGreeting', greeting);
+  setText('dashboardWelcomeText', `Here is what is happening with your mining today, ${name}.`);
+  setText('dashboardHeroStatus', profile?.usdt_balance > 0 ? 'Earning' : 'Live');
+
+  BTCPrice.onChange(({ price, change }) => {
+    const pctStr = change != null
+      ? ((change >= 0 ? '▲' : '▼') + ' ' + Math.abs(change).toFixed(2) + '%')
+      : '';
+    const pctClass = change != null ? (change >= 0 ? 'ticker-up' : 'ticker-down') : '';
+
+    const tickerPrice  = $('tickerPrice');
+    const tickerChange = document.querySelector('.ticker-change');
+    if (tickerPrice)  tickerPrice.textContent  = BTCPrice.fmt(price);
+    if (tickerChange && pctStr) {
+      tickerChange.textContent = pctStr;
+      tickerChange.className   = 'ticker-change ' + pctClass;
+    }
   });
-  PriceService.start();
-}
 
-/* --------------------------------------------------------------
-   ?7  OVERVIEW
--------------------------------------------------------------- */
-const OverviewModule = {
-  async load(){
-    await Promise.allSettled([this._depositStats(),this._withdrawalStats(),this._userStats(),this._contractStats(),this._referralStats(),this._volumeStats()]);
-    this._activityFeed();
-  },
-  async _depositStats(){ try{ const[{count:total,error:totalErr},{count:pending,error:pendingErr}]=await Promise.all([sb.from('deposits').select('id',{count:'exact',head:true}),sb.from('deposits').select('id',{count:'exact',head:true}).eq('status','pending')]); if(totalErr)throw totalErr; if(pendingErr)throw pendingErr; setText('#stat-pending-deposits',pending??0); setText('#sidebarDepositBadge',pending>0?String(pending):''); document.getElementById('sidebarDepositBadge').style.display=pending>0?'inline-flex':'none'; setText('#stat-total-deposits',total??0); }catch(err){console.warn(err);} },
-  async _withdrawalStats(){ try{ const{count,error}=await sb.from('withdrawals').select('id',{count:'exact',head:true}).eq('status','pending'); if(error)throw error; setText('#stat-pending-withdrawals',count??0); setText('#sidebarWithdrawalBadge',count>0?String(count):''); document.getElementById('sidebarWithdrawalBadge').style.display=count>0?'inline-flex':'none'; }catch(err){console.warn(err);} },
-  async _userStats(){ try{ const{count,error}=await sb.from('profiles').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-users',count??'?'); }catch(err){console.warn(err);} },
-  async _contractStats(){ try{ const{count,error}=await sb.from('contracts').select('id',{count:'exact',head:true}).eq('active',true); if(error)throw error; setText('#stat-active-contracts',count??0); }catch(err){console.warn(err);} },
-  async _referralStats(){ try{ const{count,error}=await sb.from('referrals').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-referrals',count??0); }catch(err){console.warn(err);} },
-  async _volumeStats(){
-    try{
-      const walletRows = await fetchAllProfiles('usdt_balance');
-      const walletTotal = (walletRows || []).reduce((s, r) => s + Number(r.usdt_balance || 0), 0);
+  /* ─── REFERRAL CODE SYSTEM ─────────────────────────────────
+     Sirf referral CODE dikhao — koi link nahi
+  ────────────────────────────────────────────────────────── */
+  let refCode = profile.ref_code || '';
 
-      const sumContractsByField = async (field) => {
-        const rows = [];
-        const pageSize = 200;
-        const maxRows = 2000;
-        let from = 0;
-        while (rows.length < maxRows) {
-          const { data, error } = await sb
-            .from('contracts')
-            .select(field)
-            .order('created_at', { ascending: false })
-            .range(from, from + pageSize - 1);
-          if (error) throw error;
-          const batch = data || [];
-          rows.push(...batch);
-          if (batch.length < pageSize) break;
-          from += pageSize;
-        }
-        return rows.reduce((s, r) => s + Number(r?.[field] || 0), 0);
-      };
-
-      let contractTotalValue = 0;
-      try {
-        contractTotalValue = await sumContractsByField('plan_price');
-      } catch {
-        try {
-          contractTotalValue = await sumContractsByField('price_usdt');
-        } catch {
-          try {
-            contractTotalValue = await sumContractsByField('amount');
-          } catch {
-            contractTotalValue = await sumContractsByField('total_earned');
-          }
-        }
-      }
-
-      setText('#stat-total-wallet-balance', '$ ' + walletTotal.toFixed(2) + ' USDT');
-      setText('#stat-usdt-volume', '$ ' + contractTotalValue.toFixed(2) + ' USDT');
-    }catch(err){console.warn(err);}
-  },
-  async _activityFeed(){
-    const wrap=document.getElementById('overviewActivityFeed'); if(!wrap)return;
-    try{
-      const{data}=await sb.from('admin_logs').select('action,admin_email,created_at').order('created_at',{ascending:false}).limit(20);
-      const rows=data||[];
-      if(!rows.length){ wrap.innerHTML=AdminUI.empty('No recent activity.'); return; }
-      wrap.innerHTML=rows.map(r=>`<div style="padding:10px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:12px;color:#94a3b8;"><span style="color:#f59e0b;font-weight:600;">${r.action}</span> by ${r.admin_email||'Admin'} ? ${new Date(r.created_at).toLocaleString()}</div>`).join('');
-    }catch{ wrap.innerHTML=AdminUI.error(); }
+  // Agar ref_code nahi hai to generate karo aur database mein save karo
+  if (!refCode && _supabase && user) {
+    refCode = 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    await _supabase.from('profiles').update({ ref_code: refCode }).eq('id', user.id);
+    profile.ref_code = refCode;
   }
-};
 
-/* --------------------------------------------------------------
-   ?8  ADMIN LOGGER
--------------------------------------------------------------- */
-async function logAdminAction(action,targetTable,targetId,oldValue,newValue){
-  if(!sb||!AdminAuth.user)return;
-  try{ await sb.from('admin_logs').insert({admin_id:AdminAuth.user.id,admin_email:AdminAuth.user.email||'',action,target_table:targetTable||'',target_id:String(targetId||''),old_value:oldValue||null,new_value:newValue||null,created_at:new Date().toISOString()}); }catch(err){console.warn('[Admin] logAdminAction failed:',err.message);}
-}
+  // Referral CODE display karo (link nahi)
+  setText('refLinkDisplay', refCode || '—');
 
-/* --------------------------------------------------------------
-   ?9  PAGINATION HELPERS
--------------------------------------------------------------- */
-function paginate(rows, pageSize, page, containerId, renderFn, moduleName) {
-  const total = rows.length;
-  const pages = Math.ceil(total / pageSize) || 1;
-  const start = (page - 1) * pageSize;
-  const pageRows = rows.slice(start, start + pageSize);
-  renderFn(pageRows);
-  const wrap = document.getElementById(containerId);
-  if (!wrap) return;
-  let html = `<button ${page===1?'disabled':''} onclick="${moduleName}.goPage(${page-1})">?</button>`;
-  for (let i=1;i<=pages;i++){ if(i===1||i===pages||(i>=page-2&&i<=page+2)){ html+=`<button class="${i===page?'active':''}" onclick="${moduleName}.goPage(${i})">${i}</button>`; } else if(i===page-3||i===page+3){ html+=`<span style="color:#475569;padding:0 4px;">?</span>`; } }
-  html+=`<button ${page===pages?'disabled':''} onclick="${moduleName}.goPage(${page+1})">?</button>`;
-  wrap.innerHTML=html;
-}
-
-/* --------------------------------------------------------------
-   ?10  DEPOSITS MODULE
--------------------------------------------------------------- */
-const DepositsModule = {
-  _rows:[], _page:1, _pageSize:25, _profileMap:{},
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(statusFilter='all'){
-    const container=document.getElementById('depositsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading deposits?'));
-    try{
-      let q=sb.from('deposits').select('*').order('created_at',{ascending:false}).limit(250);
-      if(statusFilter!=='all')q=q.eq('status',statusFilter);
-      const{data,error}=await q; if(error)throw error; this._rows=data||[];
-      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
-      this._profileMap=await _fetchProfiles(userIds);
-      this._page=1; this._renderPage(); this._syncBadges(this._rows);
-    }catch(err){ setHTML(container,AdminUI.error('Could not load deposits: '+err.message)); }
-  },
-  _renderPage(){
-    const container=document.getElementById('depositsTableWrap'); const filter=$('#depositSearchInput')?.value?.toLowerCase()||'';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.user_email||'')+(r.coin||'')+(r.tx_hash||'')).toLowerCase().includes(filter));
-    const renderFn=(pageRows)=>this._render(container,pageRows);
-    paginate(rows,this._pageSize,this._page,'depositsPagination',renderFn,'DepositsModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No deposit records.')); return; }
-    const tbodyHTML=rows.map(d=>{
-      const coinLabel=d.coin==='usdt_bep20'?'USDT (BEP20)':'BTC'; const decimals=d.coin==='usdt_bep20'?2:8; const amount=Number(d.amount||0).toFixed(decimals);
-      const email=d.user_email||(d.user_id?d.user_id.slice(0,8)+'?':'?'); const date=d.created_at?new Date(d.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
-      const screenshotBtn=d.screenshot_url?`<a href="${d.screenshot_url}" target="_blank" class="admin-btn admin-btn-outline" style="margin-left:4px;">??</a>`:'';
-      const actions=d.status==='pending'
-        ?`<button class="admin-btn admin-btn-approve" onclick="DepositsModule.updateStatus('${d.id}','approved')">? Approve</button><button class="admin-btn admin-btn-reject" onclick="DepositsModule.updateStatus('${d.id}','rejected')" style="margin-left:4px;">? Reject</button>${screenshotBtn}`
-        :`<span style="font-size:12px;color:#475569">?</span>${screenshotBtn}`;
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(d.id||'').slice(0,8)}?</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${email}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[d.user_id]?.user_id || '?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amount} <span style="font-size:10px;color:#64748b">${coinLabel}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${d.tx_hash?d.tx_hash.slice(0,20)+'?':'?'}</td><td style="${TD}">${AdminUI.badge(d.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="DepositsModule.openEditModal('${d.id}')" style="margin-left:4px;">??</button><button class="admin-btn admin-btn-danger" onclick="DepositsModule.deleteDeposit('${d.id}')" style="margin-left:4px;">??</button></td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Amount</th><th style="${TH}">TXID</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${tbodyHTML}</tbody></table>`);
-  },
-  async updateStatus(depositId,newStatus){
-    if(!sb||!depositId)return;
-    if(this._processing&&this._processing.has(depositId))return;
-    if(!this._processing)this._processing=new Set(); this._processing.add(depositId);
-    try{
-      const{data:currentRow,error:fetchErr}=await sb.from('deposits').select('id,status,user_id,amount,coin,user_email').eq('id',depositId).maybeSingle();
-      if(fetchErr)throw fetchErr; if(!currentRow)throw new Error('Deposit not found');
-      if(currentRow.status==='approved'){ AdminUI.toast('Deposit already approved.','warning'); return; }
-      if(currentRow.status!=='pending'){ AdminUI.toast('Deposit status is '+currentRow.status,'info'); return; }
-      const{error:updErr}=await sb.from('deposits').update({status:newStatus}).eq('id',depositId).eq('status','pending');
-      if(updErr)throw updErr;
-      await logAdminAction('deposit_'+newStatus,'deposits',depositId,{status:currentRow.status},{status:newStatus});
-      this._rows=this._rows.map(r=>r.id===depositId?{...r,status:newStatus}:r); this._renderPage(); this._syncBadges(this._rows);
-      if(newStatus==='approved'){ await this._creditBalance(depositId,currentRow); }
-      AdminUI.toast(`Deposit marked as <strong>${newStatus}</strong>.`,newStatus==='approved'?'success':'warning');
-    }catch(err){ AdminUI.toast('Update failed: '+err.message,'error'); }
-    finally{ this._processing.delete(depositId); }
-  },
-  async _creditBalance(depositId,dep){
-    if(!dep?.user_id||!dep?.amount)return;
-    const field='usdt_balance';
-    const{data:existingTx,error:txCheckErr}=await sb.from('transactions').select('id').eq('user_id',dep.user_id).eq('type','deposit').eq('amount',dep.amount).eq('status','success').gte('created_at',new Date(Date.now()-300000).toISOString()).maybeSingle();
-    if(existingTx){ AdminUI.toast('Deposit already credited.','warning'); return; }
-    const _createTx=async()=>{ const{error:txErr}=await sb.from('transactions').insert({user_id:dep.user_id,type:'deposit',amount:Number(dep.amount||0),coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()}); if(txErr)throw txErr; };
-    try{
-      const{data:profile,error:fetchErr}=await sb.from('profiles').select(field).eq('id',dep.user_id).maybeSingle();
-      if(fetchErr||profile==null)throw fetchErr||new Error('Profile not found');
-      const newBal=Number(profile[field]||0)+Number(dep.amount);
-      const{error:updErr}=await sb.from('profiles').update({[field]:newBal}).eq('id',dep.user_id);
-      if(updErr)throw updErr; await _createTx();
-    }catch(err){ AdminUI.toast('? Deposit approved but balance credit failed.','warning',7000); }
-  },
-  _syncBadges(rows){
-    const pending=rows.filter(r=>r.status==='pending').length;
-    const badge=document.getElementById('sidebarDepositBadge'); if(badge){ badge.textContent=pending>0?String(pending):''; badge.style.display=pending>0?'inline-flex':'none'; }
-  },
-  openCreateModal(){
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Create Manual Deposit';
-    setHTML(body,`
-      <div class="form-group"><label>User Email</label><input type="email" id="mdEmail" placeholder="user@example.com"></div>
-      <div class="form-group"><label>Coin</label><select id="mdCoin"><option value="usdt_bep20">USDT</option></select></div>
-      <div class="form-group"><label>Amount</label><input type="number" id="mdAmount" step="0.00000001"></div>
-      <div class="form-group"><label>TX Hash (optional)</label><input type="text" id="mdTxHash" placeholder="0x..."></div>
-      <button class="admin-btn admin-btn-primary" onclick="DepositsModule.createManual()">? Create & Approve</button>
-    `);
-    show('#entityModal');
-  },
-  async createManual(){
-    const email=$('#mdEmail')?.value?.trim(); const coin=$('#mdCoin')?.value; const amount=parseFloat($('#mdAmount')?.value||0); const txHash=$('#mdTxHash')?.value?.trim()||'';
-    if(!email||!amount){ AdminUI.toast('Email and amount required.','error'); return; }
-    const{data:prof}=await sb.from('profiles').select('id').eq('email',email).maybeSingle(); if(!prof){ AdminUI.toast('User not found.','error'); return; }
-    const{data:dep,error}=await sb.from('deposits').insert({user_id:prof.id,user_email:email,coin:'usdt_bep20',amount,tx_hash:txHash,status:'approved',created_at:new Date().toISOString()}).select().single();
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await this._creditBalance(dep.id,dep); await logAdminAction('manual_deposit','deposits',dep.id,null,dep);
-    AdminUI.toast('Manual deposit created & credited.','success'); hide('#entityModal'); this.load($('#depositStatusFilter')?.value||'all');
-  },
-  async openEditModal(id){
-    const row=this._rows.find(r=>r.id===id); if(!row)return;
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Edit Deposit';
-    setHTML(body,`
-      <div class="form-group"><label>Amount</label><input type="number" id="edAmount" value="${row.amount}" step="0.00000001"></div>
-      <div class="form-group"><label>Status</label><select id="edStatus"><option value="pending" ${row.status==='pending'?'selected':''}>Pending</option><option value="approved" ${row.status==='approved'?'selected':''}>Approved</option><option value="rejected" ${row.status==='rejected'?'selected':''}>Rejected</option></select></div>
-      <div class="form-group"><label>TX Hash</label><input type="text" id="edTxHash" value="${row.tx_hash||''}"></div>
-      <button class="admin-btn admin-btn-primary" onclick="DepositsModule.saveEdit('${id}')">?? Save</button>
-    `);
-    show('#entityModal');
-  },
-  async saveEdit(id){
-    const amount=parseFloat($('#edAmount')?.value||0); const status=$('#edStatus')?.value; const txHash=$('#edTxHash')?.value?.trim()||'';
-    const old=this._rows.find(r=>r.id===id);
-    const{error}=await sb.from('deposits').update({amount,status,tx_hash:txHash}).eq('id',id);
-    if(error){ AdminUI.toast('Save failed: '+error.message,'error'); return; }
-    await logAdminAction('edit_deposit','deposits',id,old,{amount,status,tx_hash:txHash});
-    this._rows=this._rows.map(r=>r.id===id?{...r,amount,status,tx_hash:txHash}:r); this._renderPage(); hide('#entityModal');
-    AdminUI.toast('Deposit updated.','success');
-  },
-  async deleteDeposit(id){
-    if(!confirm('Delete this deposit permanently?'))return;
-    const{error}=await sb.from('deposits').delete().eq('id',id);
-    if(error){ AdminUI.toast('Delete failed: '+error.message,'error'); return; }
-    await logAdminAction('delete_deposit','deposits',id,null,null);
-    this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deposit deleted.','warning');
-  },
-  export(){
-    const headers=['ID','User Email','Coin','Amount','TX Hash','Status','Created At'];
-    const rows=this._rows.map(r=>[r.id,r.user_email||'',r.coin||'',r.amount||0,r.tx_hash||'',r.status||'',r.created_at||'']);
-    downloadCSV('deposits.csv',[headers,...rows]);
-  }
-};
-
-/* --------------------------------------------------------------
-   ?11  WITHDRAWALS MODULE
--------------------------------------------------------------- */
-const WithdrawalsModule = {
-  _rows:[], _page:1, _pageSize:25, _profileMap:{},
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(statusFilter='all'){
-    const container=document.getElementById('withdrawalsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading withdrawals?'));
-    try{
-      let q=sb.from('withdrawals').select('*').order('created_at',{ascending:false}).limit(250);
-      if(statusFilter!=='all')q=q.eq('status',statusFilter);
-      const{data,error}=await q; if(error)throw error; this._rows=data||[];
-      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
-      this._profileMap=await _fetchProfiles(userIds);
-      this._page=1; this._renderPage(); this._syncBadges(this._rows);
-    }catch(err){ setHTML(container,AdminUI.error('Could not load withdrawals: '+err.message)); }
-  },
-  _renderPage(){
-    const container=document.getElementById('withdrawalsTableWrap'); const filter=$('#withdrawalSearchInput')?.value?.toLowerCase()||'';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.user_email||'')+(r.address||'')).toLowerCase().includes(filter));
-    paginate(rows,this._pageSize,this._page,'withdrawalsPagination',(pageRows)=>this._render(container,pageRows),'WithdrawalsModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No withdrawals.')); return; }
-    const html=rows.map(w=>{
-      const coin=w.coin==='usdt_bep20'?'USDT':'BTC'; const amt=Number(w.amount||0).toFixed(w.coin==='usdt_bep20'?2:8);
-      const date=w.created_at?new Date(w.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
-      const actions=w.status==='pending'
-        ?`<button class="admin-btn admin-btn-approve" onclick="WithdrawalsModule.updateStatus('${w.id}','approved')">? Approve</button><button class="admin-btn admin-btn-reject" onclick="WithdrawalsModule.updateStatus('${w.id}','rejected')" style="margin-left:4px;">? Reject</button>`
-        :`<span style="font-size:12px;color:#475569">?</span>`;
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(w.id||'').slice(0,8)}?</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${w.user_email||'?'}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${this._profileMap?.[w.user_id]?.user_id || '?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:600">${amt} ${coin}</td><td style="${TD};font-size:12px;color:#94a3b8">${w.address?w.address.slice(0,20)+'?':'?'}</td><td style="${TD}">${AdminUI.badge(w.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}">${actions}<button class="admin-btn admin-btn-outline" onclick="WithdrawalsModule.openEditModal('${w.id}')" style="margin-left:4px;">??</button><button class="admin-btn admin-btn-danger" onclick="WithdrawalsModule.deleteWithdrawal('${w.id}')" style="margin-left:4px;">??</button></td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Amount</th><th style="${TH}">Address</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-  async updateStatus(id,newStatus){
-    if(!sb||!id)return;
-    const{data:row,error:fetchErr}=await sb.from('withdrawals').select('*').eq('id',id).maybeSingle();
-    if(fetchErr||!row){ AdminUI.toast('Withdrawal not found.','error'); return; }
-    if(row.status!=='pending'){ AdminUI.toast('Already processed.','warning'); return; }
-    const{error}=await sb.from('withdrawals').update({status:newStatus}).eq('id',id).eq('status','pending');
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction('withdrawal_'+newStatus,'withdrawals',id,{status:row.status},{status:newStatus});
-    if(newStatus==='approved'){ await this._debitBalance(row); }
-    this._rows=this._rows.map(r=>r.id===id?{...r,status:newStatus}:r); this._renderPage(); this._syncBadges(this._rows);
-    AdminUI.toast(`Withdrawal ${newStatus}.`,newStatus==='approved'?'success':'warning');
-  },
-  async _debitBalance(row){
-    if(!row?.user_id||!row?.amount)return;
-    const field='usdt_balance';
-    const{data:prof}=await sb.from('profiles').select(field).eq('id',row.user_id).maybeSingle();
-    if(!prof)return;
-    const current=Number(prof[field]||0); const debit=Number(row.amount||0);
-    if(current<debit){ AdminUI.toast('? User balance insufficient for debit.','warning',6000); return; }
-    const{error}=await sb.from('profiles').update({[field]:current-debit}).eq('id',row.user_id);
-    if(error){ AdminUI.toast('Balance debit failed.','error'); return; }
-    await sb.from('transactions').insert({user_id:row.user_id,type:'withdrawal',amount:debit,coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()});
-  },
-  _syncBadges(rows){
-    const pending=rows.filter(r=>r.status==='pending').length;
-    const badge=document.getElementById('sidebarWithdrawalBadge'); if(badge){ badge.textContent=pending>0?String(pending):''; badge.style.display=pending>0?'inline-flex':'none'; }
-  },
-  openCreateModal(){
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Create Manual Withdrawal';
-    setHTML(body,`
-      <div class="form-group"><label>User Email</label><input type="email" id="mwEmail" placeholder="user@example.com"></div>
-      <div class="form-group"><label>Coin</label><select id="mwCoin"><option value="usdt_bep20">USDT</option></select></div>
-      <div class="form-group"><label>Amount</label><input type="number" id="mwAmount" step="0.00000001"></div>
-      <div class="form-group"><label>Address</label><input type="text" id="mwAddress" placeholder="Wallet address"></div>
-      <button class="admin-btn admin-btn-primary" onclick="WithdrawalsModule.createManual()">? Create & Approve</button>
-    `);
-    show('#entityModal');
-  },
-  async createManual(){
-    const email=$('#mwEmail')?.value?.trim(); const coin=$('#mwCoin')?.value; const amount=parseFloat($('#mwAmount')?.value||0); const address=$('#mwAddress')?.value?.trim()||'';
-    if(!email||!amount||!address){ AdminUI.toast('All fields required.','error'); return; }
-    const{data:prof}=await sb.from('profiles').select('id,usdt_balance').eq('email',email).maybeSingle();
-    if(!prof){ AdminUI.toast('User not found.','error'); return; }
-    const field='usdt_balance'; const bal=Number(prof[field]||0);
-    if(bal<amount){ AdminUI.toast('Insufficient user balance.','error'); return; }
-    const{data:w,error}=await sb.from('withdrawals').insert({user_id:prof.id,user_email:email,coin:'usdt_bep20',amount,address,status:'approved',created_at:new Date().toISOString()}).select().single();
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await sb.from('profiles').update({[field]:bal-amount}).eq('id',prof.id);
-    await sb.from('transactions').insert({user_id:prof.id,type:'withdrawal',amount,coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()});
-    await logAdminAction('manual_withdrawal','withdrawals',w.id,null,w);
-    AdminUI.toast('Manual withdrawal created.','success'); hide('#entityModal'); this.load($('#withdrawalStatusFilter')?.value||'all');
-  },
-  openEditModal(id){
-    const row=this._rows.find(r=>r.id===id); if(!row)return;
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Edit Withdrawal';
-    setHTML(body,`
-      <div class="form-group"><label>Amount</label><input type="number" id="ewAmount" value="${row.amount}" step="0.00000001"></div>
-      <div class="form-group"><label>Status</label><select id="ewStatus"><option value="pending" ${row.status==='pending'?'selected':''}>Pending</option><option value="approved" ${row.status==='approved'?'selected':''}>Approved</option><option value="rejected" ${row.status==='rejected'?'selected':''}>Rejected</option></select></div>
-      <div class="form-group"><label>Address</label><input type="text" id="ewAddress" value="${row.address||''}"></div>
-      <button class="admin-btn admin-btn-primary" onclick="WithdrawalsModule.saveEdit('${id}')">?? Save</button>
-    `);
-    show('#entityModal');
-  },
-  async saveEdit(id){
-    const amount=parseFloat($('#ewAmount')?.value||0); const status=$('#ewStatus')?.value; const address=$('#ewAddress')?.value?.trim()||'';
-    const old=this._rows.find(r=>r.id===id);
-    const{error}=await sb.from('withdrawals').update({amount,status,address}).eq('id',id);
-    if(error){ AdminUI.toast('Save failed: '+error.message,'error'); return; }
-    await logAdminAction('edit_withdrawal','withdrawals',id,old,{amount,status,address});
-    this._rows=this._rows.map(r=>r.id===id?{...r,amount,status,address}:r); this._renderPage(); hide('#entityModal');
-    AdminUI.toast('Withdrawal updated.','success');
-  },
-  async deleteWithdrawal(id){
-    if(!confirm('Delete this withdrawal?'))return;
-    const{error}=await sb.from('withdrawals').delete().eq('id',id);
-    if(error){ AdminUI.toast('Delete failed: '+error.message,'error'); return; }
-    await logAdminAction('delete_withdrawal','withdrawals',id,null,null);
-    this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deleted.','warning');
-  },
-  export(){
-    const headers=['ID','User Email','Coin','Amount','Address','Status','Created At'];
-    const rows=this._rows.map(r=>[r.id,r.user_email||'',r.coin||'',r.amount||0,r.address||'',r.status||'',r.created_at||'']);
-    downloadCSV('withdrawals.csv',[headers,...rows]);
-  }
-};
-
-/* --------------------------------------------------------------
-   ?12  USERS MODULE
--------------------------------------------------------------- */
-const UsersModule = {
-  _rows:[], _page:1, _pageSize:25,
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(){
-    const container=document.getElementById('usersTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading users?'));
-    try{
-      const{data,error}=await sb.from('profiles').select('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at').order('created_at',{ascending:false}).limit(250);
-      if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage(); setText('#stat-total-users',this._rows.length);
-    }catch(err){ setHTML(container,AdminUI.error('Could not load users: '+err.message)); }
-  },
-  _renderPage(){
-    const container=document.getElementById('usersTableWrap'); const filter=$('#userSearchInput')?.value?.toLowerCase()||''; const statusFilter=$('#userStatusFilter')?.value||'all';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.id||'')).toLowerCase().includes(filter));
-    if(statusFilter==='active')rows=rows.filter(r=>r.is_active!==false&&!r.is_banned&&!r.is_suspended);
-    if(statusFilter==='suspended')rows=rows.filter(r=>r.is_suspended===true);
-    if(statusFilter==='banned')rows=rows.filter(r=>r.is_banned===true);
-    paginate(rows,this._pageSize,this._page,'usersPagination',(pageRows)=>this._render(container,pageRows),'UsersModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
-    const html=rows.map(u=>{
-      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'?';
-      const usdt=Number(u.usdt_balance||0).toFixed(2); let status='active'; if(u.is_banned)status='banned'; else if(u.is_suspended)status='suspended'; else if(u.is_active===false)status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'?'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} <span style="font-size:10px;color:#64748b">USDT</span></td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button><button class="admin-btn admin-btn-outline" onclick="UsersModule.toggleActive('${u.id}')" style="margin-left:4px;">${u.is_active!==false?'Suspend':'Reinstate'}</button></td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-  async openUserModal(userId){
-    const u=this._rows.find(r=>r.id===userId); if(!u)return;
-    const modal=document.getElementById('userDetailModal'); const body=document.getElementById('userDetailBody');
-    setText('#udModalTitle', (u.name||u.email||'User') + ' Details');
-    /* Fetch financial aggregates */
-    const[{data:deps},{data:withs},{data:txs},{data:contracts},{data:refs}]=await Promise.all([
-      sb.from('deposits').select('amount,status,coin').eq('user_id',userId),
-      sb.from('withdrawals').select('amount,status,coin').eq('user_id',userId),
-      sb.from('transactions').select('amount,type').eq('user_id',userId),
-      sb.from('contracts').select('hashrate,daily_profit,active').eq('user_id',userId),
-      sb.from('referrals').select('earnings').eq('referrer_id',userId),
-    ]);
-    const totalDep=(deps||[]).filter(d=>d.status==='approved').reduce((s,d)=>s+Number(d.amount||0),0);
-    const totalWit=(withs||[]).filter(w=>w.status==='approved').reduce((s,w)=>s+Number(w.amount||0),0);
-    const mining=(txs||[]).filter(t=>t.type==='mining'||t.type==='mining_reward').reduce((s,t)=>s+Number(t.amount||0),0);
-    const refEarn=(refs||[]).reduce((s,r)=>s+Number(r.earnings||0),0);
-    const activeContracts=(contracts||[]).filter(c=>c.active===true);
-    const totalHash=activeContracts.reduce((s,c)=>s+Number(c.hashrate||0),0);
-    const dailyProfit=activeContracts.reduce((s,c)=>s+Number(c.daily_profit||0),0);
-    const statusText=u.is_banned?'Banned':u.is_suspended?'Suspended':u.is_active!==false?'Active':'Inactive';
-    setHTML(body,`
-      <div class="grid-2" style="margin-bottom:20px;">
-        <div class="card"><div class="card-title">?? User Info</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.8;">
-            <div><strong style="color:#f1f5f9;">Name:</strong> ${u.name||'?'}</div>
-            <div><strong style="color:#f1f5f9;">Email:</strong> ${u.email||'?'}</div>
-            <div><strong style="color:#f1f5f9;">Phone:</strong> ${u.phone||'?'}</div>
-            <div><strong style="color:#f1f5f9;">Country:</strong> ${u.country||'?'}</div>
-            <div><strong style="color:#f1f5f9;">User ID:</strong> <span style="color:#f59e0b;font-weight:700;">${u.user_id || '?'}</span></div>
-            <div><strong style="color:#f1f5f9;">Internal UUID:</strong> <span style="font-size:11px;color:#64748b;">${u.id}</span></div>
-            <div><strong style="color:#f1f5f9;">Ref Code:</strong> ${u.ref_code||'?'}</div>
-            <div><strong style="color:#f1f5f9;">Joined:</strong> ${u.created_at?new Date(u.created_at).toLocaleString():'?'}</div>
-            <div><strong style="color:#f1f5f9;">Status:</strong> ${AdminUI.badge(statusText)} ${u.is_admin?'<span style="color:#f59e0b;">?? Admin</span>':''}</div>
-          </div>
-        </div>
-        <div class="card"><div class="card-title">?? Financial Stats</div>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.8;">
-            <div><strong style="color:#f1f5f9;">Wallet Balance:</strong> ${Number(u.usdt_balance||0).toFixed(2)} USDT</div>
-            <div><strong style="color:#f1f5f9;">Total Deposited:</strong> ${totalDep.toFixed(2)} USDT</div>
-            <div><strong style="color:#f1f5f9;">Total Withdrawn:</strong> ${totalWit.toFixed(2)} USDT</div>
-            <div><strong style="color:#f1f5f9;">Mining Income:</strong> ${mining.toFixed(2)} USDT</div>
-            <div><strong style="color:#f1f5f9;">Referral Earnings:</strong> ${refEarn.toFixed(2)} USDT</div>
-            <div><strong style="color:#f1f5f9;">Active Contracts:</strong> ${activeContracts.length} ? ${totalHash.toFixed(1)} TH/s</div>
-            <div><strong style="color:#f1f5f9;">Daily Profit:</strong> ${dailyProfit.toFixed(2)} USDT</div>
-          </div>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:20px;"><div class="card-title">?? Admin Actions</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          <button class="admin-btn admin-btn-primary" onclick="UsersModule.editBalance('${u.id}')">?? Edit Balance</button>
-          <button class="admin-btn ${u.is_suspended?'admin-btn-approve':'admin-btn-reject'}" onclick="UsersModule.toggleSuspend('${u.id}')">${u.is_suspended?'Reinstate':'Suspend'}</button>
-          <button class="admin-btn ${u.is_banned?'admin-btn-approve':'admin-btn-danger'}" onclick="UsersModule.toggleBan('${u.id}')">${u.is_banned?'Unban':'Ban'}</button>
-          <button class="admin-btn ${u.is_admin?'admin-btn-danger':'admin-btn-blue'}" onclick="UsersModule.toggleAdmin('${u.id}')">${u.is_admin?'Remove Admin':'Make Admin'}</button>
-          <button class="admin-btn admin-btn-outline" onclick="UsersModule.forceLogout('${u.id}')">?? Force Logout</button>
-          <button class="admin-btn admin-btn-outline" onclick="UsersModule.resetPassword('${u.id}')">?? Reset Password</button>
-        </div>
-      </div>
-    `);
-    show('#userDetailModal');
-  },
-  closeModal(){ hide('#userDetailModal'); },
-  async editBalance(userId){
-    const u=this._rows.find(r=>r.id===userId); if(!u)return;
-    const newUsdt=prompt('New USDT balance (current: '+u.usdt_balance+')', u.usdt_balance||0); if(newUsdt===null)return;
-    const old={usdt_balance:u.usdt_balance};
-    const patch={usdt_balance:parseFloat(newUsdt)||0};
-    const{error}=await sb.from('profiles').update(patch).eq('id',userId);
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction('edit_balance','profiles',userId,old,patch);
-    u.usdt_balance=patch.usdt_balance; this._renderPage();
-    AdminUI.toast('Balance updated.','success');
-  },
-  async toggleActive(userId){
-    const u=this._rows.find(r=>r.id===userId); if(!u)return;
-    const newState=u.is_active===false?true:false;
-    const{error}=await sb.from('profiles').update({is_active:newState}).eq('id',userId);
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction(newState?'reinstate_user':'suspend_user','profiles',userId,{is_active:u.is_active},{is_active:newState});
-    u.is_active=newState; u.is_suspended=false; u.is_banned=false; this._renderPage();
-    AdminUI.toast(newState?'User reinstated.':'User suspended.','success');
-  },
-  async toggleSuspend(userId){
-    const u=this._rows.find(r=>r.id===userId); if(!u)return;
-    const newState=!u.is_suspended;
-    const{error}=await sb.from('profiles').update({is_suspended:newState,is_active:!newState}).eq('id',userId);
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction(newState?'suspend_user':'reinstate_user','profiles',userId,{is_suspended:u.is_suspended},{is_suspended:newState});
-    u.is_suspended=newState; u.is_active=!newState; this._renderPage(); this.closeModal();
-    AdminUI.toast(newState?'User suspended.':'User reinstated.','success');
-  },
-  async toggleBan(userId){
-    const u=this._rows.find(r=>r.id===userId); if(!u)return;
-    const newState=!u.is_banned;
-    const{error}=await sb.from('profiles').update({is_banned:newState,is_active:!newState}).eq('id',userId);
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction(newState?'ban_user':'unban_user','profiles',userId,{is_banned:u.is_banned},{is_banned:newState});
-    u.is_banned=newState; u.is_active=!newState; this._renderPage(); this.closeModal();
-    AdminUI.toast(newState?'User banned.':'User unbanned.','warning');
-  },
-  async toggleAdmin(userId){
-    const u=this._rows.find(r=>r.id===userId); if(!u)return;
-    const newState=!u.is_admin;
-    const{error}=await sb.from('profiles').update({is_admin:newState}).eq('id',userId);
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction(newState?'promote_admin':'remove_admin','profiles',userId,{is_admin:u.is_admin},{is_admin:newState});
-    u.is_admin=newState; this._renderPage(); this.closeModal();
-    AdminUI.toast(newState?'Promoted to admin.':'Admin access removed.',newState?'success':'warning');
-  },
-  async forceLogout(userId){
-    if(!confirm('Force logout this user?'))return;
-    await logAdminAction('force_logout','profiles',userId,null,null);
-    AdminUI.toast('Force logout signal sent. (Implement edge function if needed)','warning');
-  },
-  async resetPassword(userId){
-    const u=this._rows.find(r=>r.id===userId); if(!u||!u.email){ AdminUI.toast('No email.','error'); return; }
-    const{error}=await sb.auth.resetPasswordForEmail(u.email);
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction('reset_password','profiles',userId,null,null);
-    AdminUI.toast('Password reset link sent to '+u.email,'success');
-  },
-  export(){
-    const headers=['ID','Email','Name','USDT Balance','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
-    const rows=this._rows.map(r=>[r.id,r.email||'',r.name||'',r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
-    downloadCSV('users.csv',[headers,...rows]);
-  }
-};
-window.UsersModule=UsersModule;
-
-/* --------------------------------------------------------------
-   ?12A  NEW USERS MODULE
--------------------------------------------------------------- */
-const NewUsersModule = {
-  _rows:[], _page:1, _pageSize:25,
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(dateFilter='today'){
-    const container=document.getElementById('newUsersTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading new users?'));
-    try{
-      const data = await fetchAllProfiles('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
-      this._rows = filterUsersByCreatedAt(data||[], dateFilter);
-      this._page = 1;
-      this._renderPage();
-      setText('#newUsersCount', String(this._rows.length));
-    }catch(err){
-      setHTML(container,AdminUI.error('Could not load new users: '+err.message));
+  // Copy button sirf CODE copy karega
+  const copyRefBtn = $('copyRefBtn');
+  if (copyRefBtn) {
+    if (refCode) {
+      copyRefBtn.onclick = () => copyToClipboard(refCode, '🎟️ Referral code copied!');
+      copyRefBtn.disabled = false;
+      copyRefBtn.style.opacity = '1';
+    } else {
+      copyRefBtn.disabled = true;
+      copyRefBtn.style.opacity = '0.5';
+      copyRefBtn.onclick = null;
     }
-  },
-  _renderPage(){
-    const container=document.getElementById('newUsersTableWrap'); if(!container)return;
-    const filter=($('#newUserSearchInput')?.value||'').toLowerCase().trim();
-    const dateFilter=$('#newUserDateFilter')?.value||'today';
-    let rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    if(filter) rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.user_id||'')+(r.id||'')).toLowerCase().includes(filter));
-    paginate(rows,this._pageSize,this._page,'newUsersPagination',(pageRows)=>this._render(container,pageRows),'NewUsersModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No new users found for the selected date range.')); return; }
-    const html=rows.map(u=>{
-      const joined=u.created_at?new Date(u.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
-      const usdt=Number(u.usdt_balance||0).toFixed(8);
-      let status='active';
-      if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'?'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-  export(){
-    const dateFilter=$('#newUserDateFilter')?.value||'today';
-    const rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    const headers=['ID','Email','Name','User ID','USDT Balance','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
-    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
-    downloadCSV('new_users.csv',[headers,...data]);
   }
-};
-window.NewUsersModule=NewUsersModule;
 
-/* --------------------------------------------------------------
-   ?12B  OLD USERS MODULE
--------------------------------------------------------------- */
-const OldUsersModule = {
-  _rows:[], _page:1, _pageSize:25,
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(dateFilter='all-time'){
-    const container=document.getElementById('oldUsersTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading old users?'));
-    try{
-      this._rows = await fetchAllProfiles('id,email,name,user_id,usdt_balance,level,is_active,is_admin,is_banned,is_suspended,ref_code,phone,country,created_at');
-      this._page = 1;
-      this._renderPage();
-      setText('#oldUsersCount', String(this._rows.length));
-      EditOldUserModule._rows = this._rows.map(row => ({ ...row, _activePlan: '', _activeContract: null }));
-    }catch(err){
-      setHTML(container,AdminUI.error('Could not load old users: '+err.message));
+  // Referral stats update
+  setText('refCountEl',    profile.ref_count    || 0);
+  const refEarnings = Number(profile.ref_earnings) || 0;
+  setText('refEarningsEl', '$ ' + refEarnings.toFixed(2) + ' USDT');
+  setText('activeRefEl',   profile.ref_count    || 0);
+
+  const sName  = $('settingName');
+  const sEmail = $('settingEmail');
+  const sUserId = $('settingUserId');
+  if (sName)  sName.value  = profile.name  || '';
+  if (sEmail) sEmail.value = email;
+  if (sUserId) sUserId.value = profile.user_id || profile.id || user?.id || '—';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — DASHBOARD STATS
+══════════════════════════════════════════════════════════════ */
+function updateDashboardGreeting() {
+  const hour = Number(new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    hour12: false,
+  }).format(new Date()));
+
+  const greeting =
+    hour < 12 ? 'Good Morning! 👋' :
+    hour < 17 ? 'Good Afternoon! 👋' :
+                'Good Evening! 👋';
+
+  setText('dashboardGreeting', greeting);
+}
+
+async function populateDashboardStats(contracts, options = {}) {
+  const summary = getMiningSummary(contracts);
+  updateLiveHashrateTrend(getLiveHashrateMovement(contracts));
+  setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('liveHashrate2', summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+
+  setText('dailyProfitEl', '$ ' + summary.dailyProfit.toFixed(2) + ' USDT');
+  updateMiningCardStates(summary);
+
+  const statChangeHashrate = document.getElementById('statChangeHashrate');
+  const statChangeContracts = document.getElementById('statChangeContracts');
+  if (statChangeHashrate)  statChangeHashrate.textContent  = formatActiveContractCount(summary.count);
+  if (statChangeContracts) statChangeContracts.textContent = summary.count ? 'Mining income active' : 'No active contracts';
+
+  if (!options.skipMinedQuery) {
+    const user = Auth.getUser();
+    if (user && _supabase) {
+      const { data: miningTxns } = await _supabase
+        .from('transactions')
+        .select('amount,type')
+        .eq('user_id', user.id)
+        .in('type', ['mining', 'mining_reward', 'reward']);
+      const totalMined = (miningTxns || [])
+        .filter(t => normalizeTxType(t.type) === 'mining')
+        .reduce((s, t) => s + Number(t.amount || 0), 0);
+      setText('totalMinedEl', '$ ' + totalMined.toFixed(2) + ' USDT');
+    } else {
+      setText('totalMinedEl', '$ 0.00 USDT');
     }
-  },
-  _renderPage(){
-    const container=document.getElementById('oldUsersTableWrap'); if(!container)return;
-    const filter=($('#oldUserSearchInput')?.value||'').toLowerCase().trim();
-    const dateFilter=$('#oldUserDateFilter')?.value||'all-time';
-    let rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    if(filter) rows=rows.filter(r=>((r.email||'')+(r.name||'')+(r.user_id||'')+(r.id||'')+(r.phone||'')+(r.country||'')).toLowerCase().includes(filter));
-    paginate(rows,this._pageSize,this._page,'oldUsersPagination',(pageRows)=>this._render(container,pageRows),'OldUsersModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
-    const html=rows.map(u=>{
-      const joined=u.created_at?new Date(u.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'?';
-      const usdt=Number(u.usdt_balance||0).toFixed(8);
-      let status='active';
-      if(u.is_banned) status='banned'; else if(u.is_suspended) status='suspended'; else if(u.is_active===false) status='inactive';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#f59e0b;font-weight:600">${u.user_id || String(u.id||'').slice(0,8)+'?'}</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${u.email||'?'}</div></td><td style="${TD};font-family:monospace;color:#fbbf24;font-weight:500">${usdt} USDT</td><td style="${TD};font-size:12px;color:#94a3b8">${u.level||'Standard'}</td><td style="${TD}">${AdminUI.badge(status)}${u.is_admin?'<span style="margin-left:4px;">??</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${joined}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="UsersModule.openUserModal('${u.id}')">?? View</button></td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">USDT Balance</th><th style="${TH}">Level</th><th style="${TH}">Status</th><th style="${TH}">Joined</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-  export(){
-    const dateFilter=$('#oldUserDateFilter')?.value||'all-time';
-    const rows=filterUsersByCreatedAt(this._rows, dateFilter);
-    const headers=['ID','Email','Name','User ID','USDT Balance','Level','Active','Admin','Banned','Suspended','Ref Code','Created'];
-    const data=rows.map(r=>[r.id,r.email||'',r.name||'',r.user_id||'',r.usdt_balance||0,r.level||'',r.is_active!==false?'Yes':'No',r.is_admin?'Yes':'No',r.is_banned?'Yes':'No',r.is_suspended?'Yes':'No',r.ref_code||'',r.created_at||'']);
-    downloadCSV('old_users.csv',[headers,...data]);
-  },
-  async bulkEditFiltered(){
-    const search = ($('#oldUserSearchInput')?.value || '').trim();
-    const dateFilter = $('#oldUserDateFilter')?.value || 'all-time';
-    const filtered = filterUsersByCreatedAt(this._rows, dateFilter).filter(r => {
-      if (!search) return true;
-      return `${r.id||''} ${r.user_id||''} ${r.email||''} ${r.name||''} ${r.phone||''} ${r.country||''}`.toLowerCase().includes(search.toLowerCase());
-    });
-    if (!filtered.length) { AdminUI.toast('No filtered users found.','warning'); return; }
-    EditOldUserModule._rows = filtered.map(row => ({ ...row, _activePlan:'', _activeContract:null }));
-    const oldSearch = $('#editOldUserSearchInput');
-    const oldPlan = $('#editOldUserPlanFilter');
-    if (oldSearch) oldSearch.value = search;
-    if (oldPlan) oldPlan.value = 'all';
-    AdminUI.activateTab('edit-old-user');
-    EditOldUserModule.openBulkEditForm();
-  }
-};
-window.OldUsersModule=OldUsersModule;
-
-/* --------------------------------------------------------------
-   ?12C  EDIT OLD USER MODULE
--------------------------------------------------------------- */
-const EditOldUserModule = {
-  _rows:[], _page:1, _pageSize:15, _selectedUser:null,
-  goPage(n){ this._page=n; this._renderPage(); },
-  _normalizePlan(plan){
-    const text=String(plan||'').trim().toLowerCase().replace(/\bplan\b/g,'').replace(/\s+/g,' ').trim();
-    if(text.includes('starter')) return 'starter';
-    if(text.includes('silver')) return 'silver';
-    if(text.includes('gold')) return 'gold';
-    if(text.includes('platinum')) return 'platinum';
-    return text;
-  },
-  _prettyPlan(plan){
-    const normalized=this._normalizePlan(plan);
-    return normalized ? normalized.charAt(0).toUpperCase()+normalized.slice(1) : '?';
-  },
-  _statusFromRow(row){
-    if(row?.is_banned) return 'banned';
-    if(row?.is_suspended) return 'suspended';
-    if(row?.is_active===false) return 'inactive';
-    return 'active';
-  },
-  _activeContractForRow(row){
-    return row?._activeContract || null;
-  },
-  _bulkRows(){
-    return this._filteredRows();
-  },
-  _syncBulkActionFields(){
-    const action=($('#eouBulkAction')?.value||'wallet_add').toLowerCase();
-    const walletSection=document.getElementById('eouBulkWalletSection');
-    const transactionSection=document.getElementById('eouBulkTransactionSection');
-    const dailySection=document.getElementById('eouBulkDailySection');
-    if(walletSection) walletSection.style.display = action==='wallet_add' ? '' : 'none';
-    if(transactionSection) transactionSection.style.display = action==='transaction' ? '' : 'none';
-    if(dailySection) dailySection.style.display = action==='daily_profit' ? '' : 'none';
-  },
-  openBulkEditForm(){
-    const rows=this._bulkRows();
-    if(!rows.length){ AdminUI.toast('No filtered users found. Load users and choose a plan first.','warning'); return; }
-    const title=document.getElementById('oldUserEditModalTitle');
-    const body=document.getElementById('oldUserEditModalBody');
-    if(title) title.textContent='Bulk Edit Filtered Users';
-    setHTML(body,`
-      <div style="margin-bottom:14px;padding:12px 14px;border:1px solid #1e2d45;border-radius:12px;background:#0d1117;color:#94a3b8;font-size:13px;">
-        Applies to <strong style="color:#f1f5f9;">${rows.length}</strong> filtered user${rows.length===1?'':'s'}.
-      </div>
-
-      <div class="form-group">
-        <label>Action</label>
-        <select id="eouBulkAction">
-          <option value="wallet_add">Wallet Balance Add</option>
-          <option value="transaction">Transaction Entry</option>
-          <option value="daily_profit">Set Daily Profit</option>
-        </select>
-      </div>
-
-      <div id="eouBulkWalletSection">
-        <div class="form-group">
-          <label>Amount to Add (USDT)</label>
-          <input type="number" id="eouBulkWalletAmount" step="0.01" placeholder="2">
-        </div>
-      </div>
-
-      <div id="eouBulkTransactionSection" style="display:none;">
-        <div class="form-group">
-          <label>Transaction Amount</label>
-          <input type="number" id="eouBulkTxAmount" step="0.00000001" placeholder="10">
-        </div>
-        <div class="form-group">
-          <label>Direction</label>
-          <select id="eouBulkTxDirection">
-            <option value="credit">Positive / Credit</option>
-            <option value="debit">Negative / Debit</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Transaction Name</label>
-          <input type="text" id="eouBulkTxName" placeholder="Manual Adjustment">
-        </div>
-        <div class="form-group">
-          <label>Coin</label>
-          <select id="eouBulkTxCoin">
-            <option value="usdt_bep20">USDT</option>
-            
-          </select>
-        </div>
-      </div>
-
-      <div id="eouBulkDailySection" style="display:none;">
-        <div class="form-group">
-          <label>Daily Profit</label>
-          <input type="number" id="eouBulkDailyProfit" step="0.00000001" placeholder="2">
-        </div>
-      </div>
-
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">
-        <button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.saveBulkEdit()">Save Bulk Changes</button>
-        <button class="admin-btn admin-btn-outline" onclick="EditOldUserModule.closeBulkEditForm()">Cancel</button>
-      </div>
-    `);
-    show('#oldUserEditModal');
-    this._syncBulkActionFields();
-    on('#eouBulkAction','change',()=>this._syncBulkActionFields());
-  },
-  closeBulkEditForm(){
-    hide('#oldUserEditModal');
-    setHTML('#oldUserEditModalBody','');
-  },
-  closeEditForm(){
-    return this.closeBulkEditForm();
-  },
-  async loadUsers(){
-    const container=document.getElementById('editOldUserTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading users?'));
-    try{
-      const[{data:profiles,error:profilesError},{data:contracts,error:contractsError}]=await Promise.all([
-        sb.from('profiles').select('id,email,name,user_id,phone,country,usdt_balance,is_active,is_banned,is_suspended,created_at').order('created_at',{ascending:false}).limit(250),
-        sb.from('contracts').select('id,user_id,plan,daily_profit,active,created_at').order('created_at',{ascending:false}).limit(250)
-      ]);
-      if(profilesError) throw profilesError;
-      if(contractsError) throw contractsError;
-      const activeContractMap={};
-      (contracts||[]).forEach(contract=>{
-        const userKey=contract?.user_id;
-        if(!userKey) return;
-        if(contract.active===true && !activeContractMap[userKey]) activeContractMap[userKey]=contract;
-      });
-      this._rows=(profiles||[]).map(profile=>{
-        const activeContract=activeContractMap[profile.id] || activeContractMap[profile.user_id] || null;
-        return {...profile,_activeContract:activeContract,_activePlan:activeContract?.plan||''};
-      });
-      this._page=1;
-      this._renderPage();
-    }catch(err){
-      setHTML(container,AdminUI.error('Could not load users: '+err.message));
-    }
-  },
-  _filteredRows(){
-    const search=($('#editOldUserSearchInput')?.value||'').trim().toLowerCase();
-    const planFilter=($('#editOldUserPlanFilter')?.value||'all').toLowerCase();
-    let rows=this._rows.slice();
-    if(planFilter!=='all') rows=rows.filter(row=>this._normalizePlan(row._activePlan)===planFilter);
-    if(search){
-      rows=rows.filter(row=>{
-        const text=`${row.id||''} ${row.user_id||''} ${row.email||''} ${row.name||''} ${row.phone||''} ${row.country||''}`.toLowerCase();
-        return text.includes(search);
-      });
-    }
-    return rows;
-  },
-  _renderPage(){
-    const container=document.getElementById('editOldUserTableWrap'); if(!container)return;
-    const rows=this._filteredRows();
-    paginate(rows,this._pageSize,this._page,'editOldUserPagination',(pageRows)=>this._render(container,pageRows),'EditOldUserModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No users found.')); return; }
-    const html=rows.map(u=>{
-      const plan=this._prettyPlan(u._activePlan);
-      const status=this._statusFromRow(u);
-      const wallet=Number(u.usdt_balance||0).toFixed(2);
-      const daily=u._activeContract?.daily_profit!=null ? Number(u._activeContract.daily_profit).toFixed(8) : '?';
-      return`<tr>
-        <td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(u.id||'').slice(0,8)}?</td>
-        <td style="${TD}"><div style="font-weight:600;color:#f1f5f9;">${u.name||'?'}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${u.user_id||'?'}</div></td>
-        <td style="${TD}">${u.email||'?'}</td>
-        <td style="${TD};font-weight:600;color:#f1f5f9;">${plan}</td>
-        <td style="${TD};font-family:monospace;color:#10b981;">${wallet} USDT</td>
-        <td style="${TD};font-family:monospace;color:#fbbf24;">${daily}</td>
-        <td style="${TD}">${AdminUI.badge(status)}</td>
-        <td style="${TD}"><button class="admin-btn admin-btn-primary" onclick="EditOldUserModule.openEditForm('${u.id}')">Edit</button></td>
-      </tr>`;
-    }).join('');
-    setHTML(container,`
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr><th style="${TH}">ID</th><th style="${TH}">Name</th><th style="${TH}">Email</th><th style="${TH}">Active Plan</th><th style="${TH}">Wallet</th><th style="${TH}">Daily Profit</th><th style="${TH}">Status</th><th style="${TH}">Action</th></tr></thead>
-        <tbody>${html}</tbody>
-      </table>
-    `);
-  },
-  async openEditForm(userId){
-    if(!userId){ return this.openBulkEditForm(); }
-    const row=this._rows.find(item=>item.id===userId);
-    if(!row)return;
-    this._selectedUser=row;
-    const contract=this._activeContractForRow(row);
-    show('#editOldUserFormWrap');
-    $('#eouName').value=row.name||'';
-    $('#eouEmail').value=row.email||'';
-    $('#eouPhone').value=row.phone||'';
-    $('#eouCountry').value=row.country||'';
-    $('#eouPlan').value=this._normalizePlan(row._activePlan)||'starter';
-    $('#eouStatus').value=this._statusFromRow(row);
-    $('#eouWalletBalance').value=Number(row.usdt_balance||0);
-    $('#eouDailyProfit').value=Number(contract?.daily_profit||0);
-    window.scrollTo({ top:document.body.scrollHeight, behavior:'smooth' });
-  },
-  // Backward-compatible alias for older onclick bindings.
-  async selectUser(userId){
-    return this.openEditForm(userId);
-  },
-  async saveUser(){
-    if(!this._selectedUser){ AdminUI.toast('No user selected.','error'); return; }
-    try{
-      const row=this._selectedUser;
-      const contract=this._activeContractForRow(row);
-      const status=($('#eouStatus')?.value||'active').toLowerCase();
-      const selectedPlan=this._normalizePlan($('#eouPlan')?.value||'starter');
-      const dailyProfitInput=parseFloat($('#eouDailyProfit')?.value||0);
-      const dailyProfit=Number.isFinite(dailyProfitInput)?dailyProfitInput:0;
-      const walletInput=parseFloat($('#eouWalletBalance')?.value||0);
-      const walletBalance=Number.isFinite(walletInput)?walletInput:0;
-      const profilePatch={
-        name:($('#eouName')?.value||'').trim(),
-        email:($('#eouEmail')?.value||'').trim(),
-        phone:($('#eouPhone')?.value||'').trim(),
-        country:($('#eouCountry')?.value||'').trim(),
-        usdt_balance:walletBalance,
-        is_active:status==='active',
-        is_suspended:status==='suspended',
-        is_banned:status==='banned'
-      };
-      const {error:profileError}=await sb.from('profiles').update(profilePatch).eq('id',row.id);
-      if(profileError) throw profileError;
-      if(contract?.id){
-        const contractPatch={ plan:selectedPlan || contract.plan || 'starter', daily_profit:dailyProfit };
-        const {error:contractError}=await sb.from('contracts').update(contractPatch).eq('id',contract.id);
-        if(contractError) throw contractError;
-      }
-      await logAdminAction('edit_old_user','profiles',row.id,row,{...profilePatch, plan:selectedPlan, daily_profit:dailyProfit});
-      if(contract?.id){
-        AdminUI.toast('User updated successfully.','success');
-      }else{
-        AdminUI.toast('User updated, but no active contract was found so plan and daily profit were not changed.','warning');
-      }
-      this.clearForm();
-      await this.loadUsers();
-    }catch(err){
-      AdminUI.toast('Update failed: '+err.message,'error');
-    }
-  },
-  async saveBulkEdit(){
-    const rows=this._bulkRows();
-    if(!rows.length){ AdminUI.toast('No filtered users found.','error'); return; }
-    const action=($('#eouBulkAction')?.value||'wallet_add').toLowerCase();
-    const userIds=rows.map(row=>row.id).filter(Boolean);
-    if(!userIds.length){ AdminUI.toast('No valid users selected.','error'); return; }
-
-    try{
-      if(action==='wallet_add'){
-        const amount=Number.parseFloat($('#eouBulkWalletAmount')?.value||'');
-        if(!Number.isFinite(amount) || amount===0){ AdminUI.toast('Enter a valid wallet amount.','error'); return; }
-        const { data: currentProfiles, error } = await sb.from('profiles').select('id,usdt_balance').in('id', userIds);
-        if(error) throw error;
-        const profileMap = new Map((currentProfiles||[]).map(p => [p.id, p]));
-        let updated=0;
-        for(const row of rows){
-          const current=Number(profileMap.get(row.id)?.usdt_balance ?? row.usdt_balance ?? 0);
-          const next=current+amount;
-          const { error: updateError } = await sb.from('profiles').update({ usdt_balance: next }).eq('id', row.id);
-          if(updateError) throw updateError;
-          updated++;
-        }
-        await logAdminAction('bulk_wallet_add','profiles','bulk:'+userIds.join(','),{action:'wallet_add',amount,targets:userIds.length},{action:'wallet_add',amount,targets:userIds.length});
-        AdminUI.toast(`Wallet balance updated for ${updated} user${updated===1?'':'s'}.`,'success');
-      } else if(action==='transaction'){
-        let amount=Number.parseFloat($('#eouBulkTxAmount')?.value||'');
-        if(!Number.isFinite(amount) || amount===0){ AdminUI.toast('Enter a valid transaction amount.','error'); return; }
-        const direction=($('#eouBulkTxDirection')?.value||'credit').toLowerCase();
-        amount=Math.abs(amount);
-        if(direction==='debit') amount=-amount;
-        const name=($('#eouBulkTxName')?.value||'').trim() || 'Manual Adjustment';
-        const coin=($('#eouBulkTxCoin')?.value||'usdt_bep20');
-        let created=0;
-        for(const row of rows){
-          const { error: txError } = await sb.from('transactions').insert({
-            user_id: row.id,
-            type: name,
-            coin,
-            amount,
-            status: 'success',
-            created_at: new Date().toISOString(),
-          });
-          if(txError) throw txError;
-          created++;
-        }
-        await logAdminAction('bulk_transaction_add','transactions','bulk:'+userIds.join(','),{action:'transaction',amount,name,coin,targets:userIds.length},{action:'transaction',amount,name,coin,targets:userIds.length});
-        AdminUI.toast(`Transaction entry added for ${created} user${created===1?'':'s'}.`,'success');
-      } else if(action==='daily_profit'){
-        const dailyProfit=Number.parseFloat($('#eouBulkDailyProfit')?.value||'');
-        if(!Number.isFinite(dailyProfit)){ AdminUI.toast('Enter a valid daily profit.','error'); return; }
-        const { data: contracts, error } = await sb.from('contracts').select('id,user_id,active').in('user_id', userIds);
-        if(error) throw error;
-        const activeContracts=(contracts||[]).filter(c=>c.active===true);
-        let updated=0;
-        for(const contract of activeContracts){
-          const { error: updateError } = await sb.from('contracts').update({ daily_profit: dailyProfit }).eq('id', contract.id);
-          if(updateError) throw updateError;
-          updated++;
-        }
-        await logAdminAction('bulk_daily_profit','contracts','bulk:'+userIds.join(','),{action:'daily_profit',dailyProfit,targets:userIds.length},{action:'daily_profit',dailyProfit,targets:userIds.length});
-        AdminUI.toast(`Daily profit updated for ${updated} contract${updated===1?'':'s'}.`,'success');
-      } else {
-        AdminUI.toast('Unknown bulk action.','error');
-        return;
-      }
-      this.closeBulkEditForm();
-      await this.loadUsers();
-    }catch(err){
-      AdminUI.toast('Bulk update failed: '+err.message,'error');
-    }
-  },
-  // Explicit save handler name for direct button wiring.
-  async saveEditForm(){
-    return this.saveUser();
-  },
-  clearForm(){
-    this._selectedUser=null;
-    hide('#editOldUserFormWrap');
-    ['#eouName','#eouEmail','#eouPhone','#eouCountry','#eouWalletBalance','#eouDailyProfit'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
-    const planEl=$('#eouPlan'); if(planEl) planEl.value='starter';
-    const statusEl=$('#eouStatus'); if(statusEl) statusEl.value='active';
-  }
-};
-window.EditOldUserModule=EditOldUserModule;
-
-/* --------------------------------------------------------------
-   ?13  TRANSACTIONS MODULE
--------------------------------------------------------------- */
-const TransactionsModule = {
-  _rows:[], _page:1, _pageSize:25, _profileMap:{},
-  goPage(n){ this._page=n; this._renderPage(); },
-  _txLabel(row){
-    return row?.type || '?';
-  },
-  async load(typeFilter='all'){
-    const container=document.getElementById('transactionsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading transactions?'));
-    try{
-      let q=sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(250);
-      if(typeFilter!=='all')q=q.eq('type',typeFilter);
-      const{data,error}=await q; if(error)throw error; this._rows=data||[];
-      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
-      this._profileMap=await _fetchProfiles(userIds);
-      this._page=1; this._renderPage();
-    }catch(err){ setHTML(container,AdminUI.error('Could not load transactions: '+err.message)); }
-  },
-  _renderPage(){
-    const container=document.getElementById('transactionsTableWrap'); const filter=$('#transactionSearchInput')?.value?.toLowerCase()||'';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.user_id||'')+(r.type||'')+(r.coin||'')).toLowerCase().includes(filter));
-    paginate(rows,this._pageSize,this._page,'transactionsPagination',(pageRows)=>this._render(container,pageRows),'TransactionsModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No transactions.')); return; }
-    const html=rows.map(tx=>{
-      const isUSDT=tx.coin==='usdt'||tx.coin==='usdt_bep20'; const coin=isUSDT?'USDT':'BTC'; const decimals=isUSDT?2:8;
-      const rawAmount=Number(tx.amount||0); const absAmount=Math.abs(rawAmount).toFixed(decimals); const date=tx.created_at?new Date(tx.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
-      const isOut=rawAmount<0 || tx.type==='withdrawal' || tx.type==='purchase'; const color=isOut?'#ef4444':'#10b981'; const sign=isOut?'-':'+'; 
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(tx.id||'').slice(0,8)}?</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[tx.user_id]?.user_id || (tx.user_id?tx.user_id.slice(0,8)+'?':'?')}</span></td><td style="${TD};font-size:12px;color:#f1f5f9;font-weight:600">${escapeHtml(String(this._txLabel(tx)))}</td><td style="${TD};font-family:monospace;color:${color};font-weight:600">${sign}${absAmount} ${coin}</td><td style="${TD}">${AdminUI.badge(tx.status)}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="TransactionsModule.openEditModal('${tx.id}')">??</button><button class="admin-btn admin-btn-danger" onclick="TransactionsModule.deleteTransaction('${tx.id}')" style="margin-left:4px;">??</button></td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Name</th><th style="${TH}">Amount</th><th style="${TH}">Status</th><th style="${TH}">Date</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-  openCreateModal(){
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Add Transaction';
-    setHTML(body,`
-      <div class="form-group"><label>User ID</label><input type="text" id="ntUserId" placeholder="uuid"></div>
-      <div class="form-group"><label>Transaction Name / Type</label><input type="text" id="ntType" placeholder="Deposit, Withdrawal, Bonus, Manual Adjust..."></div>
-      <div class="form-group"><label>Coin</label><select id="ntCoin"><option value="usdt_bep20">USDT</option></select></div>
-      <div class="form-group"><label>Amount</label><input type="number" id="ntAmount" step="0.00000001"></div>
-      <div class="form-group"><label>Status</label><select id="ntStatus"><option value="success">Success</option><option value="pending">Pending</option><option value="failed">Failed</option></select></div>
-      <button class="admin-btn admin-btn-primary" onclick="TransactionsModule.createTransaction()">? Create</button>
-    `);
-    show('#entityModal');
-  },
-  async createTransaction(){
-    const userId=$('#ntUserId')?.value?.trim(); const type=$('#ntType')?.value; const coin=$('#ntCoin')?.value; const amount=parseFloat($('#ntAmount')?.value||0); const status=$('#ntStatus')?.value;
-    if(!userId||!amount){ AdminUI.toast('User ID and amount required.','error'); return; }
-    const{data,error}=await sb.from('transactions').insert({user_id:userId,type,coin,amount,status,created_at:new Date().toISOString()}).select().single();
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction('create_transaction','transactions',data.id,null,data);
-    AdminUI.toast('Transaction created.','success'); hide('#entityModal'); this.load($('#transactionTypeFilter')?.value||'all');
-  },
-  openEditModal(id){
-    const row=this._rows.find(r=>r.id===id); if(!row)return;
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Edit Transaction';
-    setHTML(body,`
-      <div class="form-group"><label>Amount</label><input type="number" id="etAmount" value="${row.amount}" step="0.00000001"></div>
-      <div class="form-group"><label>Transaction Name / Type</label><input type="text" id="etType" value="${escapeHtml(String(row.type||''))}"></div>
-      <div class="form-group"><label>Status</label><select id="etStatus"><option value="success" ${row.status==='success'?'selected':''}>Success</option><option value="pending" ${row.status==='pending'?'selected':''}>Pending</option><option value="failed" ${row.status==='failed'?'selected':''}>Failed</option></select></div>
-      <button class="admin-btn admin-btn-primary" onclick="TransactionsModule.saveEdit('${id}')">?? Save</button>
-    `);
-    show('#entityModal');
-  },
-  async saveEdit(id){
-    const amount=parseFloat($('#etAmount')?.value||0); const type=($('#etType')?.value||'').trim(); const status=$('#etStatus')?.value;
-    const old=this._rows.find(r=>r.id===id);
-    const{error}=await sb.from('transactions').update({amount,type,status}).eq('id',id);
-    if(error){ AdminUI.toast('Save failed: '+error.message,'error'); return; }
-    await logAdminAction('edit_transaction','transactions',id,old,{amount,type,status});
-    this._rows=this._rows.map(r=>r.id===id?{...r,amount,type,status}:r); this._renderPage(); hide('#entityModal');
-    AdminUI.toast('Transaction updated.','success');
-  },
-  async deleteTransaction(id){
-    if(!confirm('Delete this transaction?'))return;
-    const{error}=await sb.from('transactions').delete().eq('id',id);
-    if(error){ AdminUI.toast('Delete failed: '+error.message,'error'); return; }
-    await logAdminAction('delete_transaction','transactions',id,null,null);
-    this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deleted.','warning');
-  },
-  export(){
-    const headers=['ID','User ID','Name','Coin','Amount','Status','Created At'];
-    const rows=this._rows.map(r=>[r.id,r.user_id||'',r.type||'',r.coin||'',r.amount||0,r.status||'',r.created_at||'']);
-    downloadCSV('transactions.csv',[headers,...rows]);
-  }
-};
-
-/* --------------------------------------------------------------
-   ?14  CONTRACTS MODULE
--------------------------------------------------------------- */
-const ContractsModule = {
-  _rows:[], _page:1, _pageSize:25, _profileMap:{},
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(){
-    const container=document.getElementById('contractsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading contracts?'));
-    try{
-      const{data,error}=await sb.from('contracts').select('id,user_id,plan,hashrate,daily_profit,active,progress,created_at,last_payout_at,next_payout_at,total_earned').order('created_at',{ascending:false}).limit(250);
-      if(error)throw error; this._rows=data||[];
-      const userIds=[...new Set(this._rows.map(r=>r.user_id).filter(Boolean))];
-      this._profileMap=await _fetchProfiles(userIds);
-      this._page=1; this._renderPage();
-    }catch(err){ setHTML(container,AdminUI.error('Could not load contracts: '+err.message)); }
-  },
-  _renderPage(){
-    const container=document.getElementById('contractsTableWrap'); const filter=$('#contractSearchInput')?.value?.toLowerCase()||''; const statusFilter=$('#contractStatusFilter')?.value||'all';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.plan||'')+(r.user_id||'')).toLowerCase().includes(filter));
-    if(statusFilter==='active')rows=rows.filter(r=>r.active===true); if(statusFilter==='inactive')rows=rows.filter(r=>r.active!==true);
-    paginate(rows,this._pageSize,this._page,'contractsPagination',(pageRows)=>this._render(container,pageRows),'ContractsModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No contracts.')); return; }
-    const html=rows.map(c=>{
-      const date=c.created_at?new Date(c.created_at).toLocaleDateString('en-US',{dateStyle:'medium'}):'?';
-      const hashrate=c.hashrate!=null?Number(c.hashrate).toFixed(1)+' TH/s':'?'; const daily=c.daily_profit!=null?Number(c.daily_profit).toFixed(8):'?';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(c.id||'').slice(0,8)}?</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;font-family:monospace;">${this._profileMap?.[c.user_id]?.user_id || (c.user_id?c.user_id.slice(0,8)+'?':'?')}</span></td><td style="${TD};font-weight:600;color:#f1f5f9">${c.plan||'?'}</td><td style="${TD};font-family:monospace;color:#fbbf24">${hashrate}</td><td style="${TD};font-family:monospace;color:#10b981;font-size:12px">${daily}</td><td style="${TD}">${AdminUI.badge(c.active?'active':'inactive')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td><td style="${TD}"><button class="admin-btn admin-btn-outline" onclick="ContractsModule.openEditModal('${c.id}')">??</button><button class="admin-btn ${c.active?'admin-btn-reject':'admin-btn-approve'}" onclick="ContractsModule.toggleActive('${c.id}')" style="margin-left:4px;">${c.active?'Pause':'Resume'}</button><button class="admin-btn admin-btn-danger" onclick="ContractsModule.deleteContract('${c.id}')" style="margin-left:4px;">??</button></td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Plan</th><th style="${TH}">Hashrate</th><th style="${TH}">Daily</th><th style="${TH}">Status</th><th style="${TH}">Started</th><th style="${TH}">Actions</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-  openCreateModal(){
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Add Contract';
-    setHTML(body,`
-      <div class="form-group"><label>User ID</label><input type="text" id="ncUserId" placeholder="uuid"></div>
-      <div class="form-group"><label>Plan Name</label><input type="text" id="ncPlan" placeholder="Gold"></div>
-      <div class="form-group"><label>Hashrate (TH/s)</label><input type="number" id="ncHashrate" step="0.1"></div>
-      <div class="form-group"><label>Daily Profit (USDT)</label><input type="number" id="ncDaily" step="0.00000001"></div>
-      <button class="admin-btn admin-btn-primary" onclick="ContractsModule.createContract()">? Create</button>
-    `);
-    show('#entityModal');
-  },
-  async createContract(){
-    const userId=$('#ncUserId')?.value?.trim(); const plan=$('#ncPlan')?.value?.trim(); const hashrate=parseFloat($('#ncHashrate')?.value||0); const daily=parseFloat($('#ncDaily')?.value||0);
-    if(!userId||!plan){ AdminUI.toast('User ID and plan required.','error'); return; }
-    const createdAt = new Date().toISOString();
-    const{data,error}=await sb.from('contracts').insert({
-      user_id:userId,
-      plan,
-      hashrate,
-      daily_profit:daily,
-      active:true,
-      progress:0,
-      last_payout_at:null,
-      next_payout_at:new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      total_earned:0,
-      created_at:createdAt
-    }).select().single();
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction('create_contract','contracts',data.id,null,data);
-    AdminUI.toast('Contract created.','success'); hide('#entityModal'); this.load();
-  },
-  openEditModal(id){
-    const row=this._rows.find(r=>r.id===id); if(!row)return;
-    const body=document.getElementById('entityModalBody'); const title=document.getElementById('entityModalTitle');
-    if(title)title.textContent='Edit Contract';
-    setHTML(body,`
-      <div class="form-group"><label>Plan</label><input type="text" id="ecPlan" value="${row.plan||''}"></div>
-      <div class="form-group"><label>Hashrate</label><input type="number" id="ecHashrate" value="${row.hashrate||0}" step="0.1"></div>
-      <div class="form-group"><label>Daily Profit</label><input type="number" id="ecDaily" value="${row.daily_profit||0}" step="0.00000001"></div>
-      <div class="form-group"><label>Progress %</label><input type="number" id="ecProgress" value="${row.progress||0}" step="0.1" min="0" max="100"></div>
-      <button class="admin-btn admin-btn-primary" onclick="ContractsModule.saveEdit('${id}')">?? Save</button>
-    `);
-    show('#entityModal');
-  },
-  async saveEdit(id){
-    const plan=$('#ecPlan')?.value?.trim(); const hashrate=parseFloat($('#ecHashrate')?.value||0); const daily=parseFloat($('#ecDaily')?.value||0); const progress=parseFloat($('#ecProgress')?.value||0);
-    const old=this._rows.find(r=>r.id===id);
-    const patch={plan,hashrate,daily_profit:daily,progress};
-    const{error}=await sb.from('contracts').update(patch).eq('id',id);
-    if(error){ AdminUI.toast('Save failed: '+error.message,'error'); return; }
-    await logAdminAction('edit_contract','contracts',id,old,patch);
-    this._rows=this._rows.map(r=>r.id===id?{...r,...patch}:r); this._renderPage(); hide('#entityModal');
-    AdminUI.toast('Contract updated.','success');
-  },
-  async toggleActive(id){
-    const row=this._rows.find(r=>r.id===id); if(!row)return;
-    const newState=!row.active;
-    const{error}=await sb.from('contracts').update({active:newState}).eq('id',id);
-    if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
-    await logAdminAction(newState?'resume_contract':'pause_contract','contracts',id,{active:row.active},{active:newState});
-    row.active=newState; this._renderPage(); AdminUI.toast(newState?'Contract resumed.':'Contract paused.','success');
-  },
-  async deleteContract(id){
-    if(!confirm('Delete this contract?'))return;
-    const{error}=await sb.from('contracts').delete().eq('id',id);
-    if(error){ AdminUI.toast('Delete failed: '+error.message,'error'); return; }
-    await logAdminAction('delete_contract','contracts',id,null,null);
-    this._rows=this._rows.filter(r=>r.id!==id); this._renderPage(); AdminUI.toast('Deleted.','warning');
-  },
-  export(){
-    const headers=['ID','User ID','Plan','Hashrate','Daily Profit','Active','Progress','Created','Last Payout','Next Payout','Total Earned'];
-    const rows=this._rows.map(r=>[
-      r.id,
-      r.user_id||'',
-      r.plan||'',
-      r.hashrate||0,
-      r.daily_profit||0,
-      r.active?'Yes':'No',
-      r.progress||0,
-      r.created_at||'',
-      r.last_payout_at||'',
-      r.next_payout_at||'',
-      r.total_earned||0
-    ]);
-    downloadCSV('contracts.csv',[headers,...rows]);
-  }
-};
-
-/* --------------------------------------------------------------
-   ?15  NOTIFICATIONS MODULE
--------------------------------------------------------------- */
-const NotificationsModule = {
-  async load(){
-    const container=document.getElementById('adminNotifTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading notifications?'));
-    try{
-      const{data,error}=await sb.from('notifications').select('id,user_id,title,message,type,is_read,created_at').order('created_at',{ascending:false}).limit(100);
-      if(error)throw error; const rows=data||[];
-      if(!rows.length){ setHTML(container,AdminUI.empty('No notifications.')); return; }
-      const userIds=[...new Set(rows.map(r=>r.user_id).filter(Boolean))];
-      const profileMap=await _fetchProfiles(userIds);
-      const html=rows.map(n=>{
-        const email=(profileMap[n.user_id]?.email||'All Users')||'All Users'; const name=(profileMap[n.user_id]?.name||email)||email; const date=n.created_at?new Date(n.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
-        return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(n.id||'').slice(0,8)}?</td><td style="${TD}"><div style="font-weight:600;color:#f1f5f9;font-size:13px">${name}</div><div style="font-size:11px;color:#f59e0b;margin-top:2px">${profileMap[n.user_id]?.user_id || '?'}</div></td><td style="${TD}">${n.title||'?'}</td><td style="${TD};font-size:12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${n.message||'?'}</td><td style="${TD}">${AdminUI.badge(n.type)}</td><td style="${TD}">${AdminUI.badge(n.is_read?'success':'pending')}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
-      }).join('');
-      setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">User</th><th style="${TH}">Title</th><th style="${TH}">Message</th><th style="${TH}">Type</th><th style="${TH}">Status</th><th style="${TH}">Date</th></tr></thead><tbody>${html}</tbody></table>`);
-    }catch(err){ setHTML(container,AdminUI.error('Could not load notifications: '+err.message)); }
-  },
-  async send(){
-    const target=document.getElementById('notifTarget')?.value||'all'; const title=document.getElementById('notifTitle')?.value.trim(); const message=document.getElementById('notifMessage')?.value.trim(); const type=document.getElementById('notifType')?.value||'info'; const email=document.getElementById('notifUserEmail')?.value.trim();
-    if(!title||!message){ AdminUI.toast('Title and message required.','error'); return; } if(!sb){ AdminUI.toast('Supabase not ready.','error'); return; }
-    const btn=document.getElementById('sendNotifBtn'); if(btn){btn.disabled=true; btn.textContent='Sending?';}
-    try{
-      let userIds=[];
-      if(target==='all'){ const{data:profiles,error:profErr}=await sb.from('profiles').select('id'); if(profErr)throw profErr; userIds=(profiles||[]).map(p=>p.id); }
-      else{ if(!email)throw new Error('Enter user email.'); const{data:prof,error:profErr}=await sb.from('profiles').select('id').eq('email',email).maybeSingle(); if(profErr)throw profErr; if(!prof)throw new Error('User not found.'); userIds=[prof.id]; }
-      if(!userIds.length)throw new Error('No target users.');
-      const rows=userIds.map(uid=>({user_id:uid,title,message,type,is_read:false,created_at:new Date().toISOString()}));
-      for(let i=0;i<rows.length;i+=500){ const batch=rows.slice(i,i+500); const{error}=await sb.from('notifications').insert(batch); if(error)throw error; }
-      AdminUI.toast(`Sent to ${userIds.length} user(s).`,'success'); document.getElementById('notifTitle').value=''; document.getElementById('notifMessage').value=''; this.load();
-    }catch(err){ AdminUI.toast('Send failed: '+err.message,'error'); }
-    finally{ if(btn){btn.disabled=false; btn.textContent='?? Send Notification';} }
-  }
-};
-window.NotificationsModule=NotificationsModule;
-
-/* --------------------------------------------------------------
-   ?16  REFERRAL MODULE
--------------------------------------------------------------- */
-const ReferralModule = {
-  async load(){
-    const wrap=document.getElementById('referralLeaderboardWrap'); if(!wrap||!sb)return;
-    setHTML(wrap,AdminUI.loading());
-    try{
-      const{data,error}=await sb.from('referrals').select('referrer_id,referred_user_id,earnings,created_at').limit(250);
-      if(error)throw error; const rows=data||[];
-      const referrerMap={}; rows.forEach(r=>{ if(!referrerMap[r.referrer_id])referrerMap[r.referrer_id]={count:0,earnings:0}; referrerMap[r.referrer_id].count++; referrerMap[r.referrer_id].earnings+=Number(r.earnings||0); });
-      const sorted=Object.entries(referrerMap).sort((a,b)=>b[1].earnings-a[1].earnings).slice(0,10);
-      const userIds=sorted.map(([id])=>id); const profileMap=await _fetchProfiles(userIds);
-      const total=rows.length; const totalEarnings=rows.reduce((s,r)=>s+Number(r.earnings||0),0); const top=sorted[0]; const topName=top?(profileMap[top[0]]?.name||profileMap[top[0]]?.email||top[0]):'?';
-      setText('#refStatTotal',total); setText('#refStatEarnings',totalEarnings.toFixed(8)); setText('#refStatTop',topName); setText('#refStatConv',total>0?'?':'?');
-      if(!sorted.length){ setHTML(wrap,AdminUI.empty('No referrals yet.')); return; }
-      const html=sorted.map(([id,stats],i)=>{
-        const p=profileMap[id]||{}; const name=p.name||p.email||id.slice(0,8)+'?';
-        return`<tr><td style="${TD};font-weight:700;color:#f59e0b;">#${i+1}</td><td style="${TD}">${name}</td><td style="${TD}">${stats.count}</td><td style="${TD};font-family:monospace;color:#10b981">${stats.earnings.toFixed(8)}</td></tr>`;
-      }).join('');
-      setHTML(wrap,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">Rank</th><th style="${TH}">User</th><th style="${TH}">Referrals</th><th style="${TH}">Earnings</th></tr></thead><tbody>${html}</tbody></table>`);
-    }catch(err){ setHTML(wrap,AdminUI.error(err.message)); }
-  },
-  async loadTree(){
-    const email=$('#referralTreeSearch')?.value?.trim(); const wrap=document.getElementById('referralTreeWrap'); if(!email||!wrap||!sb)return;
-    setHTML(wrap,AdminUI.loading());
-    try{
-      const{data:prof}=await sb.from('profiles').select('id,email,name,ref_code').eq('email',email).maybeSingle(); if(!prof){ setHTML(wrap,AdminUI.empty('User not found.')); return; }
-      const{data:refs}=await sb.from('referrals').select('referred_user_id,earnings,created_at').eq('referrer_id',prof.id);
-      const rows=refs||[]; const refIds=rows.map(r=>r.referred_user_id); const refMap=await _fetchProfiles(refIds);
-      let html=`<div style="font-size:14px;font-weight:600;color:#f1f5f9;margin-bottom:12px;">${prof.name||prof.email} <span style="color:#f59e0b;">(${rows.length} referrals)</span></div>`;
-      if(!rows.length){ html+=`<div style="color:#475569;font-size:13px;">No referrals found.</div>`; }
-      else{
-        html+=`<div style="display:flex;flex-direction:column;gap:8px;">`;
-        rows.forEach(r=>{
-          const p=refMap[r.referred_user_id]||{}; const name=p.name||p.email||r.referred_user_id.slice(0,8)+'?';
-          html+=`<div style="background:#0d1117;border:1px solid #1e2d45;border-radius:10px;padding:10px 14px;font-size:13px;color:#94a3b8;"><strong style="color:#f1f5f9;">${name}</strong> ? Earnings: <span style="color:#10b981;">${Number(r.earnings||0).toFixed(8)}</span> ? ${new Date(r.created_at).toLocaleDateString()}</div>`;
-        });
-        html+=`</div>`;
-      }
-      setHTML(wrap,html);
-    }catch(err){ setHTML(wrap,AdminUI.error(err.message)); }
-  }
-};
-
-/* --------------------------------------------------------------
-   ?17  SECURITY LOGS MODULE
--------------------------------------------------------------- */
-const SecurityLogsModule = {
-  _rows:[], _page:1, _pageSize:25,
-  goPage(n){ this._page=n; this._renderPage(); },
-  async load(){
-    const container=document.getElementById('logsTableWrap'); if(!container||!sb)return;
-    setHTML(container,AdminUI.loading('Loading logs?'));
-    try{
-      const{data,error}=await sb.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(250);
-      if(error)throw error; this._rows=data||[]; this._page=1; this._renderPage();
-    }catch(err){ setHTML(container,AdminUI.error('Could not load logs: '+err.message)); }
-  },
-  _renderPage(){
-    const container=document.getElementById('logsTableWrap'); const filter=$('#logSearchInput')?.value?.toLowerCase()||'';
-    let rows=this._rows; if(filter)rows=rows.filter(r=>((r.action||'')+(r.admin_email||'')+(r.target_table||'')).toLowerCase().includes(filter));
-    paginate(rows,this._pageSize,this._page,'logsPagination',(pageRows)=>this._render(container,pageRows),'SecurityLogsModule');
-  },
-  _render(container,rows){
-    if(!rows.length){ setHTML(container,AdminUI.empty('No logs.')); return; }
-    const html=rows.map(l=>{
-      const date=l.created_at?new Date(l.created_at).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'?';
-      return`<tr><td style="${TD};font-family:monospace;font-size:11px;color:#64748b">${String(l.id||'').slice(0,8)}?</td><td style="${TD}">${l.admin_email||'?'}</td><td style="${TD}"><span style="color:#f59e0b;font-weight:600;">${l.action}</span></td><td style="${TD};font-size:12px;color:#94a3b8">${l.target_table||'?'} ${l.target_id?'<br><span style="font-size:10px;color:#64748b;">'+l.target_id.slice(0,12)+'?</span>':''}</td><td style="${TD};font-size:12px;color:#64748b">${date}</td></tr>`;
-    }).join('');
-    setHTML(container,`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="${TH}">ID</th><th style="${TH}">Admin</th><th style="${TH}">Action</th><th style="${TH}">Target</th><th style="${TH}">Date</th></tr></thead><tbody>${html}</tbody></table>`);
-  },
-  export(){
-    const headers=['ID','Admin Email','Action','Target Table','Target ID','Old Value','New Value','Created At'];
-    const rows=this._rows.map(r=>[r.id,r.admin_email||'',r.action||'',r.target_table||'',r.target_id||'',JSON.stringify(r.old_value)||'',JSON.stringify(r.new_value)||'',r.created_at||'']);
-    downloadCSV('admin_logs.csv',[headers,...rows]);
-  }
-};
-
-/* --------------------------------------------------------------
-   ?18  GLOBAL SEARCH
--------------------------------------------------------------- */
-const GlobalSearch = {
-  async execute(){
-    const term=$('#globalSearchInput')?.value?.trim(); if(!term){ AdminUI.toast('Enter search term.','warning'); return; }
-    AdminUI.toast('Searching?','info',2000);
-    try{
-      const promises=[
-        sb.from('profiles').select('id,email,name').or(`email.ilike.%${term}%,name.ilike.%${term}%`).limit(10),
-        sb.from('deposits').select('id,user_email,amount,status').or(`user_email.ilike.%${term}%,tx_hash.ilike.%${term}%`).limit(10),
-        sb.from('withdrawals').select('id,user_email,amount,status').or(`user_email.ilike.%${term}%,address.ilike.%${term}%`).limit(10),
-        sb.from('transactions').select('id,user_id,type,amount').or(`user_id.ilike.%${term}%`).limit(10),
-      ];
-      const[{data:users},{data:deps},{data:withs},{data:txs}]=await Promise.all(promises);
-      let html=`<div style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:16px;">?? Results for "${term}"</div>`;
-      html+=`<div style="margin-bottom:12px;"><strong style="color:#f59e0b;">Users (${(users||[]).length})</strong></div>`+(users||[]).map(u=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;cursor:pointer;" onclick="AdminUI.activateTab('users'); UsersModule.openUserModal('${u.id}')">${u.name||'?'} ? ${u.email||'?'}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No users.</div>';
-      html+=`<div style="margin:16px 0 12px;"><strong style="color:#f59e0b;">Deposits (${(deps||[]).length})</strong></div>`+(deps||[]).map(d=>`<div style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:13px;color:#94a3b8;">${d.user_email||'?'} ? ${d.amount} ${d.coin||'BTC'} ? ${AdminUI.badge(d.status)}</div>`).join('')||'<div style="color:#475569;font-size:12px;">No deposits.</div>';
-      AdminUI.toast(html,'info',8000);
-    }catch(err){ AdminUI.toast('Search error: '+err.message,'error'); }
-  }
-};
-
-/* --------------------------------------------------------------
-   ?19  CSV EXPORT
--------------------------------------------------------------- */
-function downloadCSV(filename, rows){
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
-}
-
-function ensureEditOldUserBulkButton() {
-  const editSection = document.querySelector('[data-admin-section="edit-old-user"]');
-  const oldUsersSection = document.querySelector('[data-admin-section="old-users"]');
-
-  if (oldUsersSection) {
-    oldUsersSection.querySelectorAll('button').forEach(btn => {
-      const txt = (btn.textContent || '').trim().toLowerCase();
-      if (txt.includes('edit user') || txt.includes('bulk edit') || txt.includes('edit all filtered')) {
-        btn.remove();
-      }
-    });
-  }
-
-  if (!editSection) return;
-  const filters = editSection.querySelector('.filters');
-  if (!filters) return;
-
-  const actionRow = document.createElement('div');
-  actionRow.dataset.eouActionRow = '1';
-  actionRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;';
-
-  const loadBtn = document.createElement('button');
-  loadBtn.className = 'admin-btn admin-btn-primary';
-  loadBtn.type = 'button';
-  loadBtn.textContent = '?? Load Users';
-  loadBtn.addEventListener('click', () => EditOldUserModule.loadUsers());
-
-  const bulkBtn = document.createElement('button');
-  bulkBtn.className = 'admin-btn admin-btn-outline';
-  bulkBtn.type = 'button';
-  bulkBtn.textContent = '?? Bulk Edit';
-  bulkBtn.addEventListener('click', () => EditOldUserModule.openBulkEditForm());
-
-  const search = editSection.querySelector('#editOldUserSearchInput');
-  const plan = editSection.querySelector('#editOldUserPlanFilter');
-  filters.innerHTML = '';
-  if (search) filters.appendChild(search);
-  if (plan) filters.appendChild(plan);
-  actionRow.append(loadBtn, bulkBtn);
-  filters.appendChild(actionRow);
-}
-
-/* --------------------------------------------------------------
-   ?20  PROFILE FETCH HELPER
--------------------------------------------------------------- */
-async function _fetchProfiles(userIds){
-  if(!sb||!userIds.length)return{};
-  const{data,error}=await sb.from('profiles').select('id,email,name,user_id').in('id',userIds);
-  if(error){ console.warn('Profile fetch error:',error.message); return{}; }
-  const map={}; (data||[]).forEach(p=>{map[p.id]=p;}); return map;
-}
-
-/* --------------------------------------------------------------
-   ?21  SEARCH / FILTER WIRING
--------------------------------------------------------------- */
-function initFilters(){
-  on('#depositStatusFilter','change',e=>{ DepositsModule.load(e.target.value||'all'); });
-  on('#withdrawalStatusFilter','change',e=>{ WithdrawalsModule.load(e.target.value||'all'); });
-  on('#transactionTypeFilter','change',e=>{ TransactionsModule.load(e.target.value||'all'); });
-  on('#contractStatusFilter','change',e=>{ ContractsModule.load(); });
-  on('#userStatusFilter','change',e=>{ UsersModule._renderPage(); });
-  on('#newUserDateFilter','change',e=>{ NewUsersModule.load(e.target.value||'today'); });
-  on('#oldUserDateFilter','change',e=>{ OldUsersModule.load(e.target.value||'all-time'); });
-  on('#newUserSearchInput','input',()=>{ NewUsersModule._page=1; NewUsersModule._renderPage(); });
-  on('#oldUserSearchInput','input',()=>{ OldUsersModule._page=1; OldUsersModule._renderPage(); });
-  on('#editOldUserSearchInput','input',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
-  on('#editOldUserPlanFilter','change',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
-  on('#depositSearchInput','input',()=>{ DepositsModule._page=1; DepositsModule._renderPage(); });
-  on('#withdrawalSearchInput','input',()=>{ WithdrawalsModule._page=1; WithdrawalsModule._renderPage(); });
-  on('#transactionSearchInput','input',()=>{ TransactionsModule._page=1; TransactionsModule._renderPage(); });
-  on('#contractSearchInput','input',()=>{ ContractsModule._page=1; ContractsModule._renderPage(); });
-  on('#userSearchInput','input',()=>{ UsersModule._page=1; UsersModule._renderPage(); });
-  on('#logSearchInput','input',()=>{ SecurityLogsModule._page=1; SecurityLogsModule._renderPage(); });
-  on('#globalSearchBtn','click',()=>GlobalSearch.execute());
-  on('#globalSearchInput','keydown',e=>{ if(e.key==='Enter')GlobalSearch.execute(); });
-}
-
-function initNotificationForm(){
-  on('#notifTarget','change',e=>{ const grp=document.getElementById('notifUserGroup'); if(grp)grp.style.display=e.target.value==='specific'?'':'none'; });
-  on('#sendNotifBtn','click',e=>{ e.preventDefault(); NotificationsModule.send(); });
-}
-
-/* --------------------------------------------------------------
-   ?22  REALTIME
--------------------------------------------------------------- */
-function initRealtime(){
-  if(typeof sb?.channel!=='function')return;
-  try{
-    const channel=sb.channel('admin-realtime');
-    channel.on('postgres_changes',{event:'INSERT',schema:'public',table:'deposits'},payload=>{
-      if(payload.new?.status==='pending'){
-        AdminUI.toast('?? New deposit request.','info',6000);
-        const badge=document.getElementById('sidebarDepositBadge'); const cur=parseInt(badge?.textContent||'0',10);
-        setText('#sidebarDepositBadge',String(cur+1)); if(badge)badge.style.display='inline-flex';
-      }
-      DepositsModule.load($('#depositStatusFilter')?.value||'all');
-      OverviewModule._depositStats();
-    })
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'deposits'},()=>{
-      DepositsModule.load($('#depositStatusFilter')?.value||'all'); OverviewModule._depositStats();
-    })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'withdrawals'},payload=>{
-      if(payload.new?.status==='pending'){
-        AdminUI.toast('?? New withdrawal request.','info',6000);
-        const badge=document.getElementById('sidebarWithdrawalBadge'); const cur=parseInt(badge?.textContent||'0',10);
-        setText('#sidebarWithdrawalBadge',String(cur+1)); if(badge)badge.style.display='inline-flex';
-      }
-      WithdrawalsModule.load($('#withdrawalStatusFilter')?.value||'all'); OverviewModule._withdrawalStats();
-    })
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'withdrawals'},()=>{
-      WithdrawalsModule.load($('#withdrawalStatusFilter')?.value||'all'); OverviewModule._withdrawalStats();
-    })
-    .on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>{
-      TransactionsModule.load($('#transactionTypeFilter')?.value||'all');
-    })
-    .on('postgres_changes',{event:'*',schema:'public',table:'contracts'},()=>{
-      ContractsModule.load();
-      if(_loaded.has('edit-old-user')) EditOldUserModule.loadUsers();
-    })
-    .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>{
-      UsersModule.load(); OverviewModule._userStats();
-      if(_loaded.has('new-users')) NewUsersModule.load($('#newUserDateFilter')?.value||'today');
-      if(_loaded.has('old-users')) OldUsersModule.load($('#oldUserDateFilter')?.value||'all-time');
-      if(_loaded.has('edit-old-user')) EditOldUserModule.loadUsers();
-    })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'admin_logs'},()=>{
-      if(_loaded.has('logs'))SecurityLogsModule.load();
-      OverviewModule._activityFeed();
-    })
-    .subscribe(status=>{ if(status==='SUBSCRIBED')console.info('[Admin] Realtime subscribed.'); });
-  }catch(err){ console.warn('[Admin] Realtime unavailable:',err.message); }
-}
-
-/* --------------------------------------------------------------
-   ?23  NAVIGATION
--------------------------------------------------------------- */
-const _loaded=new Set();
-
-function initNavigation(){
-  $$('[data-admin-tab]').forEach(btn=>{
-    btn.addEventListener('click',async()=>{
-      const name=btn.dataset.adminTab; AdminUI.activateTab(name); await loadSection(name);
-      document.getElementById('adminSidebar')?.classList.remove('open');
-      document.getElementById('adminSidebarOverlay')?.classList.remove('open');
-    });
-  });
-  on('#adminMenuToggle','click',()=>{
-    document.getElementById('adminSidebar')?.classList.toggle('open');
-    document.getElementById('adminSidebarOverlay')?.classList.toggle('open');
-  });
-  on('#adminSidebarOverlay','click',()=>{
-    document.getElementById('adminSidebar')?.classList.remove('open');
-    document.getElementById('adminSidebarOverlay')?.classList.remove('open');
-  });
-  $$('[data-admin-logout]').forEach(btn=>{ btn.addEventListener('click',()=>AdminAuth.logout()); });
-}
-
-function initModals(){
-  on('#entityModal','click',e=>{ if(e.target===e.currentTarget) closeEntityModal(); });
-  on('#userDetailModal','click',e=>{ if(e.target===e.currentTarget) UsersModule.closeModal(); });
-}
-
-async function loadSection(name){
-  const alwaysReload = new Set(['new-users','old-users']);
-  if(_loaded.has(name) && !alwaysReload.has(name)) return;
-  _loaded.add(name);
-  switch(name){
-    case 'overview': await OverviewModule.load(); break;
-    case 'deposits': await DepositsModule.load(); break;
-    case 'withdrawals': await WithdrawalsModule.load(); break;
-    case 'transactions': await TransactionsModule.load(); break;
-    case 'contracts': await ContractsModule.load(); break;
-    case 'users': await UsersModule.load(); break;
-    case 'new-users': await NewUsersModule.load($('#newUserDateFilter')?.value||'today'); break;
-    case 'old-users': await OldUsersModule.load($('#oldUserDateFilter')?.value||'all-time'); break;
-    case 'edit-old-user': await EditOldUserModule.loadUsers(); break;
-    case 'referrals': await ReferralModule.load(); break;
-    case 'notifications': await NotificationsModule.load(); break;
-    case 'logs': await SecurityLogsModule.load(); break;
   }
 }
 
-/* --------------------------------------------------------------
-   ?24  PANEL BOOT
--------------------------------------------------------------- */
-async function _bootPanel(){
-  _loaded.clear(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
-  AdminUI.activateTab('overview'); await loadSection('overview');
+function refreshLiveMiningUI(contracts = _latestContracts) {
+  const summary = getMiningSummary(contracts);
+  const movement = getLiveHashrateMovement(contracts);
+  setText('liveHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('liveHashrate2', summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('dailyProfitEl', '$ ' + summary.dailyProfit.toFixed(2) + ' USDT');
+  updateMiningCardStates(summary);
+  updateLiveHashrateTrend(movement);
+  renderContracts(contracts);
+  renderMiningStats(contracts);
+  initHashrateChart(contracts);
 }
 
-/* --------------------------------------------------------------
-   ?25  ENTRY POINT
--------------------------------------------------------------- */
-console.log('[CryptoVault] admin.js enterprise loaded.');
+function updateLiveHashrateTrend(movement) {
+  const el = $('liveHashrateChange');
+  if (!el) return;
 
-document.addEventListener('DOMContentLoaded',async()=>{
-  window.CVAuthRole?.startSessionInactivityGuard?.(()=>AdminAuth.logout(), AUTH_IDLE_TIMEOUT_MS);
-  initNavigation(); initLoginForm(); initModals();
-  ensureEditOldUserBulkButton();
-  if(!initSupabaseClient()){ show('#adminLoginScreen'); hide('#adminAppShell'); return; }
-  let alreadyLoggedIn=false;
-  let forbiddenUser=false;
-  try{
-    const authState=await AdminAuth.check();
-    alreadyLoggedIn=authState===true;
-    forbiddenUser=authState==='forbidden';
-  }catch(err){ console.warn('[Admin] Session check error:',err.message); }
-  if(forbiddenUser){
-    await sb.auth.signOut().catch(()=>{});
-    AdminAuth._roleAuth.clearRole();
-    window.location.replace('login.html');
+  const pct = Number(movement?.deltaPct || 0);
+  const absPct = Math.abs(pct);
+  if (!movement?.base?.totalHashrate) {
+    el.textContent = 'No active contracts';
+    el.className = 'stat-change up';
     return;
   }
-  if(alreadyLoggedIn){ hide('#adminLoginScreen'); show('#adminAppShell'); try{await _bootPanel();}catch(err){ AdminUI.banner('? Panel boot error: '+err.message,'error');} }
-  else{ show('#adminLoginScreen'); hide('#adminAppShell'); }
+
+  const arrow = movement.direction === 'down' ? '▼' : movement.direction === 'up' ? '▲' : '•';
+  const label = movement.direction === 'flat' ? 'Stable' : `${arrow} ${absPct.toFixed(2)}%`;
+  el.textContent = label;
+  el.className = 'stat-change ' + (movement.direction === 'down' ? 'down' : 'up');
+}
+
+function startLiveHashrateRefreshLoop() {
+  if (_liveHashrateAlignTimer) {
+    clearTimeout(_liveHashrateAlignTimer);
+    _liveHashrateAlignTimer = null;
+  }
+  if (_liveHashrateRefreshTimer) {
+    clearInterval(_liveHashrateRefreshTimer);
+    _liveHashrateRefreshTimer = null;
+  }
+
+  const remaining = LIVE_HASHRATE_INTERVAL_MS - (Date.now() % LIVE_HASHRATE_INTERVAL_MS);
+  const delay = remaining === 0 ? LIVE_HASHRATE_INTERVAL_MS : remaining;
+
+  _liveHashrateAlignTimer = setTimeout(() => {
+    if (_latestContracts.length) {
+      refreshLiveMiningUI(_latestContracts);
+    }
+    _liveHashrateRefreshTimer = setInterval(() => {
+      if (_latestContracts.length) {
+        refreshLiveMiningUI(_latestContracts);
+      }
+    }, LIVE_HASHRATE_INTERVAL_MS);
+  }, delay);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — TRANSACTION TABLE
+══════════════════════════════════════════════════════════════ */
+let _currentTxFilter = 'all';
+let _allTransactions = [];
+let _allDeposits     = [];
+
+function renderTransactions(filter) {
+  const normalizeFilter = raw => {
+    const f = String(raw || 'all').toLowerCase();
+    if (f === 'deposit' || f === 'deposits') return 'deposit';
+    if (f === 'withdrawal' || f === 'withdrawals') return 'withdrawal';
+    if (f === 'mining') return 'mining';
+    if (f === 'purchase' || f === 'purchases') return 'purchase';
+    if (f === 'all') return 'all';
+    return f;
+  };
+
+  filter = normalizeFilter(filter);
+  _currentTxFilter = filter;
+  const tbody = $('txTableBody');
+  if (!tbody) return;
+
+  const txRows = _allTransactions.map(tx => {
+    const txType = normalizeTxType(tx.type);
+    const coinLbl = 'USDT';
+    const decimals = 2;
+    const amt = Number(tx.amount || 0);
+    const isOut = amt < 0 || txType === 'withdrawal' || txType === 'purchase';
+    const amtStr = (isOut ? '-' : '+') + Math.abs(amt).toFixed(decimals) + ' USDT';
+    const usdVal = (isOut ? '-' : '+') + '$' + Math.abs(amt).toFixed(2);
+
+    return {
+      desc:   _txLabel(tx.type),
+      coin:   coinLbl,
+      amount: amtStr,
+      usd:    usdVal,
+      status: tx.status || 'success',
+      date:   _fmtDate(tx.created_at),
+      type:   txType,
+      createdAt: tx.created_at,
+    };
+  });
+
+  const pendingDepRows = _allDeposits
+    .filter(d => d.status === 'pending')
+    .map(d => {
+      const coinLbl = 'USDT';
+      const amt     = Number(d.amount || 0);
+      const amtStr  = '+' + amt.toFixed(2) + ' USDT';
+      const usdVal  = '+$' + amt.toFixed(2);
+      return {
+        desc:   'Deposit (Pending)',
+        coin:   coinLbl,
+        amount: amtStr,
+        usd:    usdVal,
+        status: 'pending',
+        date:   _fmtDate(d.created_at),
+        type:   'deposit',
+        createdAt: d.created_at,
+      };
+    });
+
+  const merged = [...txRows, ...pendingDepRows].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
+  let filtered = merged;
+  const activeFilter = normalizeFilter(filter);
+
+  if (activeFilter !== 'all') {
+    filtered = merged.filter(tx => {
+      const type = normalizeTxType(tx.type);
+      if (activeFilter === 'mining') {
+        return (type === 'mining' || type === 'purchase');
+      }
+      return type === activeFilter;
+    });
+  }
+
+  const rows = filtered;
+
+  if (!rows.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="padding:48px;text-align:center;color:#475569;font-size:13px;">
+          📭 No transactions found.
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(tx => `
+    <tr>
+      <td>${escapeHtml(tx.desc)}</td>
+      <td>${tx.coin}</td>
+      <td style="color:${tx.amount.startsWith('+') ? '#22c55e' : '#ef4444'};font-family:'DM Mono',monospace;">${tx.amount}</td>
+      <td style="font-family:'DM Mono',monospace;color:#94a3b8;">${tx.usd}</td>
+      <td>${_statusBadge(tx.status)}</td>
+      <td style="color:#94a3b8;">${tx.date}</td>
+    </tr>
+  `).join('');
+}
+
+function _txLabel(type) {
+  const t = String(type || '').toLowerCase();
+  const map = {
+    mining:      'Mining Reward',
+    deposit:     'Deposit',
+    deposits:    'Deposit',
+    withdrawal:  'Withdrawal',
+    withdrawals: 'Withdrawal',
+    purchase:    'Mining Plan Purchase',
+    purchases:   'Mining Plan Purchase',
+    referral:    'Referral Bonus',
+    transfer:    'Transfer',
+  };
+  return map[t] || type || '—';
+}
+
+function _fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function _statusBadge(s) {
+  const map = {
+    success:  { bg: 'rgba(34,197,94,.15)',  fg: '#22c55e', label: 'Success'  },
+    approved: { bg: 'rgba(34,197,94,.15)',  fg: '#22c55e', label: 'Approved' },
+    pending:  { bg: 'rgba(245,158,11,.15)',  fg: '#f59e0b', label: 'Pending'  },
+    rejected: { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Rejected' },
+    failed:   { bg: 'rgba(239,68,68,.15)',   fg: '#ef4444', label: 'Failed'   },
+  };
+  const st = map[String(s).toLowerCase()] || { bg: 'rgba(148,163,184,.15)', fg: '#94a3b8', label: s || '—' };
+  return `<span style="background:${st.bg};color:${st.fg};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${st.label}</span>`;
+}
+
+function wireTransactionFilters() {
+  document.querySelectorAll('[data-tx-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-tx-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTransactions(btn.dataset.txFilter);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — RECENT ACTIVITY
+══════════════════════════════════════════════════════════════ */
+function renderRecentActivity() {
+  const container = $('recentActivityList');
+  if (!container) return;
+
+  const txRows = _allTransactions.map(tx => {
+    const txType = normalizeTxType(tx.type);
+    const symbol = 'USDT';
+    const decimals = 2;
+    const amt = Number(tx.amount || 0);
+    const isOut = amt < 0 || txType === 'withdrawal' || txType === 'purchase';
+    return {
+      icon:   _txIcon(txType),
+      desc:   _txLabel(tx.type),
+      date:   _fmtDate(tx.created_at),
+      amount: (isOut ? '-' : '+') + Math.abs(amt).toFixed(decimals) + ' USDT',
+      isOut:  isOut,
+      createdAt: tx.created_at,
+    };
+  });
+
+  const pendingDepRows = _allDeposits
+    .filter(d => d.status === 'pending')
+    .map(d => {
+      return {
+        icon:   '⏳',
+        desc:   'Deposit (Pending)',
+        date:   _fmtDate(d.created_at),
+        amount: '+' + Number(d.amount || 0).toFixed(2) + ' USDT',
+        isOut:  false,
+        createdAt: d.created_at,
+      };
+    });
+
+  const merged = [...txRows, ...pendingDepRows]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
+
+  if (!merged.length) {
+    container.innerHTML = `
+      <div style="padding:32px;text-align:center;color:#475569;font-size:13px;">
+        No activity yet. Make a deposit to get started.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = merged.map(item => `
+    <div class="rig-card" style="margin-bottom:8px;">
+      <div class="tx-icon ${item.isOut ? 'out' : 'in'}">${item.icon}</div>
+      <div class="rig-info">
+        <div class="rig-name">${escapeHtml(item.desc)}</div>
+        <div class="rig-specs">${item.date}</div>
+      </div>
+      <div class="rig-metrics">
+        <div class="rig-hash" style="color:${item.isOut ? 'var(--red)' : 'var(--green)'}">${item.amount}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function _txIcon(type) {
+  const t = String(type || '').toLowerCase();
+  const map = {
+    mining:      '⛏️',
+    deposit:     '📥',
+    deposits:    '📥',
+    withdrawal:  '📤',
+    withdrawals: '📤',
+    purchase:    '⛏️',
+    purchases:   '⛏️',
+    referral:    '👥',
+    transfer:    '↔️',
+  };
+  return map[t] || '💱';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — CONTRACTS
+══════════════════════════════════════════════════════════════ */
+function renderContracts(contracts) {
+  const container = $('contractsContainer');
+  if (!container) return;
+
+  const summary = getMiningSummary(contracts);
+  const active = summary.activeContracts;
+  window._activeContracts = active; // 👈 modal ke liye store kar rahe hain
+  updateMiningCardStates(summary);
+
+  if (!active.length) {
+    container.innerHTML = `
+      <div style="padding:40px;text-align:center;color:#475569;font-size:14px;">
+        <div style="font-size:36px;margin-bottom:12px;">⛏️</div>
+        <div style="font-weight:600;color:#64748b;margin-bottom:6px;">No active contracts</div>
+        <div style="font-size:13px;">Purchase a mining plan below to start earning.</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = active.map(c => {
+    const progress    = getContractProgressPercent(c);
+    const remaining   = getContractRemainingDays(c);
+    const daysLeft    = remaining != null ? remaining + ' days left' : 'Unlimited';
+    const liveHashrate = getLiveHashrateForContract(c);
+    const hashrate    = liveHashrate > 0 ? liveHashrate.toFixed(1) + ' TH/s' : '—';
+    const dailyProfit = getContractDailyProfitUsd(c) > 0
+      ? '$ ' + getContractDailyProfitUsd(c).toFixed(2) + ' USDT'
+      : '—';
+    const planName    = c.plan || c.name || 'Mining Contract';
+
+    return `
+      <div class="rig-card plan-contract-card" style="margin-bottom:12px;" onclick="window.location.href='plan-detail.html?contract=${c.id}'">
+        <div class="tx-icon mining">⛏️</div>
+        <div class="rig-info">
+          <div class="rig-name">${planName}</div>
+          <div class="rig-specs">${hashrate} · ${daysLeft}</div>
+        </div>
+        <div class="rig-metrics">
+          <div class="rig-hash" style="color:var(--green)">${dailyProfit}/day</div>
+          <div class="text-xs text-muted">${progress.toFixed(0)}% complete</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — MINING TAB STATS
+══════════════════════════════════════════════════════════════ */
+function renderMiningStats(contracts) {
+  const summary = getMiningSummary(contracts);
+
+  setText('miningStatHashrate',  summary.totalHashrate > 0 ? summary.totalHashrate.toFixed(1) + ' TH/s' : '0 TH/s');
+  setText('miningStatPower',     summary.totalPower > 0 ? summary.totalPower.toFixed(0) + ' W' : '0 W');
+  setText('miningStatDaily',     '$ ' + summary.dailyProfit.toFixed(2) + ' USDT');
+  setText('miningStatMonthly',   '$ ' + summary.monthlyProjection.toFixed(2) + ' USDT');
+  setText('miningStatEfficiency', summary.totalHashrate > 0 ? summary.efficiency.toFixed(3) + ' USDT/TH' : '—');
+
+  updateMiningCardStates(summary);
+  renderContractProgress(summary.activeContracts);
+}
+
+function renderContractProgress(active) {
+  const container = $('contractProgressContainer');
+  if (!container) return;
+
+  if (!active.length) {
+    container.innerHTML = `
+      <div style="padding:24px;text-align:center;color:#475569;font-size:13px;">
+        No active contracts to display.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = active.map(c => {
+    const progress = getContractProgressPercent(c);
+    const remaining = getContractRemainingDays(c);
+    const daysLeft = remaining != null ? remaining + ' days left' : 'Unlimited';
+    const planName = c.plan || c.name || 'Contract';
+    const liveHashrate = getLiveHashrateForContract(c);
+    const hashrate = liveHashrate > 0 ? liveHashrate.toFixed(1) : '—';
+    return `
+      <div style="margin-bottom:16px;">
+        <div class="progress-label">
+          <span>${planName}</span>
+          <span>${daysLeft}</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${progress}%"></div>
+        </div>
+        <div class="text-xs text-muted mt-4">${progress.toFixed(0)}% complete · ${hashrate} TH/s</div>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — WALLET SUMMARY
+══════════════════════════════════════════════════════════════ */
+function renderWalletSummary() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return;
+
+  const txns = _allTransactions;
+
+  const totalDeposited  = txns.filter(t => normalizeTxType(t.type) === 'deposit')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+  const totalWithdrawn  = txns.filter(t => normalizeTxType(t.type) === 'withdrawal')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+  const miningIncome    = txns.filter(t => normalizeTxType(t.type) === 'mining')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+  const referralBonuses = txns.filter(t => t.type === 'referral')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  setText('walletTotalDeposited',  '$ ' + totalDeposited.toFixed(2) + ' USDT');
+  setText('walletTotalWithdrawn',  '$ ' + totalWithdrawn.toFixed(2) + ' USDT');
+  setText('walletMiningIncome',    '$ ' + miningIncome.toFixed(2) + ' USDT');
+  setText('walletReferralBonuses', '$ ' + referralBonuses.toFixed(2) + ' USDT');
+  setText('walletTotalMinedEarnings', '$ ' + miningIncome.toFixed(2) + ' USDT');
+  setText('walletTotalReferralEarnings', '$ ' + referralBonuses.toFixed(2) + ' USDT');
+
+  const profile    = Auth.getProfile();
+  const usdtBalance = toUsdt(profile.usdt_balance);
+  setText('walletBTCAmount', usdtBalance.toFixed(2) + ' USDT');
+  setText('walletUSDTAmount', usdtBalance.toFixed(2) + ' USDT');
+  setText('walletUSDTBalance', usdtBalance.toFixed(2) + ' USDT');
+  setText('portfolioUSDTusd', '$' + usdtBalance.toFixed(2));
+  setText('portfolioSubLabel', '≈ ' + usdtBalance.toFixed(2) + ' USDT');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI — EARNINGS CHART
+══════════════════════════════════════════════════════════════ */
+function initEarningsChart(transactions) {
+  const canvas = $('earningsChart');
+  if (!canvas) return;
+
+  const now    = new Date();
+  const days   = 12;
+  const buckets = {};
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    buckets[key] = 0;
+  }
+
+  transactions
+    .filter(t => normalizeTxType(t.type) === 'mining')
+    .forEach(t => {
+      const key = t.created_at?.slice(0, 10);
+      if (key && key in buckets) {
+        buckets[key] += Number(t.amount || 0);
+      }
+    });
+
+  const labels = Object.keys(buckets);
+  const data   = Object.values(buckets);
+  const hasData = data.some(v => v > 0);
+
+  const total12d = data.reduce((s, v) => s + v, 0);
+  const earningDays = data.filter(v => v > 0).length;
+  // Average only across days that actually earned mining rewards.
+  const avgDaily = earningDays > 0 ? total12d / earningDays : 0;
+  const bestDay  = Math.max(...data);
+  setText('chartTotal12d', hasData ? '$ ' + total12d.toFixed(2) + ' USDT' : '$ 0.00 USDT');
+  setText('chartAvgDaily', hasData ? '$ ' + avgDaily.toFixed(2) + ' USDT' : '$ 0.00 USDT');
+  setText('chartBestDay',  hasData ? '$ ' + bestDay.toFixed(2) + ' USDT' : '$ 0.00 USDT');
+
+  if (!hasData) {
+    _drawEmptyChart(canvas, 'No mining earnings yet');
+    return;
+  }
+
+  _drawLineChart(canvas, data, '#f59e0b', 'rgba(245,158,11,0.25)');
+}
+
+function initHashrateChart(contracts) {
+  const canvas = $('hashrateChart');
+  if (!canvas) return;
+
+  const summary = getMiningSummary(contracts);
+  const active = summary.activeContracts;
+  if (!active.length) {
+    _drawEmptyChart(canvas, 'No active contracts');
+    setText('hashrateStatPeak', '—');
+    setText('hashrateStatAvg',  '—');
+    setText('hashrateStatEff',  '—');
+    return;
+  }
+
+  const liveData = getLiveHashrateSeries(active, 24);
+  const peakHash = Math.max(...liveData);
+  const avgHash = liveData.reduce((sum, value) => sum + value, 0) / liveData.length;
+
+  _drawLineChart(canvas, liveData, '#22c55e', 'rgba(34,197,94,0.2)', { moodZones: true });
+
+  setText('hashrateStatPeak', peakHash.toFixed(1) + ' TH/s');
+  setText('hashrateStatAvg',  avgHash.toFixed(1) + ' TH/s');
+  setText('hashrateStatEff',  summary.efficiency.toFixed(3) + ' USDT/TH');
+}
+
+function initDonut(profile) {
+  const canvas = $('donutChart');
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  if (!ctx) return;
+  const size = 120;
+  canvas.width = size;
+  canvas.height = size;
+  const cx = size / 2, cy = size / 2, r = 44, rw = 16;
+
+  const usdt = toUsdt(profile.usdt_balance);
+  const total  = usdt;
+
+  if (total <= 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r - rw, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(30,45,69,0.5)';
+    ctx.fill();
+    ctx.fillStyle = '#64748b'; ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Empty', cx, cy);
+    return;
+  }
+
+  const segments = [];
+  if (usdt > 0) segments.push({ pct: 1, color: '#26a17b' });
+
+  let start = -Math.PI / 2;
+  segments.forEach(seg => {
+    const angle = seg.pct * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, start, start + angle);
+    ctx.arc(cx, cy, r - rw, start + angle, start, true);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    start += angle + 0.03;
+  });
+
+  ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('USDT', cx, cy - 6);
+  ctx.font = '10px Arial'; ctx.fillStyle = '#94a3b8';
+  ctx.fillText('$ ' + usdt.toFixed(2), cx, cy + 8);
+}
+
+function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width  = canvas.offsetWidth || 400;
+  const h = canvas.height = 160;
+  const max   = Math.max(...data);
+  const min   = Math.min(...data);
+  const range = max - min || Math.abs(max) || 0.0000001;
+
+  const getX = i => (i / (data.length - 1)) * (w - 40) + 20;
+  const getY = v => h - 20 - ((v - min) / range) * (h - 50);
+
+  if (options.moodZones) {
+    const top = 20;
+    const height = h - 40;
+    const bandHeight = height / 3;
+    const zones = [
+      { y: top, fill: 'rgba(34,197,94,0.06)', stroke: 'rgba(34,197,94,0.15)' },
+      { y: top + bandHeight, fill: 'rgba(245,158,11,0.06)', stroke: 'rgba(245,158,11,0.12)' },
+      { y: top + bandHeight * 2, fill: 'rgba(239,68,68,0.05)', stroke: 'rgba(239,68,68,0.12)' },
+    ];
+    zones.forEach(zone => {
+      ctx.fillStyle = zone.fill;
+      ctx.fillRect(20, zone.y, w - 40, bandHeight);
+      ctx.strokeStyle = zone.stroke;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(20, zone.y);
+      ctx.lineTo(w - 20, zone.y);
+      ctx.stroke();
+    });
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.beginPath();
+    ctx.moveTo(20, top + height);
+    ctx.lineTo(w - 20, top + height);
+    ctx.stroke();
+  }
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, fillColor);
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+  ctx.beginPath();
+  ctx.moveTo(getX(0), h - 20);
+  data.forEach((v, i) => ctx.lineTo(getX(i), getY(v)));
+  ctx.lineTo(getX(data.length - 1), h - 20);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  data.forEach((v, i) => { i === 0 ? ctx.moveTo(getX(i), getY(v)) : ctx.lineTo(getX(i), getY(v)); });
+  ctx.stroke();
+
+  if (data.length <= 24) {
+    data.forEach((v, i) => {
+      ctx.beginPath();
+      ctx.arc(getX(i), getY(v), 3, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+      ctx.strokeStyle = '#1a2236';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }
+}
+
+function _drawEmptyChart(canvas, label) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width  = canvas.offsetWidth || 400;
+  const h = canvas.height = 160;
+  ctx.strokeStyle = 'rgba(30,45,69,0.5)';
+  ctx.lineWidth   = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = 20 + (i * (h - 40) / 3);
+    ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(w - 20, y); ctx.stroke();
+  }
+  ctx.fillStyle    = '#475569';
+  ctx.font         = '13px sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, w / 2, h / 2);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PORTFOLIO TOTAL VALUE
+══════════════════════════════════════════════════════════════ */
+function updatePortfolioValue() {
+  const profile  = Auth.getProfile();
+  const usdt     = toUsdt(profile.usdt_balance);
+  const str      = '$' + usdt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USDT';
+  setText('walletBalanceUSD', str);
+  setText('portfolioTotalUSD', str);
+}
+
+function setSidebarOpen(isOpen) {
+  const sidebar = $('sidebar');
+  const overlay = $('sidebarOverlay');
+  if (!sidebar || !overlay) return;
+  sidebar.classList.toggle('open', !!isOpen);
+  overlay.classList.toggle('open', !!isOpen);
+  document.body.classList.toggle('sidebar-open', !!isOpen);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TAB NAVIGATION
+══════════════════════════════════════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t  => { t.style.display = 'none'; });
+  document.querySelectorAll('.nav-item').forEach(a    => { a.classList.remove('active'); });
+
+  const tab     = $('tab-' + name);
+  const navItem = $('nav-' + name);
+  if (tab)     tab.style.display = '';
+  if (navItem) navItem.classList.add('active');
+
+  const titles = {
+    dashboard:    'Dashboard',
+    mining:       'Mining',
+    wallet:       'Wallet',
+    transactions: 'Transactions',
+    plans:        'Mining Plans',
+    referral:     'Referral Program',
+    settings:     'Settings',
+  };
+  setText('pageTitle', titles[name] || name);
+
+  if (name === 'transactions') {
+    Notifications.markRead(null, ['deposit','withdrawal','mining','purchase','referral']);
+  }
+
+  setSidebarOpen(false);
+}
+
+/* ─── SIDEBAR TOGGLE ─────────────────────────────────────── */
+function toggleSidebar() {
+  const sidebar = $('sidebar');
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.contains('open');
+  setSidebarOpen(!isOpen);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODAL HELPERS
+══════════════════════════════════════════════════════════════ */
+function openModal(id) {
+  const modal = $(id);
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+  }
+}
+function closeModal(id) {
+  const modal = $(id);
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove('open');
+  }
+}
+
+function openDepositModal()   { openModal('depositModal'); }
+function openWithdrawModal()  { openModal('withdrawModal'); }
+
+/* ══════════════════════════════════════════════════════════════
+   PURCHASE PLAN — WITH CONFIRMATION
+══════════════════════════════════════════════════════════════ */
+let _pendingPurchase = null;
+
+/* ══════════════════════════════════════════════════════════════
+   PLAN DETAIL MODAL  —  Live 24h Payout Timer
+══════════════════════════════════════════════════════════════ */
+let _planDetailTimerInterval = null;
+
+function openPlanDetailModal(contractId) {
+  const contract = (window._activeContracts || []).find(c => c.id === contractId || c.id == contractId);
+  if (!contract) { Toast.show('Contract not found', 'error'); return; }
+  if (isContractExpired(contract)) { Toast.show('This contract has expired.', 'warning'); return; }
+
+  // Purana timer band karo
+  if (_planDetailTimerInterval) { clearInterval(_planDetailTimerInterval); _planDetailTimerInterval = null; }
+
+  const modal = $('planDetailModal');
+  const body  = $('planDetailBody');
+  const title = $('planDetailTitle');
+  if (!modal || !body) return;
+
+  const planName      = escapeHtml(contract.plan || contract.name || 'Mining Contract');
+  const hashrate      = contract.hashrate != null ? Number(contract.hashrate).toFixed(1) + ' TH/s' : '—';
+  const dailyProfit   = getContractDailyProfitUsd(contract);
+  const dailyProfitStr= dailyProfit > 0 ? '$ ' + dailyProfit.toFixed(2) + ' USDT' : '—';
+  const progress      = getContractProgressPercent(contract);
+  const remainingDays = getContractRemainingDays(contract);
+  const daysLeft      = remainingDays != null ? remainingDays + ' days' : 'Unlimited';
+  const durationDays  = getContractDurationDays(contract);
+
+  const startDate     = contract.created_at ? new Date(contract.created_at) : new Date();
+  const startDateStr  = startDate.toLocaleDateString('en-US', { day:'numeric', month:'short', year:'numeric' });
+  const startTimeStr  = startDate.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+
+  const now           = new Date();
+  const msPerDay      = 24 * 60 * 60 * 1000;
+  const elapsedMs     = now - startDate;
+  const daysActive    = Math.max(0, Math.min(elapsedMs / msPerDay, durationDays || elapsedMs / msPerDay));
+  const totalEarned   = Number.isFinite(Number(contract.total_earned))
+    ? Number(contract.total_earned)
+    : dailyProfit * daysActive;
+  const totalEarnedStr= totalEarned > 0 ? '$ ' + totalEarned.toFixed(2) + ' USDT' : '$ 0.00 USDT';
+  const totalEarnedUSD= '$' + totalEarned.toFixed(2) + ' USDT';
+  const durationText  = durationDays ? 'Duration: ' + durationDays + ' days' : 'Duration: —';
+
+  title.textContent = planName + ' Plan';
+
+  body.innerHTML = `
+    <div class="plan-detail-body">
+      <div class="plan-detail-top">
+        <div class="plan-detail-icon-large">⛏️</div>
+        <div class="plan-detail-status-badge ${contract.active ? 'active' : 'inactive'}">${contract.active ? '● Active' : 'Inactive'}</div>
+      </div>
+
+      <div class="plan-detail-grid">
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">🚀 Started On</div>
+          <div class="plan-detail-cell-value">${startDateStr}</div>
+          <div class="plan-detail-cell-sub">${startTimeStr}</div>
+        </div>
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">📅 Days Active</div>
+          <div class="plan-detail-cell-value">${Math.floor(daysActive)}</div>
+          <div class="plan-detail-cell-sub">days running</div>
+        </div>
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">⏳ Days Left</div>
+          <div class="plan-detail-cell-value">${daysLeft}</div>
+          <div class="plan-detail-cell-sub">remaining</div>
+        </div>
+        <div class="plan-detail-cell">
+          <div class="plan-detail-cell-label">💰 Total Earned</div>
+          <div class="plan-detail-cell-value gold">${totalEarnedStr}</div>
+          <div class="plan-detail-cell-sub">${totalEarnedUSD}</div>
+        </div>
+      </div>
+
+      <div class="plan-detail-timer-box">
+        <div class="plan-detail-timer-header">
+          <span class="plan-detail-timer-icon">⏱️</span>
+          <span>Next Payout Timer (24h Cycle)</span>
+        </div>
+        <div class="plan-detail-timer-display" id="planDetailTimer">00:00:00</div>
+        <div class="plan-detail-timer-info">
+          <span>Daily Earnings</span>
+          <span class="plan-detail-timer-amount">${dailyProfitStr}</span>
+          <span style="font-size:12px;">${durationText}</span>
+        </div>
+      </div>
+
+      <div class="plan-detail-progress-wrap">
+        <div class="plan-detail-progress-label">
+          <span>Contract Progress</span>
+          <span>${progress.toFixed(0)}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${progress}%"></div>
+        </div>
+        <div class="plan-detail-progress-meta">
+          <span>${hashrate}</span>
+          <span>${dailyProfitStr} / day</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openModal('planDetailModal');
+
+  // 🔥 Live timer start — har second update hoga
+  _planDetailTimerInterval = setInterval(() => _updatePlanDetailTimer(contract), 1000);
+  _updatePlanDetailTimer(contract); // immediate first run
+}
+
+function _updatePlanDetailTimer(contract) {
+  if (isContractExpired(contract)) {
+    const timerEl = $('planDetailTimer');
+    if (timerEl) timerEl.textContent = '00:00:00';
+    return;
+  }
+
+  const now     = new Date();
+  const nextPayout = contract?.next_payout_at ? new Date(contract.next_payout_at) : new Date((contract.last_payout_at ? new Date(contract.last_payout_at) : new Date(contract.created_at || Date.now())).getTime() + 24 * 60 * 60 * 1000);
+  const timeUntil   = Math.max(0, nextPayout - now);
+
+  const hours   = Math.floor(timeUntil / (60 * 60 * 1000));
+  const minutes = Math.floor((timeUntil % (60 * 60 * 1000)) / (60 * 1000));
+  const seconds = Math.floor((timeUntil % (60 * 1000)) / 1000);
+
+  const timerEl = $('planDetailTimer');
+  if (timerEl) {
+    timerEl.textContent =
+      String(hours).padStart(2, '0') + ':' +
+      String(minutes).padStart(2, '0') + ':' +
+      String(seconds).padStart(2, '0');
+  }
+}
+
+function closePlanDetailModal() {
+  if (_planDetailTimerInterval) {
+    clearInterval(_planDetailTimerInterval);
+    _planDetailTimerInterval = null;
+  }
+  closeModal('planDetailModal');
+}
+
+function purchasePlan(planName, priceUsd, hashrate, dailyUsd = null, durationDays = null) {
+  const modal = $('purchaseModal');
+  const body  = $('purchaseModalBody');
+  if (!modal || !body) return;
+
+  const plan = getPlanConfig(planName);
+  const price = getPlanPriceUsd(planName, priceUsd) ?? Number(priceUsd) ?? 0;
+  const hash  = getPlanHashrate(planName, hashrate) ?? Number(hashrate) ?? 0;
+  const days  = getPlanDurationDays(planName, durationDays) ?? Number(durationDays) ?? 0;
+  const dailyFallback = Number(dailyUsd);
+  const rate  = getPlanMonthlyRate(planName, plan?.monthlyRate)
+    || (price > 0 && Number.isFinite(dailyFallback) && dailyFallback > 0 ? (dailyFallback * 30) / price : 0);
+  const daily = price > 0 && rate > 0 ? (price * rate) / 30 : (Number.isFinite(dailyFallback) && dailyFallback > 0 ? dailyFallback : getPlanDailyProfitUsd(planName, price));
+  const monthly = getPlanMonthlyProfitUsd(planName, price);
+  const daysText = days ? `${days} Days` : 'Unlimited';
+  const icon  = plan?.icon || '⛏️';
+  const color = plan?.color || 'var(--gold)';
+
+  body.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:48px;margin-bottom:8px;">${icon}</div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;">${planName} Plan</div>
+      <div style="color:var(--text-muted);font-size:14px;">${hash} TH/s · ${daysText}</div>
+    </div>
+    <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Price</span><span style="font-weight:700;">$${price.toLocaleString('en-US')}</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Hashrate</span><span style="font-weight:700;">${hash} TH/s</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Duration</span><span style="font-weight:700;color:${color};">${daysText}</span></div>
+      <div class="flex justify-between" style="margin-bottom:10px;"><span style="color:var(--text-muted);">Daily Profit</span><span style="font-weight:700;color:${color};">~$${daily.toFixed(2)} USDT</span></div>
+      <div class="flex justify-between"><span style="color:var(--text-muted);">Est. Monthly</span><span style="font-weight:700;color:var(--gold);">~$${monthly.toFixed(2)} USDT</span></div>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('purchaseModal')">Cancel</button>
+      <button class="btn btn-primary btn-full" onclick="confirmPurchase()">Confirm Purchase</button>
+    </div>
+  `;
+
+  _pendingPurchase = { planName, priceUsd: price, hashrate: hash, daily, days, monthlyRate: rate };
+  openModal('purchaseModal');
+}
+
+async function confirmPurchase() {
+  if (!_pendingPurchase) return;
+  const { planName, priceUsd, hashrate, daily, days, monthlyRate } = _pendingPurchase;
+  closeModal('purchaseModal');
+  _pendingPurchase = null;
+  await _executePurchase(planName, priceUsd, hashrate, daily, days, monthlyRate);
+}
+
+async function _executePurchase(planName, priceUsd, hashrate, dailyUsd = null, durationDays = null, monthlyRate = null) {
+  const latestProfile = await Auth.refreshProfile();
+  const balance = toUsdt(latestProfile?.usdt_balance);
+  const cost    = toUsdt(priceUsd);
+  const plan    = getPlanConfig(planName);
+  const rate    = Number.isFinite(Number(monthlyRate)) ? Number(monthlyRate) : getPlanMonthlyRate(planName, plan?.monthlyRate);
+  const daily   = cost > 0 && rate > 0 ? (cost * rate) / 30 : (Number.isFinite(Number(dailyUsd)) ? Number(dailyUsd) : getPlanDailyProfitUsd(planName, cost));
+  const days    = Number.isFinite(Number(durationDays)) ? Number(durationDays) : getPlanDurationDays(planName, plan?.durationDays);
+
+  if (balance < cost) {
+    Toast.show(
+      `Insufficient USDT balance. You need $${cost.toFixed(2)} but have $${balance.toFixed(2)}.`,
+      'error', 5000
+    );
+    return;
+  }
+
+  if (!_supabase) { Toast.show('Service unavailable.', 'error'); return; }
+
+  const user = Auth.getUser();
+  if (!user) { Toast.show('Auth error. Please log in again.', 'error'); return; }
+
+  try {
+    console.log('[CryptoVault] contract creation started', { planName, cost, hashrate, daily, days, monthlyRate });
+    Toast.show('Processing…', 'info', 2000);
+
+  const contractPayload = {
+      user_id:        user.id,
+      plan:           planName,
+      plan_price:     cost,
+      hashrate:       Number(hashrate),
+      active:         true,
+      daily_profit:   daily,
+      progress:       0,
+      last_payout_at: null,
+      next_payout_at: new Date(Date.now() + (24 * 60 * 60 * 1000)).toISOString(),
+      total_earned:   0,
+      created_at:     new Date().toISOString(),
+    };
+
+    const { data: contractRow, error: contractErr } = await _supabase
+      .from('contracts')
+      .insert(contractPayload)
+      .select()
+      .single();
+    if (contractErr) throw contractErr;
+    console.log('[CryptoVault] contract insert success', contractRow?.id || 'ok');
+
+    const transactionPayload = {
+      user_id:    user.id,
+      type:       'purchase',
+      amount:     cost,
+      coin:       'usdt',
+      status:     'success',
+      created_at: new Date().toISOString(),
+    };
+
+    const { error: txErr } = await _supabase
+      .from('transactions')
+      .insert(transactionPayload);
+    if (txErr) {
+      console.error('Transaction insert failed:', txErr);
+      if (contractRow?.id) {
+        await _supabase.from('contracts').delete().eq('id', contractRow.id).catch(() => {});
+      }
+      throw txErr;
+    }
+    console.log('[CryptoVault] transaction insert success');
+
+    const newBalance = Math.max(0, balance - cost);
+    const { error: balErr } = await _supabase
+      .from('profiles')
+      .update({ usdt_balance: newBalance })
+      .eq('id', user.id);
+    if (balErr) {
+      console.error('Balance update failed:', balErr);
+      await Promise.allSettled([
+        contractRow?.id ? _supabase.from('contracts').delete().eq('id', contractRow.id) : Promise.resolve(),
+        _supabase.from('transactions').delete().eq('user_id', user.id).eq('type', 'purchase').eq('amount', cost).eq('created_at', transactionPayload.created_at),
+      ]);
+      throw balErr;
+    }
+    console.log('[CryptoVault] wallet deduction success');
+
+    Toast.show(`✅ ${planName} Plan activated! ${hashrate} TH/s added.`, 'success', 5000);
+    console.log('[CryptoVault] purchase completed');
+
+    await Auth.refreshProfile();
+    populateUserUI();
+    await refreshAll();
+  } catch (err) {
+    console.error('purchasePlan:', err);
+    Toast.show('Purchase failed: ' + err.message, 'error', 5000);
+  }
+}
+
+function _planDays(name) {
+  return getPlanDurationDays(name);
+}
+
+async function approveDeposit(deposit) {
+  if (!_supabase || !deposit?.id || !deposit?.user_id) {
+    throw new Error('Invalid approveDeposit payload.');
+  }
+  const sessionUser = Auth.getUser();
+  const isAdmin = await window.CVAuthRole?.isAdminUser?.(_supabase, sessionUser);
+  if (!isAdmin) {
+    throw new Error('Forbidden: admin access required.');
+  }
+
+  const coin = String(deposit.coin || '').toLowerCase();
+  const amount = Number(deposit.amount || 0);
+  if (amount <= 0) throw new Error('Invalid deposit amount.');
+
+  const { error: depErr } = await _supabase
+    .from('deposits')
+    .update({ status: 'approved', approved_at: new Date().toISOString() })
+    .eq('id', deposit.id);
+  if (depErr) throw depErr;
+
+  const { data: prof, error: profErr } = await _supabase
+    .from('profiles')
+    .select('usdt_balance')
+    .eq('id', deposit.user_id)
+    .single();
+  if (profErr) throw profErr;
+
+  const usdt = toUsdt(prof?.usdt_balance);
+  const profilePatch = { usdt_balance: usdt + amount };
+
+  const { error: balErr } = await _supabase
+    .from('profiles')
+    .update(profilePatch)
+    .eq('id', deposit.user_id);
+  if (balErr) throw balErr;
+
+  const { error: txErr } = await _supabase
+    .from('transactions')
+    .insert({
+      user_id: deposit.user_id,
+      type: 'deposit',
+      amount: Number(deposit.amount || 0),
+      coin: (deposit.coin || 'usdt').toLowerCase(),
+      status: 'success',
+      created_at: new Date().toISOString(),
+    });
+
+  if (txErr) {
+    console.error('Deposit transaction insert failed:', txErr);
+    alert(txErr.message);
+    throw txErr;
+  }
+  console.log('Deposit transaction saved');
+
+  if (Auth.getUser()?.id === deposit.user_id) {
+    await Auth.refreshProfile();
+    await refreshAll();
+    populateUserUI();
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SAVE SETTINGS
+══════════════════════════════════════════════════════════════ */
+async function saveSettings() {
+  const name  = $('settingName')?.value.trim()  || '';
+  const updates = {};
+  if (name) updates.name = name;
+
+  if (!Object.keys(updates).length) { Toast.show('Nothing to save.', 'info'); return; }
+  const result = await Auth.updateProfile(updates);
+  if (result) {
+    if (name) document.querySelectorAll('.user-name-display').forEach(el => { el.textContent = name; });
+    Toast.show('Settings saved!', 'success');
+  } else {
+    Toast.show('Failed to save settings.', 'error');
+  }
+}
+
+async function changePasswordWithOldPassword(e) {
+  e.preventDefault();
+  if (!_supabase) { Toast.show('Service unavailable.', 'error'); return; }
+
+  const user = Auth.getUser();
+  const oldPassword = String($('oldPassword')?.value || '');
+  const newPassword = String($('newPassword')?.value || '');
+  const confirmNewPassword = String($('confirmNewPassword')?.value || '');
+  const email = user?.email || Auth.getProfile()?.email || '';
+
+  if (!user || !email) { Toast.show('Auth required. Please log in again.', 'error'); return; }
+  if (!oldPassword || !newPassword || !confirmNewPassword) { Toast.show('Please fill all password fields.', 'error'); return; }
+  if (!window.CVAuthRole?.isStrongPassword(newPassword)) { Toast.show(window.CVAuthRole?.passwordPolicyMessage?.() || 'Use a stronger password.', 'error'); return; }
+  if (newPassword !== confirmNewPassword) { Toast.show('New password and confirm password do not match.', 'error'); return; }
+  if (oldPassword === newPassword) { Toast.show('New password must be different from current password.', 'warning'); return; }
+
+  try {
+    const { error: verifyErr } = await _supabase.auth.signInWithPassword({ email, password: oldPassword });
+    if (verifyErr) { Toast.show('Current password is incorrect.', 'error'); return; }
+
+    const { error: updateErr } = await _supabase.auth.updateUser({ password: newPassword });
+    if (updateErr) throw updateErr;
+
+    $('changePasswordForm')?.reset();
+    closeModal('changePasswordModal');
+    Toast.show('Password updated successfully.', 'success', 4500);
+  } catch (err) {
+    Toast.show('Password update failed: ' + (err?.message || 'Unknown error'), 'error', 5000);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WIRE INTERACTIONS
+══════════════════════════════════════════════════════════════ */
+function wireLogout() {
+  document.querySelectorAll('[data-logout]').forEach(el => {
+    el.addEventListener('click', async e => {
+      e.preventDefault();
+      Toast.show('Logging out…', 'info', 1200);
+      setTimeout(() => Auth.logout(), 800);
+    });
+  });
+}
+
+function wireMobileMenu() {
+  const toggle  = $('menuToggle');
+  const sidebar = $('sidebar');
+  if (!toggle || !sidebar) return;
+  toggle.addEventListener('click', () => {
+    toggleSidebar();
+  });
+  $('sidebarOverlay')?.addEventListener('click', () => {
+    setSidebarOpen(false);
+  });
+}
+
+function wireDropdowns() {
+  document.querySelectorAll('[data-dropdown-toggle]').forEach(trigger => {
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      const menu = $(trigger.dataset.dropdownToggle);
+      if (!menu) return;
+      const isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+      if (!isOpen) menu.classList.add('open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+  });
+}
+
+function wireModals() {
+  document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openModal(btn.dataset.modal);
+    });
+  });
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeModal(btn.dataset.closeModal);
+    });
+  });
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.style.display = 'none';
+    });
+  });
+
+  $('withdrawForm')?.addEventListener('submit', submitWithdrawalForm);
+  $('changePasswordForm')?.addEventListener('submit', changePasswordWithOldPassword);
+}
+
+async function submitWithdrawalForm(e) {
+  e.preventDefault();
+  const user = Auth.getUser();
+  const profile = Auth.getProfile();
+  if (!user || !_supabase) { Toast.show('Auth required. Please log in again.', 'error'); return; }
+
+  const address = String($('withdrawAddress')?.value || '').trim();
+  const amount = Number($('withdrawAmount')?.value || 0);
+  const available = Number(profile?.usdt_balance || 0);
+
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) { Toast.show('Enter a valid BEP20 wallet address.', 'error'); return; }
+  if (!Number.isFinite(amount) || amount < 50) { Toast.show('Minimum withdrawal is 50 USDT.', 'error'); return; }
+  if (amount > available) { Toast.show('Insufficient USDT balance.', 'error'); return; }
+  const netAmount = amount * 0.7;
+
+  const { error } = await _supabase.from('withdrawals').insert({
+    user_id: user.id,
+    user_email: user.email || profile?.email || '',
+    coin: 'usdt_bep20',
+    amount,
+    address,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  });
+  if (error) { Toast.show('Withdrawal failed: ' + error.message, 'error', 5000); return; }
+
+  $('withdrawForm')?.reset();
+  closeModal('withdrawModal');
+  Toast.show(`Withdrawal submitted. 30% charge applied, estimated receivable: ${netAmount.toFixed(2)} USDT.`, 'success', 5000);
+  await Notifications.load();
+  await refreshAll();
+}
+
+function wireDepositButtons() {
+  document.querySelectorAll('[data-deposit-btn]').forEach(btn => {
+    btn.addEventListener('click', e => { e.preventDefault(); openDepositModal(); });
+  });
+}
+function wireWithdrawButtons() {
+  document.querySelectorAll('[data-withdraw-btn]').forEach(btn => {
+    btn.addEventListener('click', e => { e.preventDefault(); openWithdrawModal(); });
+  });
+}
+
+function wirePlanButtons() {
+  document.querySelectorAll('.plan-purchase-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const plan  = btn.dataset.plan;
+      const price = btn.dataset.price;
+      const hash  = btn.dataset.hash;
+      const daily = btn.dataset.daily;
+      const days  = btn.dataset.duration;
+      purchasePlan(plan, price, hash, daily, days);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DEPOSIT FORM
+══════════════════════════════════════════════════════════════ */
+function initDepositForm() {
+  const form        = $('depositForm');
+  const coinSelect  = $('depositCoin');
+  const amountInput = $('depositAmount');
+  const amountSuffix = $('amountSuffix');
+  const amountHint   = $('amountHint');
+  const uploadArea   = $('uploadArea');
+  const fileInput    = $('depositScreenshot');
+  const uploadContent = $('uploadContent');
+  const uploadPreview = $('uploadPreview');
+  const previewImage  = $('previewImage');
+  const previewFilename = $('previewFilename');
+  const removePreview   = $('removePreview');
+
+  if (!form) return;
+
+  if (coinSelect) coinSelect.value = 'usdt_bep20';
+  if (amountSuffix) amountSuffix.textContent = 'USDT';
+  if (amountHint)   amountHint.textContent   = 'Minimum deposit: 10 USDT';
+  if (amountInput)  { amountInput.placeholder = '0.00'; amountInput.step = '0.01'; amountInput.min = '10'; }
+
+  if (uploadArea && fileInput) {
+    uploadArea.addEventListener('click', e => {
+      if (!e.target.closest('.preview-remove')) fileInput.click();
+    });
+    ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+      uploadArea.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+    });
+    ['dragenter','dragover'].forEach(ev => {
+      uploadArea.addEventListener(ev, () => uploadArea.classList.add('dragover'));
+    });
+    ['dragleave','drop'].forEach(ev => {
+      uploadArea.addEventListener(ev, () => uploadArea.classList.remove('dragover'));
+    });
+    uploadArea.addEventListener('drop', e => {
+      if (e.dataTransfer.files.length) _handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) _handleFile(fileInput.files[0]);
+    });
+    removePreview?.addEventListener('click', e => {
+      e.stopPropagation();
+      _resetFileInput();
+    });
+  }
+
+  function _handleFile(file) {
+    const valid = ['image/png','image/jpeg','image/jpg','image/gif'];
+    if (!valid.includes(file.type)) { Toast.show('Please upload an image (PNG, JPG, GIF)', 'error'); return; }
+    if (file.size > 5 * 1024 * 1024) { Toast.show('File too large. Max 5MB.', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (previewImage)   previewImage.src = e.target.result;
+      if (previewFilename) previewFilename.textContent = file.name;
+      if (uploadContent)  uploadContent.style.display = 'none';
+      if (uploadPreview)  uploadPreview.style.display = 'flex';
+      uploadArea.classList.add('has-file');
+      Toast.show('Screenshot ready', 'success', 2000);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function _resetFileInput() {
+    if (fileInput)      fileInput.value = '';
+    if (previewImage)   previewImage.src = '';
+    if (uploadContent)  uploadContent.style.display = 'flex';
+    if (uploadPreview)  uploadPreview.style.display = 'none';
+    if (uploadArea)     uploadArea.classList.remove('has-file');
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const coin    = 'usdt_bep20';
+    const amount  = amountInput?.value || '';
+    const txHash  = $('depositTxHash')?.value.trim() || '';
+    const hasFile = fileInput?.files?.length > 0;
+
+    if (!amount || parseFloat(amount)<=0) { Toast.show('Enter a valid amount',             'error'); return; }
+    if (!txHash)                          { Toast.show('Enter the transaction hash',       'error'); return; }
+    if (!hasFile)                         { Toast.show('Upload a payment screenshot',       'error'); return; }
+
+    const user = Auth.getUser();
+    if (!user)     { Toast.show('Auth required. Please log in again.', 'error'); return; }
+    if (!_supabase){ Toast.show('Service unavailable.',                 'error'); return; }
+
+    const file     = fileInput.files[0];
+    const fileExt  = file.name.split('.').pop();
+    const filePath = user.id + '/' + Date.now() + '.' + fileExt;
+
+    Toast.show('⏳ Uploading screenshot…', 'info', 2000);
+
+    const { error: uploadErr } = await _supabase
+      .storage
+      .from('deposit-screenshots')
+      .upload(filePath, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+
+    if (uploadErr) { Toast.show('Upload failed: ' + uploadErr.message, 'error', 5000); return; }
+
+    const { data: urlData } = _supabase
+      .storage
+      .from('deposit-screenshots')
+      .getPublicUrl(filePath);
+
+    const { data: dep, error: insertErr } = await _supabase
+      .from('deposits')
+      .insert({
+        user_id:        user.id,
+        user_email:     user.email,
+        coin:           'usdt_bep20',
+        amount:         parseFloat(amount),
+        tx_hash:        txHash,
+        screenshot_url: urlData?.publicUrl || '',
+        status:         'pending',
+        created_at:     new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      await _supabase.storage.from('deposit-screenshots').remove([filePath]).catch(() => {});
+      Toast.show('Failed to save deposit: ' + insertErr.message, 'error', 5000);
+      return;
+    }
+
+    Toast.show(`✅ Deposit submitted! ${amount} USDT — pending review.`, 'success', 5000);
+
+    if (dep) _allDeposits.unshift(dep);
+    renderTransactions(_currentTxFilter);
+
+    form.reset();
+    _resetFileInput();
+    if (amountSuffix) amountSuffix.textContent = 'USDT';
+    if (amountHint)   amountHint.textContent   = 'Enter the exact amount you sent';
+    closeModal('depositModal');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REFRESH ALL DATA
+══════════════════════════════════════════════════════════════ */
+async function refreshAll() {
+  const [txns, deps, contracts] = await Promise.all([
+    loadTransactions(),
+    loadDeposits(),
+    loadContracts(),
+  ]);
+  _latestContracts = contracts;
+  _allTransactions = txns;
+  _allDeposits     = deps;
+
+  renderTransactions(_currentTxFilter);
+  renderRecentActivity();
+  renderContracts(contracts);
+  renderMiningStats(contracts);
+  renderWalletSummary();
+  updatePortfolioValue();
+  populateDashboardStats(contracts);
+
+  await Notifications.load();
+
+  setTimeout(() => {
+    initEarningsChart(txns);
+    initHashrateChart(contracts);
+    initDonut(Auth.getProfile());
+  }, 120);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NOTIFICATIONS MODULE
+══════════════════════════════════════════════════════════════ */
+const Notifications = (() => {
+  let _notifications = [];
+
+  async function load() {
+    const user = Auth.getUser();
+    if (!user || !_supabase) return [];
+    const { data, error } = await _supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) { console.error('loadNotifications:', error); return []; }
+    _notifications = data || [];
+    render();
+    updateBadge();
+    return _notifications;
+  }
+
+  function render() {
+    const list = $('notificationList');
+    if (!list) return;
+
+    if (!_notifications.length) {
+      list.innerHTML = `<div style="padding:32px;text-align:center;color:#475569;font-size:13px;">📭 No notifications yet.</div>`;
+      return;
+    }
+
+    const typeColors = {
+      success: '#22c55e', warning: '#f97316', error: '#ef4444', info: '#3b82f6',
+      deposit: '#22c55e', withdrawal: '#ef4444', mining: '#f59e0b', purchase: '#3b82f6',
+      announcement: '#8b5cf6', referral: '#8b5cf6',
+    };
+    const icons = {
+      success: '✅', warning: '⚠️', error: '❌', info: '💡',
+      deposit: '📥', withdrawal: '📤', mining: '⛏️', purchase: '🛒',
+      announcement: '📢', referral: '👥',
+    };
+
+    list.innerHTML = _notifications.map(n => {
+      const isUnread = !n.is_read;
+      const color = typeColors[n.type] || typeColors.info;
+      const icon = icons[n.type] || '🔔';
+      const preview = escapeHtml(String(n.message || '').replace(/\n/g, ' ').slice(0, 60));
+      const showEllipsis = String(n.message || '').length > 60;
+      return `
+        <div class="notification-item ${isUnread ? 'unread' : ''}" data-notif-id="${n.id}">
+          <div class="notification-dot" style="background:${color};box-shadow:0 0 8px ${color}66;"></div>
+          <div class="notification-content">
+            <div class="notification-title">${icon} ${escapeHtml(n.title) || 'Notification'}</div>
+            <div class="notification-preview">${preview}${showEllipsis ? '…' : ''}</div>
+            <div class="notification-time">${_fmtDate(n.created_at)}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.notification-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.notifId;
+        const notif = _notifications.find(n => n.id === id);
+        if (notif) openNotificationModal(notif);
+        if (id) markRead(id);
+      });
+    });
+  }
+
+  function updateBadge() {
+    const unread = _notifications.filter(n => !n.is_read).length;
+    const badge = $('notifBadge');
+    const txBadge = document.querySelector('#nav-transactions .nav-badge');
+
+    if (badge) {
+      if (unread > 0) {
+        badge.textContent = unread > 99 ? '99+' : String(unread);
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    const txUnread = _notifications.filter(n => !n.is_read && ['deposit','withdrawal','mining','purchase','referral'].includes(n.type)).length;
+    if (txBadge) {
+      if (txUnread > 0) {
+        txBadge.textContent = txUnread > 99 ? '99+' : String(txUnread);
+        txBadge.style.display = 'flex';
+      } else {
+        txBadge.style.display = 'none';
+      }
+    }
+
+    const label = $('notifCountLabel');
+    if (label) label.textContent = unread + ' unread';
+  }
+
+  async function markRead(ids = null, types = null) {
+    const user = Auth.getUser();
+    if (!user || !_supabase) return;
+
+    let query = _supabase.from('notifications').update({ is_read: true });
+
+    if (ids) {
+      query = query.eq('user_id', user.id).in('id', Array.isArray(ids) ? ids : [ids]);
+    } else if (types) {
+      const typeArr = Array.isArray(types) ? types : [types];
+      query = query.eq('user_id', user.id).eq('is_read', false).in('type', typeArr);
+    } else {
+      query = query.eq('user_id', user.id).eq('is_read', false);
+    }
+
+    const { error } = await query;
+    if (error) { console.error('markRead:', error); return; }
+
+    if (ids) {
+      const idArr = Array.isArray(ids) ? ids : [ids];
+      _notifications.forEach(n => { if (idArr.includes(n.id)) n.is_read = true; });
+    } else if (types) {
+      const typeArr = Array.isArray(types) ? types : [types];
+      _notifications.forEach(n => { if (typeArr.includes(n.type)) n.is_read = true; });
+    } else {
+      _notifications.forEach(n => { n.is_read = true; });
+    }
+    render();
+    updateBadge();
+  }
+
+  return { load, render, updateBadge, markRead, getUnread: () => _notifications.filter(n => !n.is_read).length };
+})();
+
+function openNotificationModal(notification) {
+  const old = document.getElementById('notifModal');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'notifModal';
+  modal.className = 'notif-modal';
+  modal.innerHTML = `
+    <div class="notif-modal-overlay">
+      <div class="notif-modal-box">
+        <div class="notif-modal-header">
+          <div class="notif-modal-meta">
+            <span class="notif-modal-icon">${notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : notification.type === 'warning' ? '⚠️' : notification.type === 'deposit' ? '📥' : notification.type === 'withdrawal' ? '📤' : notification.type === 'mining' ? '⛏️' : notification.type === 'purchase' ? '🛒' : notification.type === 'announcement' ? '📢' : notification.type === 'referral' ? '👥' : '🔔'}</span>
+            <h3>${escapeHtml(notification.title) || 'Notification'}</h3>
+          </div>
+          <button class="notif-modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="notif-modal-body">
+          <div class="notif-modal-message">${escapeHtml(notification.message)}</div>
+          <div class="notif-modal-date">${new Date(notification.created_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  requestAnimationFrame(() => {
+    modal.querySelector('.notif-modal-overlay').classList.add('show');
+    modal.querySelector('.notif-modal-box').classList.add('show');
+  });
+
+  const closeModal = () => {
+    const overlay = modal.querySelector('.notif-modal-overlay');
+    const box = modal.querySelector('.notif-modal-box');
+    overlay.classList.remove('show');
+    box.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+  };
+
+  modal.querySelector('.notif-modal-close').addEventListener('click', closeModal);
+  modal.querySelector('.notif-modal-overlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', escHandler);
+    }
+  });
+}
+
+function wireNotificationBell() {
+  const bell = $('notificationBell');
+  if (!bell) return;
+
+  bell.addEventListener('click', () => {
+    requestAnimationFrame(() => {
+      const menu = $('notificationMenu');
+      if (menu && menu.classList.contains('open')) {
+        Notifications.markRead();
+      }
+    });
+  });
+}
+
+function initNotificationRealtime() {
+  if (!_supabase || typeof _supabase.channel !== 'function') return;
+  const userId = Auth.getUser()?.id;
+  if (!userId) return;
+  try {
+    _supabase.channel('user-notifications')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        payload => {
+          if (payload.new && payload.new.user_id === userId) {
+            Notifications.load();
+            Toast.show(payload.new.title || 'New notification', payload.new.type || 'info', 4000);
+          }
+        }
+      )
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') console.log('[Dashboard] Notification realtime subscribed.');
+      });
+  } catch (err) {
+    console.warn('[Dashboard] Notification realtime error:', err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REALTIME SYNC FOR ADMIN CHANGES
+══════════════════════════════════════════════════════════════ */
+function initAdminChangeRealtime() {
+  if (!_supabase || typeof _supabase.channel !== 'function') return;
+  const userId = Auth.getUser()?.id;
+  if (!userId) return;
+
+  try {
+    const channel = _supabase.channel('dashboard-admin-sync');
+
+    channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, payload => {
+      if (payload.new) {
+        console.log('[Dashboard] Profile updated via realtime');
+        Auth.refreshProfile().then(() => {
+          populateUserUI();
+          updatePortfolioValue();
+          renderWalletSummary();
+        });
+      }
+    });
+
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'contracts', filter: `user_id=eq.${userId}` }, () => {
+      console.log('[Dashboard] Contracts updated via realtime');
+      loadContracts().then(contracts => {
+        renderContracts(contracts);
+        renderMiningStats(contracts);
+        populateDashboardStats(contracts);
+        initHashrateChart(contracts);
+      });
+    });
+
+    channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, () => {
+      console.log('[Dashboard] New transaction via realtime');
+      refreshTransactions();
+    });
+
+    channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'deposits', filter: `user_id=eq.${userId}` }, () => {
+      console.log('[Dashboard] Deposit updated via realtime');
+      loadDeposits().then(deps => {
+        _allDeposits = deps;
+        renderTransactions(_currentTxFilter);
+        renderRecentActivity();
+      });
+    });
+
+    channel.subscribe(status => {
+      if (status === 'SUBSCRIBED') console.log('[Dashboard] Admin-sync realtime subscribed.');
+    });
+  } catch (err) {
+    console.warn('[Dashboard] Admin-sync realtime error:', err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN INIT
+══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async () => {
+  window.CVAuthRole?.startSessionInactivityGuard?.(() => Auth.logout(), AUTH_IDLE_TIMEOUT_MS);
+  const ok = await Auth.init();
+  if (!ok) return;
+
+  await populateUserUI();
+  updateDashboardGreeting();
+  setInterval(updateDashboardGreeting, 60 * 1000);
+
+  wireLogout();
+  wireMobileMenu();
+  wireDropdowns();
+  wireModals();
+  wireTransactionFilters();
+  wireDepositButtons();
+  wireWithdrawButtons();
+  wirePlanButtons();
+  wireNotificationBell();
+  initNotificationRealtime();
+  initAdminChangeRealtime();
+
+  initDepositForm();
+  await loadPlanCatalog();
+
+  await refreshAll();
+  startLiveHashrateRefreshLoop();
+  updateBTCPrice();
+
+  BTCPrice.onChange(() => {
+    updatePortfolioValue();
+    renderTransactions(_currentTxFilter);
+  });
+
+  /* Expose globals */
+  window.switchTab          = switchTab;
+  window.toggleSidebar      = toggleSidebar;
+  window.purchasePlan       = purchasePlan;
+  window.confirmPurchase    = confirmPurchase;
+  window.saveSettings       = saveSettings;
+  window.copyToClipboard    = copyToClipboard;
+  window.showToast          = showToast;
+  window.Toast              = Toast;
+  window.BTCPrice           = BTCPrice;
+  window.Auth               = Auth;
+  window.openModal          = openModal;
+  window.closeModal         = closeModal;
+  window.openDepositModal   = openDepositModal;
+  window.openWithdrawModal  = openWithdrawModal;
+  window.approveDeposit     = approveDeposit;
+  window.updateBTCPrice     = updateBTCPrice;
+  window.openPlanDetailModal  = openPlanDetailModal;
+  window.closePlanDetailModal = closePlanDetailModal;
+  window.refreshTransactions = async () => {
+    _allDeposits     = await loadDeposits();
+    _allTransactions = await loadTransactions();
+    renderTransactions(_currentTxFilter);
+  };
+
+  // Escape key se plan detail modal band karo + timer stop karo
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('planDetailModal')?.style.display === 'flex') {
+      closePlanDetailModal();
+    }
+  });
+
+  // Overlay click se bhi timer band karo
+  $('planDetailModal')?.addEventListener('click', e => {
+    if (e.target === $('planDetailModal')) closePlanDetailModal();
+  });
+
+  console.log('CryptoVault dashboard initialized — real data only.');
 });
-
-function closeEntityModal(){ hide('#entityModal'); }
-
-/* --------------------------------------------------------------
-   ?26  PUBLIC EXPORTS
--------------------------------------------------------------- */
-Object.assign(window,{
-  AdminAuth,AdminUI,DepositsModule,WithdrawalsModule,UsersModule,NewUsersModule,OldUsersModule,EditOldUserModule,TransactionsModule,ContractsModule,
-  OverviewModule,PriceService,NotificationsModule,ReferralModule,SecurityLogsModule,GlobalSearch,
-  logAdminAction,closeEntityModal
-});
-
-
-
-
 
