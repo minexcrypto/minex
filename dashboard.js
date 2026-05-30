@@ -94,6 +94,48 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
+function renderReferralDetailsRows(rows = []) {
+  const body = $('referralDetailsBody');
+  if (!body) return;
+
+  if (!Array.isArray(rows) || !rows.length) {
+    body.innerHTML = '<tr><td colspan="5" style="padding:16px 10px;color:var(--text-muted);">No referred users found yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map((row) => {
+    const userId = row?.referred_user_id ? escapeHtml(String(row.referred_user_id)) : '—';
+    const email = row?.email ? escapeHtml(String(row.email)) : '—';
+    const wallet = Number(row?.wallet_balance || 0);
+    const contractCount = Number(row?.contract_count || 0);
+    const isActive = row?.id_active === true;
+    return `
+      <tr style="border-bottom:1px solid rgba(30,45,69,0.45);">
+        <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${userId}</td>
+        <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${email}</td>
+        <td style="padding:12px 10px;font-size:13px;color:var(--green);">$ ${wallet.toFixed(2)} USDT</td>
+        <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${contractCount}</td>
+        <td style="padding:12px 10px;font-size:13px;color:${isActive ? 'var(--green)' : 'var(--red)'};font-weight:600;">${isActive ? 'Active' : 'Inactive'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadReferralDetails() {
+  if (!_supabase) return [];
+  try {
+    const { data, error } = await _supabase.rpc('get_my_referral_details');
+    if (error) {
+      console.warn('[Referral] get_my_referral_details failed:', error.message);
+      return [];
+    }
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn('[Referral] referral details load failed:', err?.message || err);
+    return [];
+  }
+}
+
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
   if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposit';
@@ -851,7 +893,10 @@ async function populateUserUI() {
   }
   setText('refCountEl', referralCount);
   setText('refEarningsEl', '$ ' + refEarnings.toFixed(2) + ' USDT');
-  setText('activeRefEl', referralCount);
+  const referralDetails = await loadReferralDetails();
+  const activeReferrals = referralDetails.filter(row => row?.id_active === true).length;
+  setText('activeRefEl', activeReferrals);
+  renderReferralDetailsRows(referralDetails);
 
   const sName  = $('settingName');
   const sEmail = $('settingEmail');
