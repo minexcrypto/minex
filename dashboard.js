@@ -206,24 +206,31 @@ async function loadReferralDetailsFallback() {
 
     let contractsByUser = {};
     if (referredIds.length) {
+      const profileUserCodes = Object.values(profilesById)
+        .map(p => String(p?.user_id || '').trim())
+        .filter(Boolean);
+      const joinKeys = Array.from(new Set([
+        ...referredIds.map(id => String(id)),
+        ...profileUserCodes,
+      ]));
       const { data: contracts, error: ctrErr } = await _supabase
         .from('contracts')
         .select('user_id, active, plan, created_at')
-        .in('user_id', referredIds);
+        .in('user_id', joinKeys);
       if (ctrErr) {
         console.warn('[Referral] fallback contracts query failed:', ctrErr.message);
       } else {
         contractsByUser = (contracts || []).reduce((acc, c) => {
-          const uid = c?.user_id;
-          if (!uid) return acc;
-          if (!acc[uid]) acc[uid] = { contract_count: 0, id_active: false, contract_plan: null, latest_created_at: null };
-          acc[uid].contract_count += 1;
-          acc[uid].id_active = acc[uid].id_active || c?.active === true;
+          const key = String(c?.user_id || '').trim();
+          if (!key) return acc;
+          if (!acc[key]) acc[key] = { contract_count: 0, id_active: false, contract_plan: null, latest_created_at: null };
+          acc[key].contract_count += 1;
+          acc[key].id_active = acc[key].id_active || c?.active === true;
           const createdAt = c?.created_at ? new Date(c.created_at).getTime() : 0;
-          const latest = acc[uid].latest_created_at ? new Date(acc[uid].latest_created_at).getTime() : 0;
+          const latest = acc[key].latest_created_at ? new Date(acc[key].latest_created_at).getTime() : 0;
           if (createdAt >= latest) {
-            acc[uid].latest_created_at = c?.created_at || null;
-            acc[uid].contract_plan = c?.plan || null;
+            acc[key].latest_created_at = c?.created_at || null;
+            acc[key].contract_plan = c?.plan || null;
           }
           return acc;
         }, {});
@@ -233,7 +240,8 @@ async function loadReferralDetailsFallback() {
     return refs.map(r => {
       const uid = r?.referred_user_id;
       const p = profilesById[uid] || null;
-      const c = contractsByUser[uid] || { contract_count: 0, id_active: false, contract_plan: null };
+      const profileCode = String(p?.user_id || '').trim();
+      const c = contractsByUser[String(uid)] || contractsByUser[profileCode] || { contract_count: 0, id_active: false, contract_plan: null };
       return {
         referred_user_id: uid,
         user_code: String(p?.user_id || p?.ref_code || '').trim() || null,
