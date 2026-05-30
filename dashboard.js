@@ -131,11 +131,84 @@ async function loadReferralDetails() {
     const { data, error } = await _supabase.rpc('get_my_referral_details');
     if (error) {
       console.warn('[Referral] get_my_referral_details failed:', error.message);
-      return [];
+      return await loadReferralDetailsFallback();
     }
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data) && data.length) return data;
+    return await loadReferralDetailsFallback();
   } catch (err) {
     console.warn('[Referral] referral details load failed:', err?.message || err);
+    return await loadReferralDetailsFallback();
+  }
+}
+
+async function loadReferralDetailsFallback() {
+  try {
+    const user = Auth.getUser?.();
+    if (!user?.id || !_supabase) return [];
+
+    const { data: refs, error: refErr } = await _supabase
+      .from('referrals')
+      .select('referred_user_id, earnings, created_at')
+      .eq('referrer_id', user.id)
+      .order('created_at', { ascending: false });
+    if (refErr || !Array.isArray(refs) || !refs.length) {
+      if (refErr) console.warn('[Referral] fallback referrals query failed:', refErr.message);
+      return [];
+    }
+
+    const referredIds = refs
+      .map(r => r?.referred_user_id)
+      .filter(Boolean);
+
+    let profilesById = {};
+    if (referredIds.length) {
+      const { data: profiles, error: profErr } = await _supabase
+        .from('profiles')
+        .select('id, user_id, email, usdt_balance, created_at')
+        .in('id', referredIds);
+      if (profErr) {
+        console.warn('[Referral] fallback profiles query failed:', profErr.message);
+      } else {
+        profilesById = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+      }
+    }
+
+    let contractsByUser = {};
+    if (referredIds.length) {
+      const { data: contracts, error: ctrErr } = await _supabase
+        .from('contracts')
+        .select('user_id, active')
+        .in('user_id', referredIds);
+      if (ctrErr) {
+        console.warn('[Referral] fallback contracts query failed:', ctrErr.message);
+      } else {
+        contractsByUser = (contracts || []).reduce((acc, c) => {
+          const uid = c?.user_id;
+          if (!uid) return acc;
+          if (!acc[uid]) acc[uid] = { contract_count: 0, id_active: false };
+          acc[uid].contract_count += 1;
+          acc[uid].id_active = acc[uid].id_active || c?.active === true;
+          return acc;
+        }, {});
+      }
+    }
+
+    return refs.map(r => {
+      const uid = r?.referred_user_id;
+      const p = profilesById[uid] || null;
+      const c = contractsByUser[uid] || { contract_count: 0, id_active: false };
+      return {
+        referred_user_id: uid,
+        user_code: p?.user_id || null,
+        email: p?.email || null,
+        wallet_balance: Number(p?.usdt_balance || 0),
+        contract_count: Number(c.contract_count || 0),
+        id_active: c.id_active === true,
+        referral_earning: Number(r?.earnings || 0),
+      };
+    });
+  } catch (err) {
+    console.warn('[Referral] fallback load failed:', err?.message || err);
     return [];
   }
 }
