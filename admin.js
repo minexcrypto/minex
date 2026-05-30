@@ -15,12 +15,20 @@
    ?1  SUPABASE CLIENT
 -------------------------------------------------------------- */
 let sb = null;
+const AUTH_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+function assertSafePublicKey(key) {
+  const token = String(key || '').trim();
+  if (!token || /service_role/i.test(token) || /^sb_secret_/i.test(token)) {
+    throw new Error('Unsafe Supabase key configuration.');
+  }
+  return token;
+}
 function initSupabaseClient() {
   const url = window.CRYPTOVAULT_SUPABASE_URL || '';
   const key = window.CRYPTOVAULT_SUPABASE_KEY || '';
   if (!url || !key) { AdminUI.banner('? Supabase credentials missing.', 'error'); return false; }
   if (typeof window.supabase?.createClient !== 'function') { AdminUI.banner('? Supabase SDK not found.', 'error'); return false; }
-  try { sb = window.supabase.createClient(url, key); console.log('[CryptoVault] Supabase client initialized.'); return true; }
+  try { sb = window.supabase.createClient(url, assertSafePublicKey(key)); console.log('[CryptoVault] Supabase client initialized.'); return true; }
   catch (err) { AdminUI.banner('? Supabase init error: ' + err.message, 'error'); return false; }
 }
 
@@ -229,7 +237,7 @@ const AdminAuth = {
       return true;
     }catch{return false;}
   },
-  async login(email,password){ if(!sb || !this._roleAuth)throw new Error('Supabase client not ready.'); const{data,error}=await sb.auth.signInWithPassword({email,password}); if(error)throw new Error(error.message); const role = await this._roleAuth.resolveUserRole(sb, data.user); if(role!=='admin'){await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); throw new Error('Access denied.');} this.user=data.user; this._fillUI(data.user); return data.user; },
+  async login(email,password){ if(!sb || !this._roleAuth)throw new Error('Supabase client not ready.'); const deviceId=localStorage.getItem('cv_auth_device_id')||'admin-browser'; const check=await sb.rpc('auth_precheck_login_attempt',{p_email:String(email||'').toLowerCase(),p_device_id:deviceId}); if(check.error)throw new Error(check.error.message); if(check.data && check.data.allowed===false)throw new Error(`Too many attempts. Try again in ${Math.max(1,Number(check.data.retry_after_seconds||0))}s.`); const{data,error}=await sb.auth.signInWithPassword({email,password}); if(error){ await sb.rpc('auth_record_login_result',{p_email:String(email||'').toLowerCase(),p_device_id:deviceId,p_success:false}); throw new Error(error.message);} if(!data?.user?.email_confirmed_at){ await sb.auth.signOut().catch(()=>{}); throw new Error('Please verify your email before logging in.'); } const role = await this._roleAuth.resolveUserRole(sb, data.user); if(role!=='admin'){await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); throw new Error('Access denied.');} await sb.rpc('auth_record_login_result',{p_email:String(email||'').toLowerCase(),p_device_id:deviceId,p_success:true}); this._roleAuth.touchAuthActivity?.(); this.user=data.user; this._fillUI(data.user); return data.user; },
   async logout(){ if(sb)await sb.auth.signOut().catch(()=>{}); this._roleAuth.clearRole(); this.user=null; window.location.replace('login.html'); },
   _fillUI(user){ setText('#adminUserEmail', user.email||''); },
 };
@@ -1772,6 +1780,7 @@ async function _bootPanel(){
 console.log('[CryptoVault] admin.js enterprise loaded.');
 
 document.addEventListener('DOMContentLoaded',async()=>{
+  window.CVAuthRole?.startSessionInactivityGuard?.(()=>AdminAuth.logout(), AUTH_IDLE_TIMEOUT_MS);
   initNavigation(); initLoginForm(); initModals();
   ensureEditOldUserBulkButton();
   if(!initSupabaseClient()){ show('#adminLoginScreen'); hide('#adminAppShell'); return; }
