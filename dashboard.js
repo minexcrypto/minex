@@ -252,10 +252,10 @@ function normalizeTxType(raw) {
 const PLAN_MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LIVE_HASHRATE_INTERVAL_MS = 5 * 60 * 1000;
 const PLAN_CONFIG_FALLBACK = {
-  starter:  { priceUsd: 500,   hashrate: 10,  durationDays: 1460, monthlyRate: 0.05, icon: '🌱', color: 'var(--green)' },
-  silver:   { priceUsd: 2500,  hashrate: 50,  durationDays: 1095, monthlyRate: 0.10, icon: '🥈', color: 'var(--blue)' },
-  gold:     { priceUsd: 5000,  hashrate: 100, durationDays: 730,  monthlyRate: 0.15, icon: '🥇', color: 'var(--gold)' },
-  platinum: { priceUsd: 10000, hashrate: 300, durationDays: 365,  monthlyRate: 0.20, icon: '💎', color: 'var(--purple)' },
+  starter:  { priceUsd: 500,   hashrate: 10,  durationDays: 1460, monthlyRate: 0.10, icon: '🌱', color: 'var(--green)' },
+  silver:   { priceUsd: 2500,  hashrate: 50,  durationDays: 1095, monthlyRate: 0.15, icon: '🥈', color: 'var(--blue)' },
+  gold:     { priceUsd: 5000,  hashrate: 100, durationDays: 730,  monthlyRate: 0.20, icon: '🥇', color: 'var(--gold)' },
+  platinum: { priceUsd: 10000, hashrate: 300, durationDays: 365,  monthlyRate: 0.25, icon: '💎', color: 'var(--purple)' },
 };
 
 let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
