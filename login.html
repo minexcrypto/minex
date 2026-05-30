@@ -348,18 +348,15 @@
     /* ─── Validate referral code if entered ─── */
     let referredByUserId = null;
     if (refCode) {
-      const { data: refProfile } = await _supabase
-        .from('profiles')
-        .select('id, ref_code')
-        .eq('ref_code', refCode)
-        .single();
-
-      if (!refProfile) {
+      const { data: refMatch, error: refErr } = await _supabase
+        .rpc('resolve_referrer_by_code', { p_ref_code: refCode });
+      const refProfile = Array.isArray(refMatch) ? refMatch[0] : null;
+      if (refErr || !refProfile?.referrer_id) {
         setLoading('registerBtn', false, 'Create Account');
         showMsg('❌ Invalid referral code. Please check and try again.', 'error');
         return;
       }
-      referredByUserId = refProfile.id;
+      referredByUserId = refProfile.referrer_id;
     }
 
     const signUpPayload = {
@@ -394,21 +391,11 @@
 
         /* Persist referral relationship for admin analytics/table views */
         if (referredByUserId) {
-          const { data: existingReferral } = await _supabase
-            .from('referrals')
-            .select('id')
-            .eq('referrer_id', referredByUserId)
-            .eq('referred_user_id', data.user.id)
-            .maybeSingle();
-
-          if (!existingReferral) {
-            await _supabase.from('referrals').insert({
-              referrer_id: referredByUserId,
-              referred_user_id: data.user.id,
-              earnings: 0,
-              created_at: new Date().toISOString()
-            });
-          }
+          await _supabase.rpc('create_referral_link', {
+            p_referrer_id: referredByUserId,
+            p_referred_user_id: data.user.id,
+            p_referral_code: refCode || null
+          });
         }
 
         /* Credit referrer +1 count for profile-based widgets */
