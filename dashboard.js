@@ -841,11 +841,11 @@ async function populateUserUI() {
     try {
       const { data: refs } = await _supabase
         .from('referrals')
-        .select('earnings')
+        .select('id')
         .eq('referrer_id', user.id);
       if (Array.isArray(refs)) {
         referralCount = refs.length;
-        refEarnings = refs.reduce((sum, row) => sum + Number(row?.earnings || 0), 0);
+        refEarnings = Number(profile.ref_earnings) || 0;
       }
     } catch {}
   }
