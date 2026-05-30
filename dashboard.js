@@ -131,9 +131,12 @@ function renderReferralDetailsRows(rows = []) {
 async function loadReferralDetails() {
   if (!_supabase) return [];
   try {
-    const { data, error } = await _supabase.rpc('get_my_referral_details');
+    const user = Auth.getUser?.();
+    const { data, error } = await _supabase.rpc('get_referral_details_for_referrer', {
+      p_referrer_id: user?.id || null,
+    });
     if (error) {
-      console.warn('[Referral] get_my_referral_details failed:', error.message);
+      console.warn('[Referral] get_referral_details_for_referrer failed:', error.message);
       return await loadReferralDetailsFallback();
     }
     if (Array.isArray(data) && data.length) return await enrichReferralUserCodes(data);
