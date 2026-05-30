@@ -111,7 +111,15 @@ function renderReferralDetailsRows(rows = []) {
     const contractCount = Number(row?.contract_count || 0);
     const contractPlanRaw = String(row?.contract_plan || '').trim();
     const contractPlan = contractPlanRaw
-      ? (contractPlanRaw.charAt(0).toUpperCase() + contractPlanRaw.slice(1).toLowerCase())
+      ? contractPlanRaw
+          .split(',')
+          .map((part) => {
+            const token = String(part || '').trim();
+            const match = token.match(/^([a-zA-Z]+)\s+(\d+)$/);
+            if (match) return `${match[1].charAt(0).toUpperCase()}${match[1].slice(1).toLowerCase()} ${match[2]}`;
+            return token.charAt(0).toUpperCase() + token.slice(1);
+          })
+          .join(', ')
       : (contractCount > 0 ? `${contractCount} Contract${contractCount === 1 ? '' : 's'}` : 'No Contract');
     const isActive = row?.id_active === true;
     const earning = Number(row?.referral_earning || 0);
@@ -223,17 +231,23 @@ async function loadReferralDetailsFallback() {
         contractsByUser = (contracts || []).reduce((acc, c) => {
           const key = String(c?.user_id || '').trim();
           if (!key) return acc;
-          if (!acc[key]) acc[key] = { contract_count: 0, id_active: false, contract_plan: null, latest_created_at: null };
+          if (!acc[key]) acc[key] = { contract_count: 0, id_active: false, contract_plan: null, plan_counts: {} };
           acc[key].contract_count += 1;
           acc[key].id_active = acc[key].id_active || c?.active === true;
-          const createdAt = c?.created_at ? new Date(c.created_at).getTime() : 0;
-          const latest = acc[key].latest_created_at ? new Date(acc[key].latest_created_at).getTime() : 0;
-          if (createdAt >= latest) {
-            acc[key].latest_created_at = c?.created_at || null;
-            acc[key].contract_plan = c?.plan || null;
-          }
+          const planKey = String(c?.plan || '').trim().toLowerCase();
+          if (planKey) acc[key].plan_counts[planKey] = Number(acc[key].plan_counts[planKey] || 0) + 1;
           return acc;
         }, {});
+        Object.keys(contractsByUser).forEach((key) => {
+          const planCounts = contractsByUser[key]?.plan_counts || {};
+          const parts = Object.entries(planCounts)
+            .sort((a, b) => {
+              if (b[1] !== a[1]) return b[1] - a[1];
+              return String(a[0]).localeCompare(String(b[0]));
+            })
+            .map(([planName, count]) => `${planName} ${count}`);
+          contractsByUser[key].contract_plan = parts.length ? parts.join(', ') : null;
+        });
       }
     }
 
