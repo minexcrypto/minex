@@ -109,6 +109,10 @@ function renderReferralDetailsRows(rows = []) {
     const email = row?.email ? escapeHtml(String(row.email)) : 'Profile pending';
     const wallet = Number(row?.wallet_balance || 0);
     const contractCount = Number(row?.contract_count || 0);
+    const contractPlanRaw = String(row?.contract_plan || '').trim();
+    const contractPlan = contractPlanRaw
+      ? (contractPlanRaw.charAt(0).toUpperCase() + contractPlanRaw.slice(1).toLowerCase())
+      : (contractCount > 0 ? `${contractCount} Contract${contractCount === 1 ? '' : 's'}` : 'No Contract');
     const isActive = row?.id_active === true;
     const earning = Number(row?.referral_earning || 0);
     return `
@@ -116,7 +120,7 @@ function renderReferralDetailsRows(rows = []) {
         <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${userId}</td>
         <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${email}</td>
         <td style="padding:12px 10px;font-size:13px;color:var(--green);">$ ${wallet.toFixed(2)} USDT</td>
-        <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${contractCount}</td>
+        <td style="padding:12px 10px;font-size:13px;color:var(--text-primary);">${escapeHtml(contractPlan)}</td>
         <td style="padding:12px 10px;font-size:13px;color:${isActive ? 'var(--green)' : 'var(--red)'};font-weight:600;">${isActive ? 'Active' : 'Inactive'}</td>
         <td style="padding:12px 10px;font-size:13px;color:var(--gold);font-weight:600;">$ ${earning.toFixed(2)} USDT</td>
       </tr>
@@ -204,7 +208,7 @@ async function loadReferralDetailsFallback() {
     if (referredIds.length) {
       const { data: contracts, error: ctrErr } = await _supabase
         .from('contracts')
-        .select('user_id, active')
+        .select('user_id, active, plan, created_at')
         .in('user_id', referredIds);
       if (ctrErr) {
         console.warn('[Referral] fallback contracts query failed:', ctrErr.message);
@@ -212,9 +216,15 @@ async function loadReferralDetailsFallback() {
         contractsByUser = (contracts || []).reduce((acc, c) => {
           const uid = c?.user_id;
           if (!uid) return acc;
-          if (!acc[uid]) acc[uid] = { contract_count: 0, id_active: false };
+          if (!acc[uid]) acc[uid] = { contract_count: 0, id_active: false, contract_plan: null, latest_created_at: null };
           acc[uid].contract_count += 1;
           acc[uid].id_active = acc[uid].id_active || c?.active === true;
+          const createdAt = c?.created_at ? new Date(c.created_at).getTime() : 0;
+          const latest = acc[uid].latest_created_at ? new Date(acc[uid].latest_created_at).getTime() : 0;
+          if (createdAt >= latest) {
+            acc[uid].latest_created_at = c?.created_at || null;
+            acc[uid].contract_plan = c?.plan || null;
+          }
           return acc;
         }, {});
       }
@@ -223,13 +233,14 @@ async function loadReferralDetailsFallback() {
     return refs.map(r => {
       const uid = r?.referred_user_id;
       const p = profilesById[uid] || null;
-      const c = contractsByUser[uid] || { contract_count: 0, id_active: false };
+      const c = contractsByUser[uid] || { contract_count: 0, id_active: false, contract_plan: null };
       return {
         referred_user_id: uid,
         user_code: String(p?.user_id || p?.ref_code || '').trim() || null,
         email: p?.email || null,
         wallet_balance: Number(p?.usdt_balance || 0),
         contract_count: Number(c.contract_count || 0),
+        contract_plan: c.contract_plan || null,
         id_active: c.id_active === true,
         referral_earning: Number(r?.earnings || 0),
       };
