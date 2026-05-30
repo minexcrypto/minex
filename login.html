@@ -271,22 +271,39 @@
   }
 
   async function precheckLoginLimit(email) {
-    const { data, error } = await _supabase.rpc('auth_precheck_login_attempt', {
-      p_email: String(email || '').toLowerCase(),
-      p_device_id: getAuthDeviceId(),
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/auth-rate-limit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': safePublicKey
+      },
+      body: JSON.stringify({
+        action: 'precheck',
+        email: String(email || '').toLowerCase(),
+        device_id: getAuthDeviceId()
+      })
     });
-    if (error) throw error;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Rate limit service unavailable.');
     if (!data?.allowed) {
-      const sec = Number(data?.retry_after_seconds || 0);
+      const sec = Number(data.retry_after_seconds || 0);
       throw new Error(`Too many attempts. Try again in ${Math.max(1, sec)}s.`);
     }
   }
 
   async function recordLoginResult(email, success) {
-    await _supabase.rpc('auth_record_login_result', {
-      p_email: String(email || '').toLowerCase(),
-      p_device_id: getAuthDeviceId(),
-      p_success: !!success,
+    await fetch(`${SUPABASE_URL}/functions/v1/auth-rate-limit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': safePublicKey
+      },
+      body: JSON.stringify({
+        action: 'record',
+        email: String(email || '').toLowerCase(),
+        device_id: getAuthDeviceId(),
+        success: !!success
+      })
     });
   }
 
