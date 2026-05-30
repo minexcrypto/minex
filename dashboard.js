@@ -550,11 +550,10 @@ const Auth = (() => {
         .maybeSingle();
       if (existing) return;
 
-      const { error: insertErr } = await _supabase.from('referrals').insert({
-        referrer_id: referrerId,
-        referred_user_id: referredUserId,
-        earnings: 0,
-        created_at: new Date().toISOString(),
+      const { error: insertErr } = await _supabase.rpc('create_referral_link', {
+        p_referrer_id: referrerId,
+        p_referred_user_id: referredUserId,
+        p_referral_code: String(user?.user_metadata?.referrer_code || '').trim().toUpperCase() || null,
       });
       if (insertErr) {
         console.warn('[Referral] insert failed:', insertErr.message, insertErr);
