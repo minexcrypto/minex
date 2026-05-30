@@ -8,10 +8,19 @@
 const SUPABASE_URL = 'https://fwgqydxkdbuzrehqifjw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Pbn_Z0wwsqMUyLWYg3udmQ_MC-Qz1kj';
 let _supabase = null;
+const AUTH_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
+function _assertSafePublicKey(key) {
+  const token = String(key || '').trim();
+  if (!token || /service_role/i.test(token) || /^sb_secret_/i.test(token)) {
+    throw new Error('Unsafe Supabase key configuration.');
+  }
+  return token;
+}
 
 try {
   if (typeof supabase !== 'undefined' && supabase.createClient) {
-    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    _supabase = supabase.createClient(SUPABASE_URL, _assertSafePublicKey(SUPABASE_KEY));
   }
 } catch (err) {
   console.error('Supabase init failed:', err);
@@ -72,6 +81,7 @@ const Auth = (() => {
     try {
       const { data: { session } } = await _supabase.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return false; }
+      if (!session?.user?.email_confirmed_at) { await _supabase.auth.signOut(); window.location.href = 'login.html'; return false; }
       _session = session;
 
       const { data: prof, error } = await _supabase
@@ -671,6 +681,12 @@ function wireLogout() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (window.CVAuthRole?.startSessionInactivityGuard) {
+    window.CVAuthRole.startSessionInactivityGuard(async () => {
+      try { if (_supabase) await _supabase.auth.signOut(); } catch (_) {}
+      window.location.replace('login.html');
+    }, AUTH_IDLE_TIMEOUT_MS);
+  }
   await loadPlanCatalog();
   const ok = await Auth.init();
   if (!ok) return;
