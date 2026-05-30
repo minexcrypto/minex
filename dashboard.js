@@ -106,7 +106,8 @@ function renderReferralDetailsRows(rows = []) {
   body.innerHTML = rows.map((row) => {
     const rawUuid = String(row?.referred_user_id || '').trim();
     const shortUuid = rawUuid ? `${rawUuid.slice(0, 8)}...${rawUuid.slice(-4)}` : '—';
-    const userId = row?.user_code ? escapeHtml(String(row.user_code)) : escapeHtml(shortUuid || 'Pending');
+    const profileUserCode = String(row?.user_code ?? row?.user_id ?? '').trim();
+    const userId = profileUserCode ? escapeHtml(profileUserCode) : escapeHtml(shortUuid || 'Pending');
     const email = row?.email ? escapeHtml(String(row.email)) : 'Profile pending';
     const wallet = Number(row?.wallet_balance || 0);
     const contractCount = Number(row?.contract_count || 0);
@@ -133,11 +134,35 @@ async function loadReferralDetails() {
       console.warn('[Referral] get_my_referral_details failed:', error.message);
       return await loadReferralDetailsFallback();
     }
-    if (Array.isArray(data) && data.length) return data;
+    if (Array.isArray(data) && data.length) return await enrichReferralUserCodes(data);
     return await loadReferralDetailsFallback();
   } catch (err) {
     console.warn('[Referral] referral details load failed:', err?.message || err);
     return await loadReferralDetailsFallback();
+  }
+}
+
+async function enrichReferralUserCodes(rows = []) {
+  try {
+    if (!_supabase || !Array.isArray(rows) || !rows.length) return rows || [];
+    const missing = rows
+      .filter(r => !String(r?.user_code ?? r?.user_id ?? '').trim() && r?.referred_user_id)
+      .map(r => r.referred_user_id);
+    if (!missing.length) return rows;
+
+    const { data: profiles, error } = await _supabase
+      .from('profiles')
+      .select('id, user_id')
+      .in('id', missing);
+    if (error || !Array.isArray(profiles) || !profiles.length) return rows;
+
+    const byId = Object.fromEntries(profiles.map(p => [p.id, p.user_id]));
+    return rows.map(r => ({
+      ...r,
+      user_code: String(r?.user_code ?? r?.user_id ?? '').trim() || byId[r?.referred_user_id] || null,
+    }));
+  } catch {
+    return rows || [];
   }
 }
 
@@ -199,7 +224,7 @@ async function loadReferralDetailsFallback() {
       const c = contractsByUser[uid] || { contract_count: 0, id_active: false };
       return {
         referred_user_id: uid,
-        user_code: p?.user_id || null,
+        user_code: String(p?.user_id || '').trim() || null,
         email: p?.email || null,
         wallet_balance: Number(p?.usdt_balance || 0),
         contract_count: Number(c.contract_count || 0),
