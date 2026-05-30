@@ -149,10 +149,10 @@ const BTCPrice = (() => {
 const MINING_MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LIVE_HASHRATE_INTERVAL_MS = 5 * 60 * 1000;
 const PLAN_CONFIG_FALLBACK = {
-  starter:  { priceUsd: 500,   durationDays: 1460, monthlyRate: 0.05, hashrate: 10 },
-  silver:   { priceUsd: 2500,  durationDays: 1095, monthlyRate: 0.10, hashrate: 50 },
-  gold:     { priceUsd: 5000,  durationDays: 730,  monthlyRate: 0.15, hashrate: 100 },
-  platinum: { priceUsd: 10000, durationDays: 365,  monthlyRate: 0.20, hashrate: 300 },
+  starter:  { priceUsd: 500,   durationDays: 1460, monthlyRate: 0.10, hashrate: 10 },
+  silver:   { priceUsd: 2500,  durationDays: 1095, monthlyRate: 0.15, hashrate: 50 },
+  gold:     { priceUsd: 5000,  durationDays: 730,  monthlyRate: 0.20, hashrate: 100 },
+  platinum: { priceUsd: 10000, durationDays: 365,  monthlyRate: 0.25, hashrate: 300 },
 };
 let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
 
