@@ -516,6 +516,42 @@ const Auth = (() => {
   let _profile = null;
   const _roleAuth = window.CVAuthRole;
 
+  async function _ensureReferralLinkFromMetadata(user) {
+    const referredUserId = user?.id;
+    const referrerId = user?.user_metadata?.referrer_id;
+    if (!_supabase || !referredUserId || !referrerId || referrerId === referredUserId) return;
+    try {
+      const { data: existing } = await _supabase
+        .from('referrals')
+        .select('id')
+        .eq('referrer_id', referrerId)
+        .eq('referred_user_id', referredUserId)
+        .maybeSingle();
+      if (existing) return;
+
+      const { error: insertErr } = await _supabase.from('referrals').insert({
+        referrer_id: referrerId,
+        referred_user_id: referredUserId,
+        earnings: 0,
+        created_at: new Date().toISOString(),
+      });
+      if (insertErr) {
+        console.warn('[Referral] insert failed:', insertErr.message);
+        return;
+      }
+
+      const { data: refProf } = await _supabase
+        .from('profiles')
+        .select('ref_count')
+        .eq('id', referrerId)
+        .maybeSingle();
+      const nextCount = (Number(refProf?.ref_count) || 0) + 1;
+      await _supabase.from('profiles').update({ ref_count: nextCount }).eq('id', referrerId);
+    } catch (err) {
+      console.warn('[Referral] metadata backfill failed:', err?.message || err);
+    }
+  }
+
   async function init() {
     if (!_supabase || !_roleAuth) { window.location.replace('login.html'); return false; }
     try {
@@ -557,6 +593,8 @@ const Auth = (() => {
           _profile.ref_code = ref_code;
         }
       }
+
+      await _ensureReferralLinkFromMetadata(session.user);
 
       _supabase.auth.onAuthStateChange(event => {
         if (event === 'SIGNED_OUT') {
