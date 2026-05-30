@@ -237,11 +237,7 @@
 
   /* ─── Check URL for prefilled ref code ─── */
   (async () => {
-    const { session, role } = await RoleAuth.getSessionWithRole(_supabase);
-    if (session) {
-      window.location.replace(role === 'admin' ? ADMIN_HOME_PATH : USER_HOME_PATH);
-      return;
-    }
+    // Auto-redirect intentionally disabled to avoid admin/login redirect loops.
 
     /* Auto-fill ref code from URL param: login.html?ref=CVXYZ123 */
     const urlParams = new URLSearchParams(window.location.search);
