@@ -271,20 +271,14 @@
   }
 
   async function precheckLoginLimit(email) {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/auth-rate-limit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': safePublicKey
-      },
-      body: JSON.stringify({
+    const { data, error } = await _supabase.functions.invoke('auth-rate-limit', {
+      body: {
         action: 'precheck',
         email: String(email || '').toLowerCase(),
         device_id: getAuthDeviceId()
-      })
+      }
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || 'Rate limit service unavailable.');
+    if (error) throw error;
     if (!data?.allowed) {
       const sec = Number(data.retry_after_seconds || 0);
       throw new Error(`Too many attempts. Try again in ${Math.max(1, sec)}s.`);
@@ -292,18 +286,13 @@
   }
 
   async function recordLoginResult(email, success) {
-    await fetch(`${SUPABASE_URL}/functions/v1/auth-rate-limit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': safePublicKey
-      },
-      body: JSON.stringify({
+    await _supabase.functions.invoke('auth-rate-limit', {
+      body: {
         action: 'record',
         email: String(email || '').toLowerCase(),
         device_id: getAuthDeviceId(),
         success: !!success
-      })
+      }
     });
   }
 
@@ -433,9 +422,12 @@
     try {
       await precheckLoginLimit(email);
     } catch (e) {
-      setLoading('loginBtn', false, 'Login To Dashboard');
-      showMsg(e.message || 'Too many login attempts. Please wait.', 'error');
-      return;
+      if ((e?.message || '').toLowerCase().includes('too many attempts')) {
+        setLoading('loginBtn', false, 'Login To Dashboard');
+        showMsg(e.message || 'Too many login attempts. Please wait.', 'error');
+        return;
+      }
+      console.warn('Rate limit precheck unavailable, continuing login:', e?.message || e);
     }
 
     const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
@@ -443,12 +435,12 @@
     setLoading('loginBtn', false, 'Login To Dashboard');
 
     if (error) {
-      await recordLoginResult(email, false);
+      try { await recordLoginResult(email, false); } catch {}
       showMsg(error.message, 'error');
     } else {
       if (!data?.user?.email_confirmed_at) {
         await _supabase.auth.signOut();
-        await recordLoginResult(email, false);
+        try { await recordLoginResult(email, false); } catch {}
         showMsg('Please verify your email before logging in.', 'error');
         return;
       }
@@ -472,7 +464,7 @@
         localStorage.setItem('cv_remember', '1');
       }
       RoleAuth.touchAuthActivity();
-      await recordLoginResult(email, true);
+      try { await recordLoginResult(email, true); } catch {}
       const role = await RoleAuth.resolveUserRole(_supabase, data.user);
       window.location.replace(role === 'admin' ? ADMIN_HOME_PATH : USER_HOME_PATH);
     }
