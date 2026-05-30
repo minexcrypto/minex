@@ -104,10 +104,8 @@ function renderReferralDetailsRows(rows = []) {
   }
 
   body.innerHTML = rows.map((row) => {
-    const rawUuid = String(row?.referred_user_id || '').trim();
-    const shortUuid = rawUuid ? `${rawUuid.slice(0, 8)}...${rawUuid.slice(-4)}` : '—';
-    const profileUserCode = String(row?.user_code ?? row?.user_id ?? '').trim();
-    const userId = profileUserCode ? escapeHtml(profileUserCode) : escapeHtml(shortUuid || 'Pending');
+    const profileUserCode = String(row?.user_code ?? row?.user_id ?? row?.ref_code ?? '').trim();
+    const userId = profileUserCode ? escapeHtml(profileUserCode) : 'Profile pending';
     const email = row?.email ? escapeHtml(String(row.email)) : 'Profile pending';
     const wallet = Number(row?.wallet_balance || 0);
     const contractCount = Number(row?.contract_count || 0);
@@ -1009,7 +1007,7 @@ async function populateUserUI() {
   const sUserId = $('settingUserId');
   if (sName)  sName.value  = profile.name  || '';
   if (sEmail) sEmail.value = email;
-  if (sUserId) sUserId.value = profile.id || user?.id || profile.user_id || '—';
+  if (sUserId) sUserId.value = profile.user_id || profile.ref_code || profile.id || user?.id || '—';
 }
 
 /* ══════════════════════════════════════════════════════════════
