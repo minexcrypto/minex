@@ -145,21 +145,25 @@ async function loadReferralDetails() {
 async function enrichReferralUserCodes(rows = []) {
   try {
     if (!_supabase || !Array.isArray(rows) || !rows.length) return rows || [];
-    const missing = rows
-      .filter(r => !String(r?.user_code ?? r?.user_id ?? '').trim() && r?.referred_user_id)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const targets = rows
+      .filter(r => {
+        const code = String(r?.user_code ?? r?.user_id ?? '').trim();
+        return !!r?.referred_user_id && (!code || UUID_RE.test(code));
+      })
       .map(r => r.referred_user_id);
-    if (!missing.length) return rows;
+    if (!targets.length) return rows;
 
     const { data: profiles, error } = await _supabase
       .from('profiles')
-      .select('id, user_id')
-      .in('id', missing);
+      .select('id, user_id, ref_code')
+      .in('id', targets);
     if (error || !Array.isArray(profiles) || !profiles.length) return rows;
 
-    const byId = Object.fromEntries(profiles.map(p => [p.id, p.user_id]));
+    const byId = Object.fromEntries(profiles.map(p => [p.id, String(p?.user_id || p?.ref_code || '').trim()]));
     return rows.map(r => ({
       ...r,
-      user_code: String(r?.user_code ?? r?.user_id ?? '').trim() || byId[r?.referred_user_id] || null,
+      user_code: byId[r?.referred_user_id] || String(r?.user_code ?? r?.user_id ?? '').trim() || null,
     }));
   } catch {
     return rows || [];
@@ -224,7 +228,7 @@ async function loadReferralDetailsFallback() {
       const c = contractsByUser[uid] || { contract_count: 0, id_active: false };
       return {
         referred_user_id: uid,
-        user_code: String(p?.user_id || '').trim() || null,
+        user_code: String(p?.user_id || p?.ref_code || '').trim() || null,
         email: p?.email || null,
         wallet_balance: Number(p?.usdt_balance || 0),
         contract_count: Number(c.contract_count || 0),
