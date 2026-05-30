@@ -155,6 +155,12 @@ const PLAN_CONFIG_FALLBACK = {
   platinum: { priceUsd: 10000, durationDays: 365,  monthlyRate: 0.25, hashrate: 300 },
 };
 let PLAN_CONFIG = { ...PLAN_CONFIG_FALLBACK };
+const PLAN_MONTHLY_RATE_LOCK = {
+  starter: 0.10,
+  silver: 0.15,
+  gold: 0.20,
+  platinum: 0.25,
+};
 
 const LIVE_HASHRATE_PRESETS = {
   starter:  { base: 0.6, cap: 2.5, zeroChance: 0.46, boosts: [0.5, 1, 1.5, 2.5, 4] },
@@ -412,7 +418,7 @@ async function loadPlanCatalog() {
         ...next[key],
         priceUsd: getPlanPriceFromSource(row, next[key]?.priceUsd) ?? next[key]?.priceUsd,
         durationDays: getPlanDurationFromSource(row, next[key]?.durationDays) ?? next[key]?.durationDays,
-        monthlyRate: getPlanMonthlyRateFromSource(row, next[key]?.monthlyRate) ?? next[key]?.monthlyRate,
+        monthlyRate: PLAN_MONTHLY_RATE_LOCK[key] ?? (getPlanMonthlyRateFromSource(row, next[key]?.monthlyRate) ?? next[key]?.monthlyRate),
         hashrate: Number(row?.hashrate ?? row?.hash_rate ?? next[key]?.hashrate ?? 0) || next[key]?.hashrate,
       };
     });
