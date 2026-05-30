@@ -385,7 +385,26 @@
 
         await _supabase.from('profiles').upsert(profileData);
 
-        /* Credit referrer +1 count */
+        /* Persist referral relationship for admin analytics/table views */
+        if (referredByUserId) {
+          const { data: existingReferral } = await _supabase
+            .from('referrals')
+            .select('id')
+            .eq('referrer_id', referredByUserId)
+            .eq('referred_user_id', data.user.id)
+            .maybeSingle();
+
+          if (!existingReferral) {
+            await _supabase.from('referrals').insert({
+              referrer_id: referredByUserId,
+              referred_user_id: data.user.id,
+              earnings: 0,
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+
+        /* Credit referrer +1 count for profile-based widgets */
         if (referredByUserId) {
           const { data: refProf } = await _supabase
             .from('profiles')
