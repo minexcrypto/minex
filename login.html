@@ -362,7 +362,14 @@
       referredByUserId = refProfile.id;
     }
 
-    const { data, error } = await _supabase.auth.signUp({ email, password });
+    const signUpPayload = {
+      email,
+      password,
+      options: {
+        data: referredByUserId ? { referrer_id: referredByUserId } : {}
+      }
+    };
+    const { data, error } = await _supabase.auth.signUp(signUpPayload);
 
     setLoading('registerBtn', false, 'Create Account');
 
