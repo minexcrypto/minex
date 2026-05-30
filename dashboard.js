@@ -980,7 +980,7 @@ async function populateUserUI() {
   const sUserId = $('settingUserId');
   if (sName)  sName.value  = profile.name  || '';
   if (sEmail) sEmail.value = email;
-  if (sUserId) sUserId.value = profile.user_id || profile.id || user?.id || '—';
+  if (sUserId) sUserId.value = profile.id || user?.id || profile.user_id || '—';
 }
 
 /* ══════════════════════════════════════════════════════════════
