@@ -1840,6 +1840,22 @@ function removeLegacyVolumeCards() {
   });
 }
 
+function ensureOverviewStatsCards() {
+  const grid = document.querySelector('[data-admin-section="overview"] .stats-grid');
+  if (!grid) return;
+
+  const upsert = (id, label, className) => {
+    if (document.getElementById(id)) return;
+    const card = document.createElement('div');
+    card.className = `stat-card ${className}`;
+    card.innerHTML = `<div class="stat-label">${label}</div><div class="stat-value" id="${id}">0</div>`;
+    grid.appendChild(card);
+  };
+
+  upsert('stat-total-contract-volume', 'Contract Volume', 'blue');
+  upsert('stat-total-wallet-balance', 'Wallet Balance', 'green');
+}
+
 /* --------------------------------------------------------------
    ?20  PROFILE FETCH HELPER
 -------------------------------------------------------------- */
@@ -1984,7 +2000,7 @@ async function loadSection(name){
    ?24  PANEL BOOT
 -------------------------------------------------------------- */
 async function _bootPanel(){
-  _loaded.clear(); removeLegacyVolumeCards(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
+  _loaded.clear(); removeLegacyVolumeCards(); ensureOverviewStatsCards(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
   AdminUI.activateTab('overview'); await loadSection('overview');
 }
 
@@ -2013,6 +2029,10 @@ document.addEventListener('DOMContentLoaded',async()=>{
   }
   if(alreadyLoggedIn){ hide('#adminLoginScreen'); show('#adminAppShell'); try{await _bootPanel();}catch(err){ AdminUI.banner('? Panel boot error: '+err.message,'error');} }
   else{ show('#adminLoginScreen'); hide('#adminAppShell'); }
+});
+
+document.addEventListener('DOMContentLoaded',() => {
+  ensureOverviewStatsCards();
 });
 
 function closeEntityModal(){ hide('#entityModal'); }
