@@ -604,22 +604,72 @@ const WithdrawalsModule = {
     const{error}=await sb.from('withdrawals').update({status:newStatus}).eq('id',id).eq('status','pending');
     if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
     await logAdminAction('withdrawal_'+newStatus,'withdrawals',id,{status:row.status},{status:newStatus});
-    if(newStatus==='approved' && row.wallet_debited !== true){ await this._debitBalance(row); }
+    if(newStatus==='approved'){
+      if(row.wallet_debited !== true && !(await this._debitBalance(row))) return;
+      if(!(await this._syncWithdrawalTransaction(row, 'success'))) return;
+    } else if(newStatus==='rejected'){
+      if(row.wallet_debited === true && !(await this._refundBalance(row))) return;
+      if(!(await this._syncWithdrawalTransaction(row, 'rejected'))) return;
+    }
     this._rows=this._rows.map(r=>r.id===id?{...r,status:newStatus}:r); this._renderPage(); this._syncBadges(this._rows);
     AdminUI.toast(`Withdrawal ${newStatus}.`,newStatus==='approved'?'success':'warning');
   },
+  async _syncWithdrawalTransaction(row, status){
+    if(!row?.id||!row?.user_id||!row?.amount) return false;
+    const payload = {
+      status,
+      withdrawal_id: row.id,
+    };
+    const { data, error } = await sb
+      .from('transactions')
+      .update(payload)
+      .eq('withdrawal_id', row.id)
+      .eq('type', 'withdrawal')
+      .select('id');
+    if (error) {
+      AdminUI.toast('Transaction update failed: ' + error.message, 'error');
+      return false;
+    }
+    if ((data || []).length) return true;
+    const { error: insertErr } = await sb.from('transactions').insert({
+      user_id: row.user_id,
+      type: 'withdrawal',
+      amount: Number(row.amount || 0),
+      coin: row.coin || 'usdt_bep20',
+      status,
+      withdrawal_id: row.id,
+      created_at: new Date().toISOString(),
+    });
+    if (insertErr) {
+      AdminUI.toast('Transaction insert failed: ' + insertErr.message, 'error');
+      return false;
+    }
+    return true;
+  },
   async _debitBalance(row){
-    if(!row?.user_id||!row?.amount)return;
-    if(row.wallet_debited === true) return;
+    if(!row?.user_id||!row?.amount)return false;
+    if(row.wallet_debited === true) return true;
     const field='usdt_balance';
     const{data:prof}=await sb.from('profiles').select(field).eq('id',row.user_id).maybeSingle();
-    if(!prof)return;
+    if(!prof)return false;
     const current=Number(prof[field]||0); const debit=Number(row.amount||0);
-    if(current<debit){ AdminUI.toast('? User balance insufficient for debit.','warning',6000); return; }
+    if(current<debit){ AdminUI.toast('? User balance insufficient for debit.','warning',6000); return false; }
     const{error}=await sb.from('profiles').update({[field]:current-debit}).eq('id',row.user_id);
-    if(error){ AdminUI.toast('Balance debit failed.','error'); return; }
-    await sb.from('transactions').insert({user_id:row.user_id,type:'withdrawal',amount:debit,coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()});
+    if(error){ AdminUI.toast('Balance debit failed.','error'); return false; }
+    const{error:txErr}=await sb.from('transactions').insert({user_id:row.user_id,type:'withdrawal',amount:debit,coin:row.coin||'usdt_bep20',status:'success',withdrawal_id:row.id||null,created_at:new Date().toISOString()});
+    if(txErr){ AdminUI.toast('Transaction save failed.','error'); return false; }
     await sb.from('withdrawals').update({wallet_debited:true}).eq('id',row.id).catch(()=>{});
+    return true;
+  },
+  async _refundBalance(row){
+    if(!row?.user_id||!row?.amount)return false;
+    const field='usdt_balance';
+    const{data:prof}=await sb.from('profiles').select(field).eq('id',row.user_id).maybeSingle();
+    if(!prof)return false;
+    const current=Number(prof[field]||0); const refund=Number(row.amount||0);
+    const{error}=await sb.from('profiles').update({[field]:current+refund}).eq('id',row.user_id);
+    if(error){ AdminUI.toast('Balance refund failed.','error'); return false; }
+    return true;
   },
   _syncBadges(rows){
     const pending=rows.filter(r=>r.status==='pending').length;
@@ -647,7 +697,7 @@ const WithdrawalsModule = {
     const{data:w,error}=await sb.from('withdrawals').insert({user_id:prof.id,user_email:email,coin:'usdt_bep20',amount,address,status:'approved',wallet_debited:true,created_at:new Date().toISOString()}).select().single();
     if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
     await sb.from('profiles').update({[field]:bal-amount}).eq('id',prof.id);
-    await sb.from('transactions').insert({user_id:prof.id,type:'withdrawal',amount,coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()});
+    await sb.from('transactions').insert({user_id:prof.id,type:'withdrawal',amount,coin:'usdt_bep20',status:'success',withdrawal_id:w.id,created_at:new Date().toISOString()});
     await logAdminAction('manual_withdrawal','withdrawals',w.id,null,w);
     AdminUI.toast('Manual withdrawal created.','success'); hide('#entityModal'); this.load($('#withdrawalStatusFilter')?.value||'all');
   },
