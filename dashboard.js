@@ -1488,7 +1488,7 @@ function renderWalletSummary() {
 
   const totalDeposited  = txns.filter(t => normalizeTxType(t.type) === 'deposit')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
-  const totalWithdrawn  = txns.filter(t => normalizeTxType(t.type) === 'withdrawal')
+  const totalWithdrawn  = txns.filter(t => normalizeTxType(t.type) === 'withdrawal' && String(t.status || '').toLowerCase() === 'success')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
   const miningIncome    = txns.filter(t => normalizeTxType(t.type) === 'mining')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -2281,6 +2281,7 @@ async function submitWithdrawalForm(e) {
   const netAmount = amount * 0.7;
   const newBalance = available - amount;
 
+  const createdAt = new Date().toISOString();
   const withdrawalPayload = {
     user_id: user.id,
     user_email: user.email || profile?.email || '',
@@ -2289,7 +2290,7 @@ async function submitWithdrawalForm(e) {
     address,
     status: 'pending',
     wallet_debited: true,
-    created_at: new Date().toISOString(),
+    created_at: createdAt,
   };
 
   const { data: withdrawalRow, error: withdrawalErr } = await _supabase
@@ -2317,8 +2318,9 @@ async function submitWithdrawalForm(e) {
     type: 'withdrawal',
     amount,
     coin: 'usdt_bep20',
-    status: 'success',
-    created_at: withdrawalPayload.created_at,
+    status: 'pending',
+    withdrawal_id: withdrawalRow?.id || null,
+    created_at: createdAt,
   };
 
   const { error: txErr } = await _supabase
