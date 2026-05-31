@@ -343,6 +343,17 @@ const OverviewModule = {
   async _referralStats(){ try{ const{count,error}=await sb.from('referrals').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-referrals',count??0); }catch(err){console.warn(err);} },
   async _volumeStats(){
     try{
+      const walletCard = document.getElementById('stat-total-wallet-balance')?.closest('.stat-card');
+      const volumeCard = document.getElementById('stat-usdt-volume')?.closest('.stat-card');
+      if (walletCard) {
+        const label = walletCard.querySelector('.stat-label');
+        if (label) label.textContent = 'Wallet Balance';
+      }
+      if (volumeCard) {
+        const label = volumeCard.querySelector('.stat-label');
+        if (label) label.textContent = 'USDT Volume';
+      }
+
       const walletRows = await fetchAllProfiles('usdt_balance');
       const walletTotal = (walletRows || []).reduce((s, r) => s + Number(r.usdt_balance || 0), 0);
 
