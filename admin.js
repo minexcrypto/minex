@@ -604,12 +604,13 @@ const WithdrawalsModule = {
     const{error}=await sb.from('withdrawals').update({status:newStatus}).eq('id',id).eq('status','pending');
     if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
     await logAdminAction('withdrawal_'+newStatus,'withdrawals',id,{status:row.status},{status:newStatus});
-    if(newStatus==='approved'){ await this._debitBalance(row); }
+    if(newStatus==='approved' && row.wallet_debited !== true){ await this._debitBalance(row); }
     this._rows=this._rows.map(r=>r.id===id?{...r,status:newStatus}:r); this._renderPage(); this._syncBadges(this._rows);
     AdminUI.toast(`Withdrawal ${newStatus}.`,newStatus==='approved'?'success':'warning');
   },
   async _debitBalance(row){
     if(!row?.user_id||!row?.amount)return;
+    if(row.wallet_debited === true) return;
     const field='usdt_balance';
     const{data:prof}=await sb.from('profiles').select(field).eq('id',row.user_id).maybeSingle();
     if(!prof)return;
@@ -618,6 +619,7 @@ const WithdrawalsModule = {
     const{error}=await sb.from('profiles').update({[field]:current-debit}).eq('id',row.user_id);
     if(error){ AdminUI.toast('Balance debit failed.','error'); return; }
     await sb.from('transactions').insert({user_id:row.user_id,type:'withdrawal',amount:debit,coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()});
+    await sb.from('withdrawals').update({wallet_debited:true}).eq('id',row.id).catch(()=>{});
   },
   _syncBadges(rows){
     const pending=rows.filter(r=>r.status==='pending').length;
@@ -642,7 +644,7 @@ const WithdrawalsModule = {
     if(!prof){ AdminUI.toast('User not found.','error'); return; }
     const field='usdt_balance'; const bal=Number(prof[field]||0);
     if(bal<amount){ AdminUI.toast('Insufficient user balance.','error'); return; }
-    const{data:w,error}=await sb.from('withdrawals').insert({user_id:prof.id,user_email:email,coin:'usdt_bep20',amount,address,status:'approved',created_at:new Date().toISOString()}).select().single();
+    const{data:w,error}=await sb.from('withdrawals').insert({user_id:prof.id,user_email:email,coin:'usdt_bep20',amount,address,status:'approved',wallet_debited:true,created_at:new Date().toISOString()}).select().single();
     if(error){ AdminUI.toast('Failed: '+error.message,'error'); return; }
     await sb.from('profiles').update({[field]:bal-amount}).eq('id',prof.id);
     await sb.from('transactions').insert({user_id:prof.id,type:'withdrawal',amount,coin:'usdt_bep20',status:'success',created_at:new Date().toISOString()});
