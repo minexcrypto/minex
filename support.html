@@ -42,8 +42,29 @@
   .footer-links{display:flex;gap:14px;flex-wrap:wrap}
   .footer-links a{color:#cbd5e1;text-decoration:none;transition:all .3s ease;cursor:pointer}
   .footer-links a:hover{color:var(--gold);text-decoration:underline;text-shadow:0 0 10px rgba(245,158,11,.45)}
-  @media (max-width:930px){.hero{grid-template-columns:1fr}.grid-3{grid-template-columns:1fr 1fr}}
-  @media (max-width:700px){h1{font-size:28px}.grid-3,.grid-2{grid-template-columns:1fr}}
+  @media (max-width:930px){
+    .hero{grid-template-columns:1fr}
+    .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (max-width:700px){
+    .nav{padding:14px 16px;flex-direction:column;align-items:flex-start;gap:10px}
+    .nav-links{gap:10px}
+    .wrap{padding:18px 14px}
+    .hero{gap:14px;margin-bottom:18px}
+    .card{padding:18px;border-radius:14px}
+    h1{font-size:28px}
+    h2{font-size:22px}
+    .grid-3,.grid-2,.language-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .language-card{padding:16px}
+    .feature{gap:10px}
+    footer{padding:0 14px 20px}
+  }
+  @media (max-width:460px){
+    .grid-3,.grid-2,.language-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{padding:16px}
+    .lang{font-size:24px}
+    .language-card h3{font-size:16px}
+  }
 </style>
 </head>
 <body>
