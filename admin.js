@@ -343,15 +343,56 @@ const OverviewModule = {
   async _referralStats(){ try{ const{count,error}=await sb.from('referrals').select('id',{count:'exact',head:true}); if(error)throw error; setText('#stat-total-referrals',count??0); }catch(err){console.warn(err);} },
   async _volumeStats(){
     try{
+      const contractCard = document.getElementById('stat-total-contract-volume')?.closest('.stat-card');
       const walletCard = document.getElementById('stat-total-wallet-balance')?.closest('.stat-card');
+      if (contractCard) {
+        const label = contractCard.querySelector('.stat-label');
+        if (label) label.textContent = 'Contract Volume';
+      }
       if (walletCard) {
         const label = walletCard.querySelector('.stat-label');
         if (label) label.textContent = 'Wallet Balance';
       }
 
+      const sumContractsByField = async (field) => {
+        const rows = [];
+        const pageSize = 200;
+        const maxRows = 2000;
+        let from = 0;
+        while (rows.length < maxRows) {
+          const { data, error } = await sb
+            .from('contracts')
+            .select(field)
+            .order('created_at', { ascending: false })
+            .range(from, from + pageSize - 1);
+          if (error) throw error;
+          const batch = data || [];
+          rows.push(...batch);
+          if (batch.length < pageSize) break;
+          from += pageSize;
+        }
+        return rows.reduce((s, r) => s + Number(r?.[field] || 0), 0);
+      };
+
+      let contractTotalValue = 0;
+      try {
+        contractTotalValue = await sumContractsByField('plan_price');
+      } catch {
+        try {
+          contractTotalValue = await sumContractsByField('price_usdt');
+        } catch {
+          try {
+            contractTotalValue = await sumContractsByField('amount');
+          } catch {
+            contractTotalValue = await sumContractsByField('total_earned');
+          }
+        }
+      }
+
       const walletRows = await fetchAllProfiles('usdt_balance');
       const walletTotal = (walletRows || []).reduce((s, r) => s + Number(r.usdt_balance || 0), 0);
 
+      setText('#stat-total-contract-volume', '$ ' + contractTotalValue.toFixed(2) + ' USDT');
       setText('#stat-total-wallet-balance', '$ ' + walletTotal.toFixed(2) + ' USDT');
     }catch(err){console.warn(err);}
   },
