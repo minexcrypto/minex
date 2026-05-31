@@ -616,35 +616,65 @@ const WithdrawalsModule = {
   },
   async _syncWithdrawalTransaction(row, status){
     if(!row?.id||!row?.user_id||!row?.amount) return false;
-    const payload = {
-      status,
-      withdrawal_id: row.id,
+    const amount = Number(row.amount || 0);
+    const tryUpdateByIds = async (ids) => {
+      if (!ids.length) return false;
+      const { error } = await sb
+        .from('transactions')
+        .update({ status, withdrawal_id: row.id })
+        .in('id', ids);
+      if (error) {
+        AdminUI.toast('Transaction update failed: ' + error.message, 'error');
+        return false;
+      }
+      return true;
     };
-    const { data, error } = await sb
+
+    const { data: linkedRows, error: linkedErr } = await sb
       .from('transactions')
-      .update(payload)
+      .select('id')
       .eq('withdrawal_id', row.id)
       .eq('type', 'withdrawal')
-      .select('id');
-    if (error) {
-      AdminUI.toast('Transaction update failed: ' + error.message, 'error');
+      .limit(10);
+    if (linkedErr) {
+      AdminUI.toast('Transaction lookup failed: ' + linkedErr.message, 'error');
       return false;
     }
-    if ((data || []).length) return true;
-    const { error: insertErr } = await sb.from('transactions').insert({
-      user_id: row.user_id,
-      type: 'withdrawal',
-      amount: Number(row.amount || 0),
-      coin: row.coin || 'usdt_bep20',
-      status,
-      withdrawal_id: row.id,
-      created_at: new Date().toISOString(),
-    });
-    if (insertErr) {
-      AdminUI.toast('Transaction insert failed: ' + insertErr.message, 'error');
+    if ((linkedRows || []).length) {
+      return tryUpdateByIds((linkedRows || []).map(r => r.id));
+    }
+
+    const { data: fallbackRows, error: fallbackErr } = await sb
+      .from('transactions')
+      .select('id,created_at,status')
+      .eq('user_id', row.user_id)
+      .eq('type', 'withdrawal')
+      .eq('amount', amount)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (fallbackErr) {
+      AdminUI.toast('Transaction lookup failed: ' + fallbackErr.message, 'error');
       return false;
     }
-    return true;
+    if (!(fallbackRows || []).length) {
+      const { error: insertErr } = await sb.from('transactions').insert({
+        user_id: row.user_id,
+        type: 'withdrawal',
+        amount,
+        coin: row.coin || 'usdt_bep20',
+        status,
+        withdrawal_id: row.id,
+        created_at: new Date().toISOString(),
+      });
+      if (insertErr) {
+        AdminUI.toast('Transaction insert failed: ' + insertErr.message, 'error');
+        return false;
+      }
+      return true;
+    }
+
+    return tryUpdateByIds((fallbackRows || []).map(r => r.id));
   },
   async _debitBalance(row){
     if(!row?.user_id||!row?.amount)return false;
