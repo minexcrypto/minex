@@ -1789,6 +1789,16 @@ function ensureEditOldUserBulkButton() {
   filters.appendChild(actionRow);
 }
 
+function removeLegacyVolumeCards() {
+  const legacyTerms = ['btc volume', 'usdt volume', 'total contract value'];
+  $$('.stat-card, .card').forEach(card => {
+    const text = (card.textContent || '').toLowerCase();
+    if (legacyTerms.some(term => text.includes(term))) {
+      card.remove();
+    }
+  });
+}
+
 /* --------------------------------------------------------------
    ?20  PROFILE FETCH HELPER
 -------------------------------------------------------------- */
@@ -1933,7 +1943,7 @@ async function loadSection(name){
    ?24  PANEL BOOT
 -------------------------------------------------------------- */
 async function _bootPanel(){
-  _loaded.clear(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
+  _loaded.clear(); removeLegacyVolumeCards(); initFilters(); initPriceWidget(); initRealtime(); initNotificationForm();
   AdminUI.activateTab('overview'); await loadSection('overview');
 }
 
