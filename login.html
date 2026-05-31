@@ -148,6 +148,52 @@
     vertical-align: middle; margin-right: 6px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 640px) {
+    body {
+      align-items: flex-start;
+      padding: 14px;
+    }
+    .auth-wrapper {
+      max-width: 100%;
+      padding: 24px 18px;
+      border-radius: 20px;
+    }
+    .auth-logo {
+      margin-bottom: 22px;
+    }
+    .logo-circle {
+      width: 42px;
+      height: 42px;
+      font-size: 21px;
+    }
+    .auth-logo h1 {
+      font-size: 24px;
+    }
+    .tabs {
+      margin-bottom: 22px;
+    }
+    .tab-btn {
+      padding: 10px 8px;
+      font-size: 14px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group input {
+      padding: 13px 14px;
+      font-size: 14px;
+    }
+    .auth-btn {
+      padding: 14px;
+      font-size: 15px;
+    }
+    .auth-footer {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+    }
+  }
 </style>
 </head>
 <body>
