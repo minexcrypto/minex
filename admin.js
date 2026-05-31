@@ -617,17 +617,9 @@ const WithdrawalsModule = {
   async _syncWithdrawalTransaction(row, status){
     if(!row?.id||!row?.user_id||!row?.amount) return false;
     const amount = Number(row.amount || 0);
-    const tryUpdateByIds = async (ids) => {
-      if (!ids.length) return false;
-      const { error } = await sb
-        .from('transactions')
-        .update({ status, withdrawal_id: row.id })
-        .in('id', ids);
-      if (error) {
-        AdminUI.toast('Transaction update failed: ' + error.message, 'error');
-        return false;
-      }
-      return true;
+    const txPatch = {
+      status,
+      withdrawal_id: row.id,
     };
 
     const { data: linkedRows, error: linkedErr } = await sb
@@ -641,23 +633,40 @@ const WithdrawalsModule = {
       return false;
     }
     if ((linkedRows || []).length) {
-      return tryUpdateByIds((linkedRows || []).map(r => r.id));
+      const { error } = await sb
+        .from('transactions')
+        .update(txPatch)
+        .in('id', (linkedRows || []).map(r => r.id));
+      if (error) {
+        AdminUI.toast('Transaction update failed: ' + error.message, 'error');
+        return false;
+      }
+      return true;
     }
 
     const { data: fallbackRows, error: fallbackErr } = await sb
       .from('transactions')
-      .select('id,created_at,status')
+      .select('id,created_at,status,withdrawal_id')
       .eq('user_id', row.user_id)
       .eq('type', 'withdrawal')
       .eq('amount', amount)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(20);
     if (fallbackErr) {
       AdminUI.toast('Transaction lookup failed: ' + fallbackErr.message, 'error');
       return false;
     }
-    if (!(fallbackRows || []).length) {
+
+    const exactTime = new Date(row.created_at || Date.now()).getTime();
+    const nearRows = (fallbackRows || []).filter(tx => {
+      const txTime = new Date(tx.created_at || 0).getTime();
+      return Math.abs(txTime - exactTime) <= 60 * 60 * 1000;
+    });
+
+    const rowsToUpdate = nearRows.length ? nearRows : (fallbackRows || []);
+
+    if (!rowsToUpdate.length) {
       const { error: insertErr } = await sb.from('transactions').insert({
         user_id: row.user_id,
         type: 'withdrawal',
@@ -665,7 +674,7 @@ const WithdrawalsModule = {
         coin: row.coin || 'usdt_bep20',
         status,
         withdrawal_id: row.id,
-        created_at: new Date().toISOString(),
+        created_at: row.created_at || new Date().toISOString(),
       });
       if (insertErr) {
         AdminUI.toast('Transaction insert failed: ' + insertErr.message, 'error');
@@ -674,7 +683,15 @@ const WithdrawalsModule = {
       return true;
     }
 
-    return tryUpdateByIds((fallbackRows || []).map(r => r.id));
+    const { error: updateErr } = await sb
+      .from('transactions')
+      .update(txPatch)
+      .in('id', rowsToUpdate.map(r => r.id));
+    if (updateErr) {
+      AdminUI.toast('Transaction update failed: ' + updateErr.message, 'error');
+      return false;
+    }
+    return true;
   },
   async _debitBalance(row){
     if(!row?.user_id||!row?.amount)return false;
