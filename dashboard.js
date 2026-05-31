@@ -2312,6 +2312,27 @@ async function submitWithdrawalForm(e) {
     return;
   }
 
+  const transactionPayload = {
+    user_id: user.id,
+    type: 'withdrawal',
+    amount,
+    coin: 'usdt_bep20',
+    status: 'success',
+    created_at: withdrawalPayload.created_at,
+  };
+
+  const { error: txErr } = await _supabase
+    .from('transactions')
+    .insert(transactionPayload);
+  if (txErr) {
+    await Promise.allSettled([
+      _supabase.from('withdrawals').delete().eq('id', withdrawalRow?.id),
+      _supabase.from('profiles').update({ usdt_balance: available }).eq('id', user.id),
+    ]);
+    Toast.show('Withdrawal failed: ' + txErr.message, 'error', 5000);
+    return;
+  }
+
   $('withdrawForm')?.reset();
   closeModal('withdrawModal');
   Toast.show(`Withdrawal submitted. 30% charge applied, estimated receivable: ${netAmount.toFixed(2)} USDT.`, 'success', 5000);
