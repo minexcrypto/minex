@@ -327,18 +327,29 @@
     .nav{padding:14px 18px}
     .nav-links{gap:12px}
     .hero-copy{padding:28px}
-    .metrics{grid-template-columns:1fr}
+    .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
     .mosaic{grid-template-columns:1fr}
-    .stack{grid-template-columns:1fr 1fr; display:grid}
+    .stack{grid-template-columns:repeat(2,minmax(0,1fr)); display:grid}
     .section{padding:22px}
     .section-head h2{font-size:24px}
-    .milestone{grid-template-columns:1fr}
+    .card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .milestone{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
   @media (max-width: 560px){
     .nav{flex-direction:column; align-items:flex-start}
     .hero-copy{padding:22px}
     h1{font-size:34px}
-    .stack{grid-template-columns:1fr}
+    .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .stack{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .milestone{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .section{padding:18px}
+    .cta{padding:24px 18px}
+  }
+  @media (max-width: 380px){
+    .hero-copy{padding:18px}
+    h1{font-size:30px}
+    .metrics,.card-grid,.stack,.milestone{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
 </style>
 </head>
