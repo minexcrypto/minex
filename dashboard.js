@@ -917,6 +917,18 @@ async function loadTransactions() {
   return data || [];
 }
 
+async function loadWithdrawals() {
+  const user = Auth.getUser();
+  if (!user || !_supabase) return [];
+  const { data, error } = await _supabase
+    .from('withdrawals')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadWithdrawals:', error); return []; }
+  return data || [];
+}
+
 async function loadDeposits() {
   const user = Auth.getUser();
   if (!user || !_supabase) return [];
@@ -1161,6 +1173,7 @@ function startLiveHashrateRefreshLoop() {
 let _currentTxFilter = 'all';
 let _allTransactions = [];
 let _allDeposits     = [];
+let _allWithdrawals  = [];
 
 function renderTransactions(filter) {
   const normalizeFilter = raw => {
@@ -1184,6 +1197,7 @@ function renderTransactions(filter) {
     const decimals = 2;
     const amt = Number(tx.amount || 0);
     const isOut = amt < 0 || txType === 'withdrawal' || txType === 'purchase';
+    const effectiveStatus = getEffectiveTransactionStatus(tx);
     const amtStr = (isOut ? '-' : '+') + Math.abs(amt).toFixed(decimals) + ' USDT';
     const usdVal = (isOut ? '-' : '+') + '$' + Math.abs(amt).toFixed(2);
 
@@ -1192,7 +1206,7 @@ function renderTransactions(filter) {
       coin:   coinLbl,
       amount: amtStr,
       usd:    usdVal,
-      status: tx.status || 'success',
+      status: effectiveStatus,
       date:   _fmtDate(tx.created_at),
       type:   txType,
       createdAt: tx.created_at,
@@ -1257,6 +1271,34 @@ function renderTransactions(filter) {
       <td style="color:#94a3b8;">${tx.date}</td>
     </tr>
   `).join('');
+}
+
+function getEffectiveTransactionStatus(tx) {
+  const baseStatus = String(tx?.status || '').toLowerCase() || 'success';
+  if (normalizeTxType(tx?.type) !== 'withdrawal') return baseStatus;
+
+  const withdrawalId = tx?.withdrawal_id || null;
+  if (withdrawalId) {
+    const matchById = _allWithdrawals.find(w => String(w.id) === String(withdrawalId));
+    if (matchById?.status) return String(matchById.status).toLowerCase();
+  }
+
+  const txTime = new Date(tx?.created_at || 0).getTime();
+  const amount = Number(tx?.amount || 0);
+  const userId = String(tx?.user_id || '');
+  const candidates = _allWithdrawals.filter(w => {
+    if (String(w?.user_id || '') !== userId) return false;
+    if (Number(w?.amount || 0) !== amount) return false;
+    return ['pending', 'approved', 'rejected'].includes(String(w?.status || '').toLowerCase());
+  });
+  if (!candidates.length) return baseStatus;
+
+  candidates.sort((a, b) => {
+    const da = Math.abs(new Date(a.created_at || 0).getTime() - txTime);
+    const db = Math.abs(new Date(b.created_at || 0).getTime() - txTime);
+    return da - db;
+  });
+  return String(candidates[0]?.status || baseStatus).toLowerCase();
 }
 
 function _txLabel(type) {
@@ -2867,6 +2909,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.closePlanDetailModal = closePlanDetailModal;
   window.refreshTransactions = async () => {
     _allDeposits     = await loadDeposits();
+    _allWithdrawals  = await loadWithdrawals();
     _allTransactions = await loadTransactions();
     renderTransactions(_currentTxFilter);
   };
