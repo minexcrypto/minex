@@ -1666,7 +1666,7 @@ function initEarningsChart(transactions, contracts = []) {
     const bucketDate = new Date(now);
     bucketDate.setDate(bucketDate.getDate() - i);
     const key = _dateKeyInTimeZone(bucketDate, timeZone);
-    if (key) buckets[key] = { actual: 0, expected: 0 };
+    if (key) buckets[key] = 0;
   }
 
   transactions
@@ -1674,41 +1674,19 @@ function initEarningsChart(transactions, contracts = []) {
     .forEach(t => {
       const key = _dateKeyInTimeZone(t.created_at, timeZone);
       if (key && key in buckets) {
-        buckets[key].actual += Number(t.amount || 0);
+        buckets[key] += Number(t.amount || 0);
       }
     });
 
-  const activeContracts = (Array.isArray(contracts) ? contracts : []).filter(c => c?.active === true);
-  Object.entries(buckets).forEach(([key]) => {
-    const bucketDate = new Date(`${key}T00:00:00+05:30`);
-    const bucketTotal = activeContracts.reduce((sum, contract) => {
-      const createdAt = new Date(contract?.created_at || 0);
-      if (!Number.isFinite(createdAt.getTime()) || createdAt.getTime() > bucketDate.getTime()) return sum;
-      if (isContractExpired(contract, bucketDate)) return sum;
-      return sum + getContractDailyProfitUsd(contract);
-    }, 0);
-    buckets[key].expected = bucketTotal;
-  });
-
   const labels = Object.keys(buckets);
-  const dailyData = labels.map(key => {
-    const bucket = buckets[key];
-    const actual = Number(bucket?.actual || 0);
-    const expected = Number(bucket?.expected || 0);
-    return actual > 0 ? actual : expected;
-  });
-  const data = dailyData.reduce((acc, value, index) => {
-    const nextValue = Number(value || 0);
-    acc.push(Number(((acc[index - 1] || 0) + nextValue).toFixed(2)));
-    return acc;
-  }, []);
-  const hasData = dailyData.some(v => v > 0);
+  const data = labels.map(key => Number(buckets[key] || 0));
+  const hasData = data.some(v => v > 0);
 
-  const total12d = dailyData.reduce((s, v) => s + v, 0);
-  const earningDays = dailyData.filter(v => v > 0).length;
+  const total12d = data.reduce((s, v) => s + v, 0);
+  const earningDays = data.filter(v => v > 0).length;
   // Average only across days that actually earned mining rewards.
   const avgDaily = earningDays > 0 ? total12d / earningDays : 0;
-  const bestDay  = Math.max(...dailyData);
+  const bestDay  = hasData ? Math.max(...data) : 0;
   setText('chartTotal12d', hasData ? '$ ' + total12d.toFixed(2) + ' USDT' : '$ 0.00 USDT');
   setText('chartAvgDaily', hasData ? '$ ' + avgDaily.toFixed(2) + ' USDT' : '$ 0.00 USDT');
   setText('chartBestDay',  hasData ? '$ ' + bestDay.toFixed(2) + ' USDT' : '$ 0.00 USDT');
@@ -1810,10 +1788,10 @@ function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
   if (!ctx) return;
   const w = canvas.width  = canvas.offsetWidth || 400;
   const h = canvas.height = 160;
-  const leftPad = options.leftPad ?? 52;
+  const leftPad = options.leftPad ?? 58;
   const rightPad = options.rightPad ?? 20;
   const topPad = options.topPad ?? 18;
-  const bottomPad = options.bottomPad ?? 28;
+  const bottomPad = options.bottomPad ?? 30;
   const plotW = Math.max(10, w - leftPad - rightPad);
   const plotH = Math.max(10, h - topPad - bottomPad);
   const max   = Math.max(...data);
