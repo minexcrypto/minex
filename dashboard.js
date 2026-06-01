@@ -1691,19 +1691,24 @@ function initEarningsChart(transactions, contracts = []) {
   });
 
   const labels = Object.keys(buckets);
-  const data = labels.map(key => {
+  const dailyData = labels.map(key => {
     const bucket = buckets[key];
     const actual = Number(bucket?.actual || 0);
     const expected = Number(bucket?.expected || 0);
     return actual > 0 ? actual : expected;
   });
-  const hasData = data.some(v => v > 0);
+  const data = dailyData.reduce((acc, value, index) => {
+    const nextValue = Number(value || 0);
+    acc.push(Number(((acc[index - 1] || 0) + nextValue).toFixed(2)));
+    return acc;
+  }, []);
+  const hasData = dailyData.some(v => v > 0);
 
-  const total12d = data.reduce((s, v) => s + v, 0);
-  const earningDays = data.filter(v => v > 0).length;
+  const total12d = dailyData.reduce((s, v) => s + v, 0);
+  const earningDays = dailyData.filter(v => v > 0).length;
   // Average only across days that actually earned mining rewards.
   const avgDaily = earningDays > 0 ? total12d / earningDays : 0;
-  const bestDay  = Math.max(...data);
+  const bestDay  = Math.max(...dailyData);
   setText('chartTotal12d', hasData ? '$ ' + total12d.toFixed(2) + ' USDT' : '$ 0.00 USDT');
   setText('chartAvgDaily', hasData ? '$ ' + avgDaily.toFixed(2) + ' USDT' : '$ 0.00 USDT');
   setText('chartBestDay',  hasData ? '$ ' + bestDay.toFixed(2) + ' USDT' : '$ 0.00 USDT');
@@ -1713,7 +1718,19 @@ function initEarningsChart(transactions, contracts = []) {
     return;
   }
 
-  _drawLineChart(canvas, data, '#f59e0b', 'rgba(245,158,11,0.25)');
+  const chartLabels = labels.map(key => {
+    try {
+      return new Date(`${key}T00:00:00+05:30`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return key;
+    }
+  });
+  _drawLineChart(canvas, data, '#f59e0b', 'rgba(245,158,11,0.25)', {
+    xLabels: chartLabels,
+    yValueMode: 'currency',
+    currencyPrefix: '$',
+    unitSuffix: 'USDT',
+  });
 }
 
 function initHashrateChart(contracts) {
@@ -1793,16 +1810,30 @@ function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
   if (!ctx) return;
   const w = canvas.width  = canvas.offsetWidth || 400;
   const h = canvas.height = 160;
+  const leftPad = options.leftPad ?? 52;
+  const rightPad = options.rightPad ?? 20;
+  const topPad = options.topPad ?? 18;
+  const bottomPad = options.bottomPad ?? 28;
+  const plotW = Math.max(10, w - leftPad - rightPad);
+  const plotH = Math.max(10, h - topPad - bottomPad);
   const max   = Math.max(...data);
   const min   = Math.min(...data);
   const range = max - min || Math.abs(max) || 0.0000001;
 
-  const getX = i => (i / (data.length - 1)) * (w - 40) + 20;
-  const getY = v => h - 20 - ((v - min) / range) * (h - 50);
+  const getX = i => leftPad + (i / Math.max(1, data.length - 1)) * plotW;
+  const getY = v => topPad + plotH - ((v - min) / range) * plotH;
+
+  const fmtYAxis = (value) => {
+    const n = Number(value || 0);
+    if (options.yValueMode === 'currency') {
+      return `${options.currencyPrefix || '$'} ${n.toFixed(2)}${options.unitSuffix ? ' ' + options.unitSuffix : ''}`;
+    }
+    return String(n.toFixed(1));
+  };
 
   if (options.moodZones) {
-    const top = 20;
-    const height = h - 40;
+    const top = topPad;
+    const height = plotH;
     const bandHeight = height / 3;
     const zones = [
       { y: top, fill: 'rgba(34,197,94,0.06)', stroke: 'rgba(34,197,94,0.15)' },
@@ -1811,29 +1842,53 @@ function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
     ];
     zones.forEach(zone => {
       ctx.fillStyle = zone.fill;
-      ctx.fillRect(20, zone.y, w - 40, bandHeight);
+      ctx.fillRect(leftPad, zone.y, plotW, bandHeight);
       ctx.strokeStyle = zone.stroke;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(20, zone.y);
-      ctx.lineTo(w - 20, zone.y);
+      ctx.moveTo(leftPad, zone.y);
+      ctx.lineTo(w - rightPad, zone.y);
       ctx.stroke();
     });
     ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     ctx.beginPath();
-    ctx.moveTo(20, top + height);
-    ctx.lineTo(w - 20, top + height);
+    ctx.moveTo(leftPad, top + height);
+    ctx.lineTo(w - rightPad, top + height);
     ctx.stroke();
   }
+
+  // Axis labels
+  ctx.save();
+  ctx.fillStyle = 'rgba(148,163,184,0.9)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const yTicks = 4;
+  for (let i = 0; i <= yTicks; i++) {
+    const ratio = i / yTicks;
+    const value = max - ((max - min) * ratio);
+    const y = topPad + (plotH * ratio);
+    ctx.fillText(fmtYAxis(value), leftPad - 8, y);
+  }
+
+  if (Array.isArray(options.xLabels) && options.xLabels.length) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelEvery = Math.max(1, Math.ceil(options.xLabels.length / 4));
+    options.xLabels.forEach((label, index) => {
+      if (index !== 0 && index !== options.xLabels.length - 1 && index % labelEvery !== 0) return;
+      ctx.fillText(String(label), getX(index), h - bottomPad + 6);
+    });
+  }
+  ctx.restore();
 
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
   gradient.addColorStop(0, fillColor);
   gradient.addColorStop(1, 'rgba(0,0,0,0)');
 
   ctx.beginPath();
-  ctx.moveTo(getX(0), h - 20);
+  ctx.moveTo(getX(0), getY(data[0]));
   data.forEach((v, i) => ctx.lineTo(getX(i), getY(v)));
-  ctx.lineTo(getX(data.length - 1), h - 20);
   ctx.closePath();
   ctx.fillStyle = gradient;
   ctx.fill();
