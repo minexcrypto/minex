@@ -273,6 +273,44 @@ async function loadReferralDetailsFallback() {
   }
 }
 
+function sumReferralEarnings(rows = []) {
+  return (Array.isArray(rows) ? rows : []).reduce((sum, row) => {
+    return sum + Number(row?.referral_earning ?? row?.earnings ?? 0);
+  }, 0);
+}
+
+function getCurrentMonthStartISO() {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return start.toISOString();
+}
+
+async function loadCurrentMonthReferralEarnings(userId) {
+  if (!userId || !_supabase) return 0;
+
+  try {
+    const { data, error } = await _supabase
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'referral')
+      .gte('created_at', getCurrentMonthStartISO());
+
+    if (error) {
+      console.warn('[Referral] monthly referral earnings query failed:', error.message);
+      return 0;
+    }
+
+    return (Array.isArray(data) ? data : []).reduce((sum, row) => {
+      return sum + Number(row?.amount || 0);
+    }, 0);
+  } catch (err) {
+    console.warn('[Referral] monthly referral earnings load failed:', err?.message || err);
+    return 0;
+  }
+}
+
 function normalizeTxType(raw) {
   const t = String(raw || '').trim().toLowerCase();
   if (['deposit', 'deposits', 'approved_deposit'].includes(t)) return 'deposit';
@@ -1033,7 +1071,8 @@ async function populateUserUI() {
 
   // Referral stats update (source of truth: referrals table)
   let referralCount = Number(profile.ref_count) || 0;
-  let refEarnings = Number(profile.ref_earnings) || 0;
+  let refEarnings = 0;
+  let refMonthEarnings = 0;
   if (_supabase && user?.id) {
     try {
       const { data: refs } = await _supabase
@@ -1042,13 +1081,15 @@ async function populateUserUI() {
         .eq('referrer_id', user.id);
       if (Array.isArray(refs)) {
         referralCount = refs.length;
-        refEarnings = Number(profile.ref_earnings) || 0;
       }
     } catch {}
   }
+  const referralDetails = await loadReferralDetails();
+  refEarnings = sumReferralEarnings(referralDetails);
+  refMonthEarnings = await loadCurrentMonthReferralEarnings(user?.id);
   setText('refCountEl', referralCount);
   setText('refEarningsEl', '$ ' + refEarnings.toFixed(2) + ' USDT');
-  const referralDetails = await loadReferralDetails();
+  setText('refMonthEl', '$ ' + refMonthEarnings.toFixed(2) + ' USDT');
   const activeReferrals = referralDetails.filter(row => row?.id_active === true).length;
   setText('activeRefEl', activeReferrals);
   renderReferralDetailsRows(referralDetails);
@@ -1534,7 +1575,7 @@ function renderWalletSummary() {
     .reduce((s, t) => s + Number(t.amount || 0), 0);
   const miningIncome    = txns.filter(t => normalizeTxType(t.type) === 'mining')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
-  const referralBonuses = txns.filter(t => t.type === 'referral')
+  const referralBonuses = txns.filter(t => normalizeTxType(t.type) === 'referral')
     .reduce((s, t) => s + Number(t.amount || 0), 0);
 
   setText('walletTotalDeposited',  '$ ' + totalDeposited.toFixed(2) + ' USDT');
