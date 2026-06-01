@@ -5,15 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CryptoVault Admin</title>
     <script>
-        (function () {
-            var path = (window.location.pathname || '/').toLowerCase();
-            var isAdminRoute = path.endsWith('/admin') || path.endsWith('/admin.html');
-            if (!isAdminRoute) {
-                // If hosting rewrite accidentally serves admin page on public routes
-                // (e.g. /dashboard), force user area page.
-                window.location.replace('/dashboard.html');
-            }
-        })();
+        // Keep admin route handling permissive here; auth checks in admin.js decide access.
+        // This avoids accidental redirect loops caused by host/path rewrites.
     </script>
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="style.css">
@@ -31,7 +24,7 @@
             }
         })();
     </script>
-    <script src="admin.js"></script>
+    <script src="admin.js?v=20260531d"></script>
 
 </head>
 <body>
@@ -102,8 +95,14 @@
                     <div class="stat-card approved"><div class="stat-label">Total Deposits</div><div class="stat-value" id="stat-total-deposits">0</div></div>
                     <div class="stat-card blue"><div class="stat-label">Active Contracts</div><div class="stat-value" id="stat-active-contracts">0</div></div>
                     <div class="stat-card orange"><div class="stat-label">Total Referrals</div><div class="stat-value" id="stat-total-referrals">0</div></div>
-                    <div class="stat-card green"><div class="stat-label">BTC Volume</div><div class="stat-value" id="stat-btc-volume">0</div></div>
-                    <div class="stat-card green"><div class="stat-label">USDT Volume</div><div class="stat-value" id="stat-usdt-volume">0</div></div>
+                    <div class="stat-card blue">
+                        <div class="stat-label">Contract Volume</div>
+                        <div class="stat-value" id="stat-total-contract-volume">0</div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="stat-label">Wallet Balance</div>
+                        <div class="stat-value" id="stat-total-wallet-balance">0</div>
+                    </div>
                 </div>
                 <div class="grid-2">
                     <div class="card"><div class="card-header"><div class="card-title">Live Activity</div></div><div id="overviewActivityFeed" style="max-height:300px;overflow-y:auto;"></div></div>
@@ -187,7 +186,11 @@
                     <div class="stat-card orange"><div class="stat-label">Conversion Rate</div><div class="stat-value" id="refStatConv">—</div></div>
                 </div>
                 <div class="grid-2">
-                    <div class="card"><div class="card-header"><div class="card-title">🏆 Referral Leaderboard</div></div><div id="referralLeaderboardWrap"></div></div>
+                    <div class="card">
+                        <div class="card-header"><div class="card-title">🏆 Referral Leaderboard</div></div>
+                        <div id="referralLeaderboardWrap"></div>
+                        <div id="referralLeaderDetailsWrap" style="margin:12px 16px 16px;"></div>
+                    </div>
                     <div class="card"><div class="card-header"><div class="card-title">🔗 Referral Tree Search</div></div>
                         <div style="padding:16px;"><input type="text" id="referralTreeSearch" placeholder="Enter email or user ID..." style="margin-bottom:12px;"><button class="admin-btn admin-btn-primary" onclick="ReferralModule.loadTree()">Load Tree</button><div id="referralTreeWrap" style="margin-top:16px;"></div></div>
                     </div>
@@ -260,6 +263,10 @@
         </div>
 
     </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="admin-btn admin-btn-outline" id="historyEditBtn" onclick="AdminUI.toast('History Edit will be added next.','info')">🕘 History Edit</button>
+        </div>
 
     <!-- USERS TABLE -->
     <div class="table-container" id="editOldUserTableWrap"></div>
@@ -393,3 +400,7 @@
 
 </body>
 </html>
+
+
+
+
