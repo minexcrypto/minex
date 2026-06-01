@@ -432,6 +432,11 @@ function getContractExpiryDate(contract) {
 
 function getContractRemainingDays(contract, refDate = new Date()) {
   const durationDays = getContractDurationDays(contract);
+  const nextPayout = contract?.next_payout_at ? new Date(contract.next_payout_at) : null;
+  if (nextPayout && Number.isFinite(nextPayout.getTime()) && nextPayout.getTime() > refDate.getTime()) {
+    const remainingMs = nextPayout.getTime() - refDate.getTime();
+    return Math.max(1, Math.ceil(remainingMs / PLAN_MS_PER_DAY));
+  }
   if (!durationDays) return null;
   const createdAt = new Date(contract?.created_at || Date.now());
   const elapsedDays = Math.max(0, (refDate.getTime() - createdAt.getTime()) / PLAN_MS_PER_DAY);
@@ -441,6 +446,12 @@ function getContractRemainingDays(contract, refDate = new Date()) {
 }
 
 function isContractExpired(contract, refDate = new Date()) {
+  if (!contract) return true;
+  if (contract.active === false) return true;
+  const nextPayout = contract?.next_payout_at ? new Date(contract.next_payout_at) : null;
+  if (nextPayout && Number.isFinite(nextPayout.getTime()) && nextPayout.getTime() > refDate.getTime()) {
+    return false;
+  }
   const expiryDate = getContractExpiryDate(contract);
   return !!expiryDate && refDate.getTime() >= expiryDate.getTime();
 }
@@ -979,6 +990,29 @@ async function loadDeposits() {
   return data || [];
 }
 
+function buildDepositHistoryRows() {
+  return (_allDeposits || []).map(d => {
+    const amount = Math.abs(Number(d?.amount || 0));
+    const normalizedStatus = String(d?.status || 'success').toLowerCase();
+    return {
+      desc:   normalizedStatus === 'pending' ? 'Deposit (Pending)' : 'Deposit',
+      coin:   'USDT',
+      amount:  '+' + amount.toFixed(2) + ' USDT',
+      usd:     '+$' + amount.toFixed(2),
+      status:  normalizedStatus,
+      date:    _fmtDate(d?.created_at),
+      type:    'deposit',
+      createdAt: d?.created_at || '',
+      _source: 'deposit',
+      _signature: [
+        'deposit',
+        amount.toFixed(2),
+        String(d?.created_at || '').slice(0, 16),
+      ].join('|'),
+    };
+  });
+}
+
 async function loadContracts() {
   const user = Auth.getUser();
   if (!user || !_supabase) return [];
@@ -1251,29 +1285,26 @@ function renderTransactions(filter) {
       date:   _fmtDate(tx.created_at),
       type:   txType,
       createdAt: tx.created_at,
+      _signature: [
+        txType,
+        amt.toFixed(decimals),
+        String(tx.created_at || '').slice(0, 16),
+      ].join('|'),
     };
   });
 
-  const pendingDepRows = _allDeposits
-    .filter(d => d.status === 'pending')
-    .map(d => {
-      const coinLbl = 'USDT';
-      const amt     = Number(d.amount || 0);
-      const amtStr  = '+' + amt.toFixed(2) + ' USDT';
-      const usdVal  = '+$' + amt.toFixed(2);
-      return {
-        desc:   'Deposit (Pending)',
-        coin:   coinLbl,
-        amount: amtStr,
-        usd:    usdVal,
-        status: 'pending',
-        date:   _fmtDate(d.created_at),
-        type:   'deposit',
-        createdAt: d.created_at,
-      };
-    });
+  const txSignatures = new Set(
+    txRows
+      .filter(row => row.type === 'deposit')
+      .map(row => row._signature)
+  );
 
-  const merged = [...txRows, ...pendingDepRows].sort(
+  const depositRows = buildDepositHistoryRows().filter(row => {
+    if (!row._signature) return true;
+    return !txSignatures.has(row._signature);
+  });
+
+  const merged = [...txRows, ...depositRows].sort(
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
