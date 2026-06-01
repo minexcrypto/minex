@@ -339,6 +339,7 @@ const PLAN_MONTHLY_RATE_LOCK = {
 let _latestContracts = [];
 let _liveHashrateAlignTimer = null;
 let _liveHashrateRefreshTimer = null;
+let _earningsChartDays = 12;
 
 const LIVE_HASHRATE_PRESETS = {
   starter:  { base: 0.6, cap: 2.5, zeroChance: 0.46, boosts: [0.5, 1, 1.5, 2.5, 4] },
@@ -449,6 +450,7 @@ function isContractExpired(contract, refDate = new Date()) {
   if (!contract) return true;
   if (contract.active === false) return true;
   const nextPayout = contract?.next_payout_at ? new Date(contract.next_payout_at) : null;
+  if (contract.active === true && !nextPayout) return false;
   if (nextPayout && Number.isFinite(nextPayout.getTime()) && nextPayout.getTime() > refDate.getTime()) {
     return false;
   }
@@ -1633,7 +1635,7 @@ function initEarningsChart(transactions) {
   if (!canvas) return;
 
   const now    = new Date();
-  const days   = 12;
+  const days   = Math.max(1, Number(_earningsChartDays || 12));
   const buckets = {};
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now);
@@ -1855,6 +1857,41 @@ function setSidebarOpen(isOpen) {
 /* ══════════════════════════════════════════════════════════════
    TAB NAVIGATION
 ══════════════════════════════════════════════════════════════ */
+function renderEarningsChart() {
+  initEarningsChart(_allTransactions || []);
+}
+
+function setEarningsChartRange(days) {
+  const nextDays = [12, 30, 90].includes(Number(days)) ? Number(days) : 12;
+  _earningsChartDays = nextDays;
+
+  document.querySelectorAll('[data-earnings-range]').forEach(btn => {
+    const match = Number(btn.dataset.earningsRange) === nextDays;
+    btn.classList.toggle('active', match);
+    btn.setAttribute('aria-pressed', match ? 'true' : 'false');
+  });
+
+  const subtitle = $('earningsChartSubtitle');
+  if (subtitle) subtitle.textContent = `Last ${nextDays} days • USDT`;
+
+  const totalLabel = $('chartTotalLabel');
+  if (totalLabel) totalLabel.textContent = `Total Earned (${nextDays}d)`;
+}
+
+function wireEarningsChartControls() {
+  const buttons = document.querySelectorAll('[data-earnings-range]');
+  if (!buttons.length) return;
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      setEarningsChartRange(Number(btn.dataset.earningsRange || 12));
+      renderEarningsChart();
+    });
+  });
+
+  setEarningsChartRange(_earningsChartDays);
+}
+
 function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(t  => { t.style.display = 'none'; });
   document.querySelectorAll('.nav-item').forEach(a    => { a.classList.remove('active'); });
@@ -2645,7 +2682,7 @@ async function refreshAll() {
   await Notifications.load();
 
   setTimeout(() => {
-    initEarningsChart(txns);
+    renderEarningsChart();
     initHashrateChart(contracts);
     initDonut(Auth.getProfile());
   }, 120);
@@ -2941,6 +2978,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireDropdowns();
   wireModals();
   wireTransactionFilters();
+  wireEarningsChartControls();
   wireDepositButtons();
   wireWithdrawButtons();
   wirePlanButtons();
