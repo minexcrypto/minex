@@ -1474,13 +1474,13 @@ const EditOldUserModule = {
           plan: planName,
           hashrate: planSetup.hashrate,
           daily_profit: dailyProfit,
-          active: remainingDays > 0,
+          active: true,
           progress,
           created_at: contractStart.toISOString(),
           last_payout_at: totalReward > 0
             ? new Date(firstMiningAt.getTime() + ((backfillDays - 1) * 24 * 60 * 60 * 1000)).toISOString()
             : contractStart.toISOString(),
-          next_payout_at: remainingDays > 0 ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
+          next_payout_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           total_earned: 0,
         };
         const { data: createdContract, error: createContractErr } = await sb.from('contracts').insert(contractPayload).select().single();
@@ -1529,22 +1529,12 @@ const EditOldUserModule = {
           progress,
           total_earned: nextTotalEarned,
           created_at: contractStart.toISOString(),
+          active: true,
         };
-        if (durationDays > 0) {
-          if (remainingDays > 0) {
-            nextContractPatch.active = true;
-            nextContractPatch.last_payout_at = totalReward > 0
-              ? new Date(firstMiningAt.getTime() + ((backfillDays - 1) * 24 * 60 * 60 * 1000)).toISOString()
-              : contractStart.toISOString();
-            nextContractPatch.next_payout_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-          } else {
-            nextContractPatch.active = false;
-            nextContractPatch.last_payout_at = totalReward > 0
-              ? new Date(firstMiningAt.getTime() + ((backfillDays - 1) * 24 * 60 * 60 * 1000)).toISOString()
-              : contractStart.toISOString();
-            nextContractPatch.next_payout_at = null;
-          }
-        }
+        nextContractPatch.last_payout_at = totalReward > 0
+          ? new Date(firstMiningAt.getTime() + ((backfillDays - 1) * 24 * 60 * 60 * 1000)).toISOString()
+          : contractStart.toISOString();
+        nextContractPatch.next_payout_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         const { error } = await sb.from('contracts').update(nextContractPatch).eq('id', contract.id);
         if(error) throw error;
         contract.total_earned = nextTotalEarned;
@@ -1553,11 +1543,9 @@ const EditOldUserModule = {
         contract.hashrate = planSetup.hashrate;
         contract.daily_profit = dailyProfit;
         contract.progress = nextContractPatch.progress;
-        if (durationDays > 0) {
-          contract.active = remainingDays > 0;
-          contract.last_payout_at = nextContractPatch.last_payout_at;
-          contract.next_payout_at = nextContractPatch.next_payout_at;
-        }
+        contract.active = true;
+        contract.last_payout_at = nextContractPatch.last_payout_at;
+        contract.next_payout_at = nextContractPatch.next_payout_at;
       }
 
       const backdateProfile = true;
