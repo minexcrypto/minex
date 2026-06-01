@@ -1405,6 +1405,21 @@ function _fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function _dateKeyInTimeZone(dateLike, timeZone = 'Asia/Kolkata') {
+  const date = dateLike instanceof Date ? dateLike : new Date(dateLike);
+  if (!Number.isFinite(date.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
 function _statusBadge(s) {
   const map = {
     success:  { bg: 'rgba(34,197,94,.15)',  fg: '#22c55e', label: 'Success'  },
@@ -1639,31 +1654,49 @@ function renderWalletSummary() {
 /* ══════════════════════════════════════════════════════════════
    UI — EARNINGS CHART
 ══════════════════════════════════════════════════════════════ */
-function initEarningsChart(transactions) {
+function initEarningsChart(transactions, contracts = []) {
   const canvas = $('earningsChart');
   if (!canvas) return;
 
   const now    = new Date();
   const days   = Math.max(1, Number(_earningsChartDays || 12));
+  const timeZone = 'Asia/Kolkata';
   const buckets = {};
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    buckets[key] = 0;
+    const bucketDate = new Date(now);
+    bucketDate.setDate(bucketDate.getDate() - i);
+    const key = _dateKeyInTimeZone(bucketDate, timeZone);
+    if (key) buckets[key] = { actual: 0, expected: 0 };
   }
 
   transactions
     .filter(t => normalizeTxType(t.type) === 'mining')
     .forEach(t => {
-      const key = t.created_at?.slice(0, 10);
+      const key = _dateKeyInTimeZone(t.created_at, timeZone);
       if (key && key in buckets) {
-        buckets[key] += Number(t.amount || 0);
+        buckets[key].actual += Number(t.amount || 0);
       }
     });
 
+  const activeContracts = (Array.isArray(contracts) ? contracts : []).filter(c => c?.active === true);
+  Object.entries(buckets).forEach(([key]) => {
+    const bucketDate = new Date(`${key}T00:00:00+05:30`);
+    const bucketTotal = activeContracts.reduce((sum, contract) => {
+      const createdAt = new Date(contract?.created_at || 0);
+      if (!Number.isFinite(createdAt.getTime()) || createdAt.getTime() > bucketDate.getTime()) return sum;
+      if (isContractExpired(contract, bucketDate)) return sum;
+      return sum + getContractDailyProfitUsd(contract);
+    }, 0);
+    buckets[key].expected = bucketTotal;
+  });
+
   const labels = Object.keys(buckets);
-  const data   = Object.values(buckets);
+  const data = labels.map(key => {
+    const bucket = buckets[key];
+    const actual = Number(bucket?.actual || 0);
+    const expected = Number(bucket?.expected || 0);
+    return actual > 0 ? actual : expected;
+  });
   const hasData = data.some(v => v > 0);
 
   const total12d = data.reduce((s, v) => s + v, 0);
@@ -1867,7 +1900,7 @@ function setSidebarOpen(isOpen) {
    TAB NAVIGATION
 ══════════════════════════════════════════════════════════════ */
 function renderEarningsChart() {
-  initEarningsChart(_allTransactions || []);
+  initEarningsChart(_allTransactions || [], _latestContracts || []);
 }
 
 function setEarningsChartRange(days) {
