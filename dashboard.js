@@ -1133,9 +1133,18 @@ async function populateUserUI() {
   const sName  = $('settingName');
   const sEmail = $('settingEmail');
   const sUserId = $('settingUserId');
+  const sCountry = $('settingCountry');
   if (sName)  sName.value  = profile.name  || '';
   if (sEmail) sEmail.value = email;
   if (sUserId) sUserId.value = profile.user_id || profile.ref_code || profile.id || user?.id || '—';
+  if (sCountry) {
+    const currentCountry = String(profile.country || '').trim();
+    if (currentCountry) {
+      const match = [...sCountry.options].some(opt => String(opt.value || opt.textContent || '').trim().toLowerCase() === currentCountry.toLowerCase());
+      if (match) sCountry.value = [...sCountry.options].find(opt => String(opt.value || opt.textContent || '').trim().toLowerCase() === currentCountry.toLowerCase())?.value || currentCountry;
+      else sCountry.value = currentCountry;
+    }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2310,8 +2319,10 @@ async function approveDeposit(deposit) {
 ══════════════════════════════════════════════════════════════ */
 async function saveSettings() {
   const name  = $('settingName')?.value.trim()  || '';
+  const country = $('settingCountry')?.value.trim() || '';
   const updates = {};
   if (name) updates.name = name;
+  if (country) updates.country = country;
 
   if (!Object.keys(updates).length) { Toast.show('Nothing to save.', 'info'); return; }
   const result = await Auth.updateProfile(updates);
