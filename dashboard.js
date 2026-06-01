@@ -1679,14 +1679,19 @@ function initEarningsChart(transactions, contracts = []) {
     });
 
   const labels = Object.keys(buckets);
-  const data = labels.map(key => Number(buckets[key] || 0));
-  const hasData = data.some(v => v > 0);
+  const dailyData = labels.map(key => Number(buckets[key] || 0));
+  const data = dailyData.reduce((acc, value) => {
+    const nextTotal = Number(((acc.length ? acc[acc.length - 1] : 0) + Number(value || 0)).toFixed(2));
+    acc.push(nextTotal);
+    return acc;
+  }, []);
+  const hasData = dailyData.some(v => v > 0);
 
-  const total12d = data.reduce((s, v) => s + v, 0);
-  const earningDays = data.filter(v => v > 0).length;
-  // Average only across days that actually earned mining rewards.
-  const avgDaily = earningDays > 0 ? total12d / earningDays : 0;
-  const bestDay  = hasData ? Math.max(...data) : 0;
+  const total12d = data.length ? data[data.length - 1] : 0;
+  const earningDays = dailyData.filter(v => v > 0).length;
+  // Average daily mined amount across only the days that actually earned.
+  const avgDaily = earningDays > 0 ? dailyData.reduce((s, v) => s + v, 0) / earningDays : 0;
+  const bestDay  = hasData ? Math.max(...dailyData) : 0;
   setText('chartTotal12d', hasData ? '$ ' + total12d.toFixed(2) + ' USDT' : '$ 0.00 USDT');
   setText('chartAvgDaily', hasData ? '$ ' + avgDaily.toFixed(2) + ' USDT' : '$ 0.00 USDT');
   setText('chartBestDay',  hasData ? '$ ' + bestDay.toFixed(2) + ' USDT' : '$ 0.00 USDT');
