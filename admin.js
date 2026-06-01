@@ -119,6 +119,61 @@ function getLocalPlanDurationDays(planName) {
   return PLAN_DURATION_DAYS[key] || 0;
 }
 
+const PLAN_SETUP_FALLBACK = {
+  starter: { priceUsd: 500, hashrate: 10, durationDays: 1460, monthlyRate: 0.10 },
+  silver: { priceUsd: 2500, hashrate: 50, durationDays: 1095, monthlyRate: 0.15 },
+  gold: { priceUsd: 5000, hashrate: 100, durationDays: 730, monthlyRate: 0.20 },
+  platinum: { priceUsd: 10000, hashrate: 300, durationDays: 365, monthlyRate: 0.25 },
+};
+
+function getLocalPlanSetup(planName) {
+  const key = String(planName || '').trim().toLowerCase();
+  return PLAN_SETUP_FALLBACK[key] || null;
+}
+
+function getLocalPlanPriceUsd(planName, fallbackPrice = null) {
+  const plan = getLocalPlanSetup(planName);
+  const price = Number(plan?.priceUsd ?? fallbackPrice);
+  return Number.isFinite(price) && price > 0 ? price : 0;
+}
+
+function getLocalPlanHashrate(planName, fallbackHashrate = null) {
+  const plan = getLocalPlanSetup(planName);
+  const hashrate = Number(plan?.hashrate ?? fallbackHashrate);
+  return Number.isFinite(hashrate) && hashrate > 0 ? hashrate : 0;
+}
+
+function getLocalPlanMonthlyRate(planName, fallbackRate = null) {
+  const plan = getLocalPlanSetup(planName);
+  const rate = Number(plan?.monthlyRate ?? fallbackRate);
+  return Number.isFinite(rate) && rate > 0 ? rate : 0;
+}
+
+function getLocalPlanDailyProfitUsd(planName, priceUsd = null) {
+  const price = Number.isFinite(Number(priceUsd)) ? Number(priceUsd) : getLocalPlanPriceUsd(planName, 0);
+  const monthlyRate = getLocalPlanMonthlyRate(planName, 0);
+  return price > 0 ? (price * monthlyRate) / 30 : 0;
+}
+
+function formatDateTimeLocalValue(date) {
+  const d = date instanceof Date ? new Date(date.getTime()) : new Date(date || Date.now());
+  if (!Number.isFinite(d.getTime())) return '';
+  const pad = (value) => String(value).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function parseDateTimeLocalValue(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  const parsed = new Date(text);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
 /* --------------------------------------------------------------
    ?3  UI PRIMITIVES
 -------------------------------------------------------------- */
@@ -1119,6 +1174,35 @@ const EditOldUserModule = {
     const earned = Number(contract.total_earned || 0).toFixed(8);
     return `${plan} | ${status} | ${duration || 'Unknown'} days | Earned ${earned} USDT`;
   },
+  _historyPlanSetup(planName){
+    const normalized = this._normalizePlan(planName || 'starter') || 'starter';
+    const plan = getLocalPlanSetup(normalized) || {};
+    const priceUsd = getLocalPlanPriceUsd(normalized, plan.priceUsd || 0);
+    const hashrate = getLocalPlanHashrate(normalized, plan.hashrate || 0);
+    const durationDays = getLocalPlanDurationDays(normalized) || Number(plan.durationDays || 0);
+    const monthlyRate = getLocalPlanMonthlyRate(normalized, plan.monthlyRate || 0);
+    const dailyProfit = getLocalPlanDailyProfitUsd(normalized, priceUsd);
+    return { normalized, priceUsd, hashrate, durationDays, monthlyRate, dailyProfit };
+  },
+  _setDateField(selector, value){
+    const el = $(selector);
+    if (el) el.value = formatDateTimeLocalValue(value);
+  },
+  _readDateField(selector){
+    return parseDateTimeLocalValue($(selector)?.value || '');
+  },
+  _ensureHistoryPlanFields(row, contract){
+    const planSetup = this._historyPlanSetup(contract?.plan || row?._activePlan || $('#eouHistoryPlan')?.value || 'starter');
+    const planSelect = $('#eouHistoryPlan');
+    const depositAmount = $('#eouHistoryDepositAmount');
+    const purchaseAmount = $('#eouHistoryPurchaseAmount');
+    const planDuration = $('#eouHistoryPlanDuration');
+    if (planSelect && !planSelect.value) planSelect.value = planSetup.normalized;
+    if (planDuration) planDuration.value = planSetup.durationDays ? `${planSetup.durationDays} days` : 'Unlimited';
+    if (depositAmount && !depositAmount.value) depositAmount.value = Number(planSetup.priceUsd || 0).toFixed(8);
+    if (purchaseAmount && !purchaseAmount.value) purchaseAmount.value = Number(planSetup.priceUsd || 0).toFixed(8);
+    return planSetup;
+  },
   _historyTargetRow(){
     const selectedId = ($('#eouHistoryUser')?.value || this._selectedUser?.id || '').trim();
     if (selectedId) {
@@ -1147,31 +1231,71 @@ const EditOldUserModule = {
   _refreshHistoryPreview(){
     const row = this._historyTargetRow();
     if (!row) return;
-    const years = Math.max(1, Number.parseFloat($('#eouHistoryYears')?.value || '1') || 1);
     const contract = this._historyContractForRow(row);
+    const planSetup = this._historyPlanSetup($('#eouHistoryPlan')?.value || contract?.plan || row?._activePlan || 'starter');
+    const years = Math.max(1, Number.parseFloat($('#eouHistoryYears')?.value || '1') || 1);
     const dailyProfitField = $('#eouHistoryDailyProfit');
     const daysField = $('#eouHistoryDays');
     const creditField = $('#eouHistoryCredit');
     const remainingField = $('#eouHistoryRemaining');
     const infoField = $('#eouHistoryContractInfo');
+    const setupInfoField = $('#eouHistorySetupInfo');
+    const planDurationField = $('#eouHistoryPlanDuration');
+    const runningDaysField = $('#eouHistoryRunningDays');
+    const planEndsField = $('#eouHistoryPlanEnds');
+    const depositAtField = $('#eouHistoryDepositAt');
+    const purchaseAtField = $('#eouHistoryPurchaseAt');
+    const depositAmountField = $('#eouHistoryDepositAmount');
+    const purchaseAmountField = $('#eouHistoryPurchaseAmount');
     const requestedDays = Math.max(1, Math.round(years * 365));
-    const durationDays = this._contractDurationDays(contract);
+    const durationDays = contract ? this._contractDurationDays(contract) : planSetup.durationDays;
     const backfillDays = durationDays ? Math.min(requestedDays, durationDays) : requestedDays;
     const remainingDays = durationDays ? Math.max(0, durationDays - backfillDays) : null;
+    const hasContract = Boolean(contract?.id);
+    const now = new Date();
+    const defaultProfileStart = new Date(now.getTime() - (requestedDays * 24 * 60 * 60 * 1000));
+    const defaultPurchaseTime = new Date(defaultProfileStart.getTime() + (60 * 60 * 1000));
+    const depositTime = this._readDateField('#eouHistoryDepositAt') || defaultProfileStart;
+    const purchaseTime = this._readDateField('#eouHistoryPurchaseAt') || defaultPurchaseTime;
+    const runningDays = Math.max(1, Math.min(durationDays || requestedDays, Math.round((now.getTime() - purchaseTime.getTime()) / (24 * 60 * 60 * 1000)) + 1));
+    const expiryDate = durationDays ? new Date(purchaseTime.getTime() + (durationDays * 24 * 60 * 60 * 1000)) : null;
 
     if (dailyProfitField && !dailyProfitField.value) {
-      dailyProfitField.value = Number(contract?.daily_profit || 0).toFixed(8);
+      dailyProfitField.value = Number(contract?.daily_profit || planSetup.dailyProfit || 0).toFixed(8);
     }
 
-    const dailyProfit = Number.parseFloat(dailyProfitField?.value || contract?.daily_profit || 0) || 0;
+    if (planDurationField) {
+      planDurationField.value = durationDays ? `${durationDays} days` : 'Unlimited';
+    }
+    if (depositAtField && !depositAtField.value) {
+      depositAtField.value = formatDateTimeLocalValue(defaultProfileStart);
+    }
+    if (purchaseAtField && !purchaseAtField.value) {
+      purchaseAtField.value = formatDateTimeLocalValue(defaultPurchaseTime);
+    }
+    if (depositAmountField && !depositAmountField.value) {
+      depositAmountField.value = Number(planSetup.priceUsd || 0).toFixed(8);
+    }
+    if (purchaseAmountField && !purchaseAmountField.value) {
+      purchaseAmountField.value = Number(planSetup.priceUsd || 0).toFixed(8);
+    }
+
+    const dailyProfit = Number.parseFloat(dailyProfitField?.value || contract?.daily_profit || planSetup.dailyProfit || 0) || 0;
     const total = dailyProfit * backfillDays;
 
     if (daysField) daysField.value = String(backfillDays);
     if (creditField) creditField.value = `${total.toFixed(8)} USDT`;
     if (remainingField) remainingField.value = durationDays ? `${remainingDays} days` : 'Unlimited';
+    if (runningDaysField) runningDaysField.value = `${runningDays} day${runningDays === 1 ? '' : 's'}`;
+    if (planEndsField) planEndsField.value = expiryDate ? expiryDate.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unlimited';
+    if (setupInfoField) {
+      setupInfoField.textContent = hasContract
+        ? 'This user already has a plan. The fields below will backdate the existing contract and keep the original plan history aligned.'
+        : 'No contract was found. Fill this section to create the first deposit, first purchase, and initial plan history for this profile.';
+    }
     if (infoField) {
       if (!contract) {
-        infoField.textContent = 'No contract found for this user.';
+        infoField.textContent = `New profile setup ready for ${planSetup.normalized.charAt(0).toUpperCase() + planSetup.normalized.slice(1)}.`;
       } else if (requestedDays > durationDays && durationDays > 0) {
         infoField.textContent = `Selected contract expires after ${durationDays} days, so only ${backfillDays} days can be backfilled and future payouts stop after expiry.`;
       } else if (durationDays > 0) {
@@ -1284,15 +1408,33 @@ const EditOldUserModule = {
       contractSelect.value = contract?.id || '';
     }
     this._selectedHistoryContractId = contract?.id || '';
+    const planSetup = this._historyPlanSetup(contract?.plan || row?._activePlan || 'starter');
+    const hasContract = Boolean(contract?.id);
     const dailyProfitField = $('#eouHistoryDailyProfit');
     if(dailyProfitField){
-      dailyProfitField.value = Number(contract?.daily_profit || 0).toFixed(8);
+      dailyProfitField.value = Number(contract?.daily_profit || planSetup.dailyProfit || 0).toFixed(8);
     }
+    const planField = $('#eouHistoryPlan');
+    if(planField){
+      planField.value = planSetup.normalized;
+    }
+    const depositAmountField = $('#eouHistoryDepositAmount');
+    const purchaseAmountField = $('#eouHistoryPurchaseAmount');
+    if (depositAmountField) depositAmountField.value = Number(planSetup.priceUsd || 0).toFixed(8);
+    if (purchaseAmountField) purchaseAmountField.value = Number(planSetup.priceUsd || 0).toFixed(8);
+    const depositAt = contract?.created_at || row.created_at || new Date();
+    const purchaseAt = contract?.created_at || row.created_at || new Date(Date.now() - (4 * 365 * 24 * 60 * 60 * 1000));
+    this._setDateField('#eouHistoryDepositAt', depositAt);
+    this._setDateField('#eouHistoryPurchaseAt', purchaseAt);
     $('#eouHistoryYears').value = '4';
     $('#eouHistoryBackfillTx').checked = true;
     $('#eouHistoryUpdateWallet').checked = true;
     $('#eouHistoryUpdateContract').checked = true;
     $('#eouHistoryBackdateProfile').checked = true;
+    if (!hasContract) {
+      const infoField = $('#eouHistoryContractInfo');
+      if (infoField) infoField.textContent = 'No contract found. This form will create the first plan setup for the selected profile.';
+    }
     this._refreshHistoryPreview();
     show('#historyEditModal');
   },
@@ -1302,22 +1444,38 @@ const EditOldUserModule = {
   async saveHistoryEdit(){
     const row = this._historyTargetRow();
     if(!row){ AdminUI.toast('No user selected.','error'); return; }
-    const contract = this._historyContractForRow(row);
-    if(!contract){ AdminUI.toast('Select an active contract first.','error'); return; }
+    const existingContract = this._historyContractForRow(row);
+    const planSetup = this._historyPlanSetup($('#eouHistoryPlan')?.value || existingContract?.plan || row?._activePlan || 'starter');
+    const planName = planSetup.normalized;
     const years = Number.parseFloat($('#eouHistoryYears')?.value || '');
     if(!Number.isFinite(years) || years <= 0){ AdminUI.toast('Enter a valid number of years.','error'); return; }
-    const dailyProfit = Number.parseFloat($('#eouHistoryDailyProfit')?.value || '');
+    const dailyProfitInput = Number.parseFloat($('#eouHistoryDailyProfit')?.value || '');
+    const dailyProfit = Number.isFinite(dailyProfitInput) && dailyProfitInput >= 0
+      ? dailyProfitInput
+      : Number(existingContract?.daily_profit || planSetup.dailyProfit || 0);
     if(!Number.isFinite(dailyProfit) || dailyProfit < 0){ AdminUI.toast('Enter a valid daily profit.','error'); return; }
+    const depositAmountInput = Number.parseFloat($('#eouHistoryDepositAmount')?.value || '');
+    const purchaseAmountInput = Number.parseFloat($('#eouHistoryPurchaseAmount')?.value || '');
+    const depositAmount = Number.isFinite(depositAmountInput) && depositAmountInput >= 0 ? depositAmountInput : Number(planSetup.priceUsd || 0);
+    const purchaseAmount = Number.isFinite(purchaseAmountInput) && purchaseAmountInput >= 0 ? purchaseAmountInput : Number(planSetup.priceUsd || 0);
+    const depositTime = this._readDateField('#eouHistoryDepositAt') || new Date(Date.now() - (Math.max(1, Math.round(years * 365)) * 24 * 60 * 60 * 1000));
+    const purchaseTime = this._readDateField('#eouHistoryPurchaseAt') || new Date(depositTime.getTime() + (60 * 60 * 1000));
+    if (purchaseTime < depositTime) {
+      AdminUI.toast('First purchase time must be after first deposit time.','error');
+      return;
+    }
 
     const requestedDays = Math.max(1, Math.round(years * 365));
-    const durationDays = this._contractDurationDays(contract);
+    const durationDays = existingContract ? this._contractDurationDays(existingContract) : planSetup.durationDays;
     const backfillDays = durationDays ? Math.min(requestedDays, durationDays) : requestedDays;
     const totalReward = Number((dailyProfit * backfillDays).toFixed(8));
-    const profileStart = new Date(Date.now() - (requestedDays * 24 * 60 * 60 * 1000));
-    const depositTime = new Date(profileStart.getTime());
-    const purchaseTime = new Date(profileStart.getTime() + (60 * 60 * 1000));
     const contractStart = new Date(purchaseTime.getTime());
     const firstMiningAt = new Date(contractStart.getTime() + (24 * 60 * 60 * 1000));
+    const now = Date.now();
+    const elapsedDays = Math.max(1, Math.round((now - purchaseTime.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+    const runningDays = durationDays ? Math.min(durationDays, elapsedDays) : elapsedDays;
+    const remainingDays = durationDays ? Math.max(0, durationDays - runningDays) : null;
+    const progress = durationDays ? Number(Math.min(100, (runningDays / durationDays) * 100).toFixed(2)) : 0;
     const backfillTx = $('#eouHistoryBackfillTx')?.checked !== false;
     const updateWallet = $('#eouHistoryUpdateWallet')?.checked !== false;
     const updateContract = $('#eouHistoryUpdateContract')?.checked !== false;
@@ -1325,19 +1483,64 @@ const EditOldUserModule = {
     const originalSnapshot = {
       usdt_balance: Number(row.usdt_balance || 0),
       created_at: row.created_at || null,
-      daily_profit: contract?.daily_profit ?? null,
-      total_earned: contract?.total_earned ?? null,
+      plan: existingContract?.plan || null,
+      daily_profit: existingContract?.daily_profit ?? null,
+      total_earned: existingContract?.total_earned ?? null,
+      has_contract: Boolean(existingContract?.id),
     };
 
     try{
-      const backdateResult = await Promise.allSettled([
-        sb.from('transactions').update({ created_at: depositTime.toISOString() }).eq('user_id', row.id).eq('type', 'deposit'),
-        sb.from('transactions').update({ created_at: purchaseTime.toISOString() }).eq('user_id', row.id).eq('type', 'purchase'),
-      ]);
-      const backdateFailure = backdateResult.find(item => item.status === 'rejected' || item.value?.error);
-      if (backdateFailure) {
-        const err = backdateFailure.reason || backdateFailure.value?.error;
-        throw err instanceof Error ? err : new Error(err?.message || 'Failed to backdate deposit/purchase transactions.');
+      let contract = existingContract || null;
+      const updateOrCreateHistoryTx = async (type, createdAt, amount) => {
+        const { data: existingRows, error: lookupErr } = await sb
+          .from('transactions')
+          .select('id')
+          .eq('user_id', row.id)
+          .eq('type', type)
+          .limit(20);
+        if (lookupErr) throw lookupErr;
+        const ids = (existingRows || []).map(item => item.id).filter(Boolean);
+        if (ids.length) {
+          const { error } = await sb.from('transactions').update({ created_at: createdAt.toISOString() }).in('id', ids);
+          if (error) throw error;
+          return { created: false, count: ids.length };
+        }
+        if (!(Number.isFinite(Number(amount)) && Number(amount) > 0)) {
+          return { created: false, count: 0 };
+        }
+        const { error } = await sb.from('transactions').insert({
+          user_id: row.id,
+          type,
+          amount: Number(amount),
+          coin: 'usdt_bep20',
+          status: 'success',
+          created_at: createdAt.toISOString(),
+        });
+        if (error) throw error;
+        return { created: true, count: 1 };
+      };
+
+      const depositTxResult = await updateOrCreateHistoryTx('deposit', depositTime, depositAmount);
+      const purchaseTxResult = await updateOrCreateHistoryTx('purchase', purchaseTime, purchaseAmount);
+
+      if (!contract) {
+        const contractPayload = {
+          user_id: row.id,
+          plan: planName,
+          hashrate: planSetup.hashrate,
+          daily_profit: dailyProfit,
+          active: remainingDays > 0,
+          progress,
+          created_at: contractStart.toISOString(),
+          last_payout_at: backfillTx && backfillDays > 0
+            ? new Date(firstMiningAt.getTime() + ((backfillDays - 1) * 24 * 60 * 60 * 1000)).toISOString()
+            : contractStart.toISOString(),
+          next_payout_at: remainingDays > 0 ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
+          total_earned: 0,
+        };
+        const { data: createdContract, error: createContractErr } = await sb.from('contracts').insert(contractPayload).select().single();
+        if (createContractErr) throw createContractErr;
+        contract = createdContract;
       }
 
       if(backfillTx && totalReward > 0){
@@ -1360,30 +1563,40 @@ const EditOldUserModule = {
         }
       }
 
-      if(updateWallet && totalReward > 0){
+      const setupWalletDelta = (depositTxResult.created ? Number(depositAmount || 0) : 0) - (purchaseTxResult.created ? Number(purchaseAmount || 0) : 0);
+      const rewardDelta = totalReward > 0 ? totalReward : 0;
+
+      if(updateWallet && (setupWalletDelta !== 0 || rewardDelta !== 0)){
         const currentWallet = Number(row.usdt_balance || 0);
-        const nextWallet = Number((currentWallet + totalReward).toFixed(8));
+        const nextWallet = Number((currentWallet + setupWalletDelta + rewardDelta).toFixed(8));
         const { error } = await sb.from('profiles').update({ usdt_balance: nextWallet }).eq('id', row.id);
         if(error) throw error;
         row.usdt_balance = nextWallet;
       }
 
-      if(updateContract && contract?.id && totalReward > 0){
+      if(contract?.id && (updateContract || !existingContract)){
         const currentTotalEarned = Number(contract.total_earned || 0);
-        const nextTotalEarned = Number((currentTotalEarned + totalReward).toFixed(8));
-        const remainingDays = durationDays ? Math.max(0, durationDays - backfillDays) : null;
+        const nextTotalEarned = Number((currentTotalEarned + rewardDelta).toFixed(8));
         const nextContractPatch = {
+          plan: existingContract ? contract.plan : planName,
+          hashrate: existingContract ? contract.hashrate : planSetup.hashrate,
+          daily_profit: dailyProfit,
+          progress,
           total_earned: nextTotalEarned,
           created_at: contractStart.toISOString(),
         };
         if (durationDays > 0) {
           if (remainingDays > 0) {
             nextContractPatch.active = true;
-            nextContractPatch.last_payout_at = new Date().toISOString();
+            nextContractPatch.last_payout_at = backfillTx && backfillDays > 0
+              ? new Date(firstMiningAt.getTime() + ((backfillDays - 1) * 24 * 60 * 60 * 1000)).toISOString()
+              : contractStart.toISOString();
             nextContractPatch.next_payout_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
           } else {
             nextContractPatch.active = false;
-            nextContractPatch.last_payout_at = new Date().toISOString();
+            nextContractPatch.last_payout_at = backfillTx && backfillDays > 0
+              ? new Date(firstMiningAt.getTime() + ((backfillDays - 1) * 24 * 60 * 60 * 1000)).toISOString()
+              : contractStart.toISOString();
             nextContractPatch.next_payout_at = null;
           }
         }
@@ -1391,6 +1604,10 @@ const EditOldUserModule = {
         if(error) throw error;
         contract.total_earned = nextTotalEarned;
         contract.created_at = contractStart.toISOString();
+        contract.plan = nextContractPatch.plan;
+        contract.hashrate = nextContractPatch.hashrate;
+        contract.daily_profit = nextContractPatch.daily_profit;
+        contract.progress = nextContractPatch.progress;
         if (durationDays > 0) {
           contract.active = remainingDays > 0;
           contract.last_payout_at = nextContractPatch.last_payout_at;
@@ -1399,9 +1616,9 @@ const EditOldUserModule = {
       }
 
       if(backdateProfile){
-        const { error } = await sb.from('profiles').update({ created_at: profileStart.toISOString() }).eq('id', row.id);
+        const { error } = await sb.from('profiles').update({ created_at: depositTime.toISOString() }).eq('id', row.id);
         if(error) throw error;
-        row.created_at = profileStart.toISOString();
+        row.created_at = depositTime.toISOString();
       }
 
       await logAdminAction(
@@ -1410,20 +1627,30 @@ const EditOldUserModule = {
         row.id,
         originalSnapshot,
         {
+          mode: existingContract ? 'existing_contract' : 'initial_profile_setup',
+          plan: planName,
           years,
           days: backfillDays,
           daily_profit: dailyProfit,
           total_reward: totalReward,
+          deposit_amount: depositAmount,
+          purchase_amount: purchaseAmount,
           contract_id: contract.id,
           contract_plan: contract.plan,
+          contract_hashrate: contract.hashrate || planSetup.hashrate,
           contract_duration_days: durationDays,
           deposit_tx_created_at: depositTime.toISOString(),
           purchase_tx_created_at: purchaseTime.toISOString(),
+          deposit_tx_created: depositTxResult.created,
+          purchase_tx_created: purchaseTxResult.created,
           mining_start_at: firstMiningAt.toISOString(),
           backfill_transactions: backfillTx,
           update_wallet: updateWallet,
           update_contract: updateContract,
           backdate_profile: backdateProfile,
+          running_days: runningDays,
+          remaining_days: remainingDays,
+          plan_ends_at: durationDays ? new Date(contractStart.getTime() + (durationDays * 24 * 60 * 60 * 1000)).toISOString() : null,
         }
       );
 
