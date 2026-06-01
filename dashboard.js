@@ -1788,18 +1788,9 @@ function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
   if (!ctx) return;
   const w = canvas.width  = canvas.offsetWidth || 400;
   const h = canvas.height = 160;
-  const leftPad = options.leftPad ?? 58;
-  const rightPad = options.rightPad ?? 20;
-  const topPad = options.topPad ?? 18;
-  const bottomPad = options.bottomPad ?? 30;
-  const plotW = Math.max(10, w - leftPad - rightPad);
-  const plotH = Math.max(10, h - topPad - bottomPad);
   const max   = Math.max(...data);
   const min   = Math.min(...data);
   const range = max - min || Math.abs(max) || 0.0000001;
-
-  const getX = i => leftPad + (i / Math.max(1, data.length - 1)) * plotW;
-  const getY = v => topPad + plotH - ((v - min) / range) * plotH;
 
   const fmtYAxis = (value) => {
     const n = Number(value || 0);
@@ -1808,6 +1799,29 @@ function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
     }
     return String(n.toFixed(1));
   };
+
+  const labelFont = '11px sans-serif';
+  ctx.save();
+  ctx.font = labelFont;
+  const yLabels = [];
+  const yTicks = 4;
+  for (let i = 0; i <= yTicks; i++) {
+    const ratio = i / yTicks;
+    const value = max - ((max - min) * ratio);
+    yLabels.push(fmtYAxis(value));
+  }
+  const widestYLabel = Math.max(...yLabels.map(label => ctx.measureText(label).width));
+  ctx.restore();
+
+  const leftPad = options.leftPad ?? Math.ceil(widestYLabel + 26);
+  const rightPad = options.rightPad ?? 20;
+  const topPad = options.topPad ?? 18;
+  const bottomPad = options.bottomPad ?? 30;
+  const plotW = Math.max(10, w - leftPad - rightPad);
+  const plotH = Math.max(10, h - topPad - bottomPad);
+
+  const getX = i => leftPad + (i / Math.max(1, data.length - 1)) * plotW;
+  const getY = v => topPad + plotH - ((v - min) / range) * plotH;
 
   if (options.moodZones) {
     const top = topPad;
@@ -1838,10 +1852,9 @@ function _drawLineChart(canvas, data, lineColor, fillColor, options = {}) {
   // Axis labels
   ctx.save();
   ctx.fillStyle = 'rgba(148,163,184,0.9)';
-  ctx.font = '11px sans-serif';
+  ctx.font = labelFont;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  const yTicks = 4;
   for (let i = 0; i <= yTicks; i++) {
     const ratio = i / yTicks;
     const value = max - ((max - min) * ratio);
