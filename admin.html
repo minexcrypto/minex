@@ -403,7 +403,7 @@
             </div>
             <div class="modal-body" id="historyEditModalBody">
                 <div style="margin-bottom:14px;padding:12px 14px;border:1px solid #1e2d45;border-radius:12px;background:#0d1117;color:#94a3b8;font-size:13px;line-height:1.5;">
-                    Select a user, enter how many years of history you want to backfill, and the tool will generate mining transactions, update wallet balance, and refresh the active contract total earned.
+                    Select a user, choose a contract, and enter years. The tool will auto-calculate deposit amount, purchase amount, and history dates from that contract.
                 </div>
 
                 <div class="form-group">
@@ -419,70 +419,10 @@
                     </div>
                 </div>
 
-                <div class="card" style="padding:16px;margin-bottom:14px;background:#0d1117;">
-                    <div class="card-title" style="margin-bottom:12px;">Initial Plan Setup</div>
-                    <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;line-height:1.5;" id="eouHistorySetupInfo">
-                        Use this section to create the first deposit, first purchase, and plan history for a new profile when no contract already exists.
-                    </div>
-
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Plan</label>
-                            <select id="eouHistoryPlan">
-                                <option value="starter">Starter</option>
-                                <option value="silver">Silver</option>
-                                <option value="gold">Gold</option>
-                                <option value="platinum">Platinum</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Plan Duration</label>
-                            <input type="text" id="eouHistoryPlanDuration" readonly>
-                        </div>
-                    </div>
-
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>First Deposit At</label>
-                            <input type="datetime-local" id="eouHistoryDepositAt">
-                        </div>
-                        <div class="form-group">
-                            <label>First Purchase At</label>
-                            <input type="datetime-local" id="eouHistoryPurchaseAt">
-                        </div>
-                    </div>
-
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>First Deposit Amount (USDT)</label>
-                            <input type="number" id="eouHistoryDepositAmount" min="0" step="0.00000001" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label>First Purchase Amount (USDT)</label>
-                            <input type="number" id="eouHistoryPurchaseAmount" min="0" step="0.00000001" value="0">
-                        </div>
-                    </div>
-
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Running Days</label>
-                            <input type="text" id="eouHistoryRunningDays" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Plan Expires At</label>
-                            <input type="text" id="eouHistoryPlanEnds" readonly>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="grid-2">
                     <div class="form-group">
                         <label>Years</label>
                         <input type="number" id="eouHistoryYears" min="1" step="1" value="4">
-                    </div>
-                    <div class="form-group">
-                        <label>Daily Profit (USDT)</label>
-                        <input type="number" id="eouHistoryDailyProfit" min="0" step="0.00000001" value="0">
                     </div>
                 </div>
 
@@ -500,35 +440,6 @@
                 <div class="form-group">
                     <label>Future Payout Days Left</label>
                     <input type="text" id="eouHistoryRemaining" readonly>
-                </div>
-
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#e2e8f0;">
-                        <input type="checkbox" id="eouHistoryBackfillTx" checked>
-                        Backfill mining transaction history
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#e2e8f0;">
-                        <input type="checkbox" id="eouHistoryUpdateWallet" checked>
-                        Update wallet balance
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#e2e8f0;">
-                        <input type="checkbox" id="eouHistoryUpdateContract" checked>
-                        Update active contract total earned
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#e2e8f0;">
-                        <input type="checkbox" id="eouHistoryBackdateProfile" checked>
-                        Backdate profile created_at
-                    </label>
-                </div>
-
-                <div style="font-size:12px;color:#94a3b8;margin-top:6px;line-height:1.6;">
-                    If the selected user has no active contract, the daily profit field can be edited manually before applying the history edit.
                 </div>
 
                 <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
