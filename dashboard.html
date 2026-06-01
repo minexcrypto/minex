@@ -11,7 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₮</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth-role.js"></script>
-
+<base target="_blank">
 </head>
 <body>
 
@@ -167,18 +167,18 @@
         <div class="card-header">
           <div>
             <div class="card-title">Mining Earnings</div>
-            <div class="card-subtitle">Last 12 days • USDT</div>
+            <div class="card-subtitle" id="earningsChartSubtitle">Last 12 days • USDT</div>
           </div>
           <div class="tabs">
-            <button class="tab-btn active">12D</button>
-            <button class="tab-btn">30D</button>
-            <button class="tab-btn">90D</button>
+            <button class="tab-btn active" type="button" data-earnings-range="12">12D</button>
+            <button class="tab-btn" type="button" data-earnings-range="30">30D</button>
+            <button class="tab-btn" type="button" data-earnings-range="90">90D</button>
           </div>
         </div>
         <canvas id="earningsChart" style="width:100%;display:block;"></canvas>
         <div style="display:flex;gap:24px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
           <div>
-            <div style="font-size:11px;color:var(--text-muted)">Total Earned (12d)</div>
+            <div style="font-size:11px;color:var(--text-muted)" id="chartTotalLabel">Total Earned (12d)</div>
             <div style="font-family:'DM Mono',monospace;font-size:15px;color:var(--gold);font-weight:500;margin-top:3px;" id="chartTotal12d">$ 0.00</div>
           </div>
           <div>
