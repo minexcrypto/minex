@@ -1081,6 +1081,47 @@ const EditOldUserModule = {
   _activeContractForRow(row){
     return row?._activeContract || null;
   },
+  _historyRowLabel(row){
+    const name = row?.name || row?.email || row?.user_id || 'Unknown user';
+    const email = row?.email || row?.user_id || '';
+    const plan = this._prettyPlan(row?._activePlan);
+    return `${name}${email ? ' | ' + email : ''}${plan ? ' | ' + plan : ''}`;
+  },
+  _historyTargetRow(){
+    const selectedId = ($('#eouHistoryUser')?.value || this._selectedUser?.id || '').trim();
+    if (selectedId) {
+      const picked = this._rows.find(row => row.id === selectedId);
+      if (picked) return picked;
+    }
+    return this._selectedUser || this._rows[0] || null;
+  },
+  _renderHistoryUserOptions(selectedId = ''){
+    return this._rows.map(row => {
+      const id = String(row.id || '');
+      const selected = id === selectedId ? ' selected' : '';
+      return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(this._historyRowLabel(row))}</option>`;
+    }).join('');
+  },
+  _refreshHistoryPreview(){
+    const row = this._historyTargetRow();
+    if (!row) return;
+    const years = Math.max(1, Number.parseFloat($('#eouHistoryYears')?.value || '1') || 1);
+    const dailyProfitField = $('#eouHistoryDailyProfit');
+    const daysField = $('#eouHistoryDays');
+    const creditField = $('#eouHistoryCredit');
+    const contract = this._activeContractForRow(row);
+
+    if (dailyProfitField && !dailyProfitField.value) {
+      dailyProfitField.value = Number(contract?.daily_profit || 0).toFixed(8);
+    }
+
+    const dailyProfit = Number.parseFloat(dailyProfitField?.value || contract?.daily_profit || 0) || 0;
+    const days = Math.max(1, Math.round(years * 365));
+    const total = dailyProfit * days;
+
+    if (daysField) daysField.value = String(days);
+    if (creditField) creditField.value = `${total.toFixed(8)} USDT`;
+  },
   _bulkRows(){
     return this._filteredRows();
   },
@@ -1165,6 +1206,123 @@ const EditOldUserModule = {
     hide('#oldUserEditModal');
     setHTML('#oldUserEditModalBody','');
   },
+  openHistoryEditForm(userId=''){
+    const row = userId ? this._rows.find(item => item.id === userId) : (this._selectedUser || this._rows[0] || null);
+    if(!row){ AdminUI.toast('No user available. Load users first.','warning'); return; }
+    this._selectedUser = row;
+    const title = document.getElementById('historyEditModalTitle');
+    const userSelect = document.getElementById('eouHistoryUser');
+    if(title) title.textContent = `History Edit - ${row.name || row.email || row.user_id || 'User'}`;
+    if(userSelect){
+      userSelect.innerHTML = this._renderHistoryUserOptions(row.id);
+      userSelect.value = row.id;
+    }
+    const contract = this._activeContractForRow(row);
+    const dailyProfitField = $('#eouHistoryDailyProfit');
+    if(dailyProfitField){
+      dailyProfitField.value = Number(contract?.daily_profit || 0).toFixed(8);
+    }
+    $('#eouHistoryYears').value = '4';
+    $('#eouHistoryBackfillTx').checked = true;
+    $('#eouHistoryUpdateWallet').checked = true;
+    $('#eouHistoryUpdateContract').checked = true;
+    $('#eouHistoryBackdateProfile').checked = true;
+    this._refreshHistoryPreview();
+    show('#historyEditModal');
+  },
+  closeHistoryEditForm(){
+    hide('#historyEditModal');
+  },
+  async saveHistoryEdit(){
+    const row = this._historyTargetRow();
+    if(!row){ AdminUI.toast('No user selected.','error'); return; }
+    const years = Number.parseFloat($('#eouHistoryYears')?.value || '');
+    if(!Number.isFinite(years) || years <= 0){ AdminUI.toast('Enter a valid number of years.','error'); return; }
+    const dailyProfit = Number.parseFloat($('#eouHistoryDailyProfit')?.value || '');
+    if(!Number.isFinite(dailyProfit) || dailyProfit < 0){ AdminUI.toast('Enter a valid daily profit.','error'); return; }
+
+    const days = Math.max(1, Math.round(years * 365));
+    const totalReward = Number((dailyProfit * days).toFixed(8));
+    const historyStart = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
+    const backfillTx = $('#eouHistoryBackfillTx')?.checked !== false;
+    const updateWallet = $('#eouHistoryUpdateWallet')?.checked !== false;
+    const updateContract = $('#eouHistoryUpdateContract')?.checked !== false;
+    const backdateProfile = $('#eouHistoryBackdateProfile')?.checked !== false;
+    const contract = this._activeContractForRow(row);
+    const originalSnapshot = {
+      usdt_balance: Number(row.usdt_balance || 0),
+      created_at: row.created_at || null,
+      daily_profit: contract?.daily_profit ?? null,
+      total_earned: contract?.total_earned ?? null,
+    };
+
+    try{
+      if(backfillTx && totalReward > 0){
+        const rows = [];
+        const txAmount = Number(dailyProfit.toFixed(8));
+        for(let i = 0; i < days; i++){
+          rows.push({
+            user_id: row.id,
+            type: 'mining',
+            amount: txAmount,
+            coin: 'usdt',
+            status: 'success',
+            created_at: new Date(historyStart.getTime() + (i * 24 * 60 * 60 * 1000)).toISOString(),
+          });
+        }
+        for(let i = 0; i < rows.length; i += 100){
+          const chunk = rows.slice(i, i + 100);
+          const { error } = await sb.from('transactions').insert(chunk);
+          if(error) throw error;
+        }
+      }
+
+      if(updateWallet && totalReward > 0){
+        const currentWallet = Number(row.usdt_balance || 0);
+        const nextWallet = Number((currentWallet + totalReward).toFixed(8));
+        const { error } = await sb.from('profiles').update({ usdt_balance: nextWallet }).eq('id', row.id);
+        if(error) throw error;
+        row.usdt_balance = nextWallet;
+      }
+
+      if(updateContract && contract?.id && totalReward > 0){
+        const currentTotalEarned = Number(contract.total_earned || 0);
+        const nextTotalEarned = Number((currentTotalEarned + totalReward).toFixed(8));
+        const { error } = await sb.from('contracts').update({ total_earned: nextTotalEarned }).eq('id', contract.id);
+        if(error) throw error;
+        contract.total_earned = nextTotalEarned;
+      }
+
+      if(backdateProfile){
+        const { error } = await sb.from('profiles').update({ created_at: historyStart.toISOString() }).eq('id', row.id);
+        if(error) throw error;
+        row.created_at = historyStart.toISOString();
+      }
+
+      await logAdminAction(
+        'history_edit',
+        'profiles',
+        row.id,
+        originalSnapshot,
+        {
+          years,
+          days,
+          daily_profit: dailyProfit,
+          total_reward: totalReward,
+          backfill_transactions: backfillTx,
+          update_wallet: updateWallet,
+          update_contract: updateContract,
+          backdate_profile: backdateProfile,
+        }
+      );
+
+      AdminUI.toast(`History updated for ${row.name || row.email || 'selected user'}.`, 'success', 6000);
+      this.closeHistoryEditForm();
+      await this.loadUsers();
+    }catch(err){
+      AdminUI.toast('History edit failed: '+err.message,'error',7000);
+    }
+  },
   closeEditForm(){
     return this.closeBulkEditForm();
   },
@@ -1174,7 +1332,7 @@ const EditOldUserModule = {
     try{
       const[{data:profiles,error:profilesError},{data:contracts,error:contractsError}]=await Promise.all([
         sb.from('profiles').select('id,email,name,user_id,phone,country,usdt_balance,is_active,is_banned,is_suspended,created_at').order('created_at',{ascending:false}).limit(250),
-        sb.from('contracts').select('id,user_id,plan,daily_profit,active,created_at').order('created_at',{ascending:false}).limit(250)
+        sb.from('contracts').select('id,user_id,plan,daily_profit,total_earned,active,created_at').order('created_at',{ascending:false}).limit(250)
       ]);
       if(profilesError) throw profilesError;
       if(contractsError) throw contractsError;
@@ -1920,12 +2078,18 @@ function ensureEditOldUserBulkButton() {
   bulkBtn.textContent = '?? Bulk Edit';
   bulkBtn.addEventListener('click', () => EditOldUserModule.openBulkEditForm());
 
+  const historyBtn = document.createElement('button');
+  historyBtn.className = 'admin-btn admin-btn-outline';
+  historyBtn.type = 'button';
+  historyBtn.textContent = '🕘 History Edit';
+  historyBtn.addEventListener('click', () => EditOldUserModule.openHistoryEditForm());
+
   const search = editSection.querySelector('#editOldUserSearchInput');
   const plan = editSection.querySelector('#editOldUserPlanFilter');
   filters.innerHTML = '';
   if (search) filters.appendChild(search);
   if (plan) filters.appendChild(plan);
-  actionRow.append(loadBtn, bulkBtn);
+  actionRow.append(loadBtn, bulkBtn, historyBtn);
   filters.appendChild(actionRow);
 }
 
@@ -1980,6 +2144,15 @@ function initFilters(){
   on('#oldUserSearchInput','input',()=>{ OldUsersModule._page=1; OldUsersModule._renderPage(); });
   on('#editOldUserSearchInput','input',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
   on('#editOldUserPlanFilter','change',()=>{ EditOldUserModule._page=1; EditOldUserModule._renderPage(); });
+  on('#eouHistoryUser','change',()=>{
+    const row = EditOldUserModule._historyTargetRow();
+    const contract = EditOldUserModule._activeContractForRow(row);
+    const dailyProfitField = $('#eouHistoryDailyProfit');
+    if (dailyProfitField) dailyProfitField.value = Number(contract?.daily_profit || 0).toFixed(8);
+    EditOldUserModule._refreshHistoryPreview();
+  });
+  on('#eouHistoryYears','input',()=>EditOldUserModule._refreshHistoryPreview());
+  on('#eouHistoryDailyProfit','input',()=>EditOldUserModule._refreshHistoryPreview());
   on('#depositSearchInput','input',()=>{ DepositsModule._page=1; DepositsModule._renderPage(); });
   on('#withdrawalSearchInput','input',()=>{ WithdrawalsModule._page=1; WithdrawalsModule._renderPage(); });
   on('#transactionSearchInput','input',()=>{ TransactionsModule._page=1; TransactionsModule._renderPage(); });
