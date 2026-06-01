@@ -1314,7 +1314,10 @@ const EditOldUserModule = {
     const backfillDays = durationDays ? Math.min(requestedDays, durationDays) : requestedDays;
     const totalReward = Number((dailyProfit * backfillDays).toFixed(8));
     const profileStart = new Date(Date.now() - (requestedDays * 24 * 60 * 60 * 1000));
-    const contractStart = new Date(Date.now() - (backfillDays * 24 * 60 * 60 * 1000));
+    const depositTime = new Date(profileStart.getTime());
+    const purchaseTime = new Date(profileStart.getTime() + (60 * 60 * 1000));
+    const contractStart = new Date(purchaseTime.getTime());
+    const firstMiningAt = new Date(contractStart.getTime() + (24 * 60 * 60 * 1000));
     const backfillTx = $('#eouHistoryBackfillTx')?.checked !== false;
     const updateWallet = $('#eouHistoryUpdateWallet')?.checked !== false;
     const updateContract = $('#eouHistoryUpdateContract')?.checked !== false;
@@ -1327,6 +1330,16 @@ const EditOldUserModule = {
     };
 
     try{
+      const backdateResult = await Promise.allSettled([
+        sb.from('transactions').update({ created_at: depositTime.toISOString() }).eq('user_id', row.id).eq('type', 'deposit'),
+        sb.from('transactions').update({ created_at: purchaseTime.toISOString() }).eq('user_id', row.id).eq('type', 'purchase'),
+      ]);
+      const backdateFailure = backdateResult.find(item => item.status === 'rejected' || item.value?.error);
+      if (backdateFailure) {
+        const err = backdateFailure.reason || backdateFailure.value?.error;
+        throw err instanceof Error ? err : new Error(err?.message || 'Failed to backdate deposit/purchase transactions.');
+      }
+
       if(backfillTx && totalReward > 0){
         const rows = [];
         const txAmount = Number(dailyProfit.toFixed(8));
@@ -1337,7 +1350,7 @@ const EditOldUserModule = {
             amount: txAmount,
             coin: 'usdt',
             status: 'success',
-            created_at: new Date(contractStart.getTime() + (i * 24 * 60 * 60 * 1000)).toISOString(),
+            created_at: new Date(firstMiningAt.getTime() + (i * 24 * 60 * 60 * 1000)).toISOString(),
           });
         }
         for(let i = 0; i < rows.length; i += 100){
@@ -1404,6 +1417,9 @@ const EditOldUserModule = {
           contract_id: contract.id,
           contract_plan: contract.plan,
           contract_duration_days: durationDays,
+          deposit_tx_created_at: depositTime.toISOString(),
+          purchase_tx_created_at: purchaseTime.toISOString(),
+          mining_start_at: firstMiningAt.toISOString(),
           backfill_transactions: backfillTx,
           update_wallet: updateWallet,
           update_contract: updateContract,
