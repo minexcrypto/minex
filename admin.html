@@ -419,6 +419,62 @@
                     </div>
                 </div>
 
+                <div class="card" style="padding:16px;margin-bottom:14px;background:#0d1117;">
+                    <div class="card-title" style="margin-bottom:12px;">Initial Plan Setup</div>
+                    <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;line-height:1.5;" id="eouHistorySetupInfo">
+                        Use this section to create the first deposit, first purchase, and plan history for a new profile when no contract already exists.
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Plan</label>
+                            <select id="eouHistoryPlan">
+                                <option value="starter">Starter</option>
+                                <option value="silver">Silver</option>
+                                <option value="gold">Gold</option>
+                                <option value="platinum">Platinum</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Plan Duration</label>
+                            <input type="text" id="eouHistoryPlanDuration" readonly>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>First Deposit At</label>
+                            <input type="datetime-local" id="eouHistoryDepositAt">
+                        </div>
+                        <div class="form-group">
+                            <label>First Purchase At</label>
+                            <input type="datetime-local" id="eouHistoryPurchaseAt">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>First Deposit Amount (USDT)</label>
+                            <input type="number" id="eouHistoryDepositAmount" min="0" step="0.00000001" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>First Purchase Amount (USDT)</label>
+                            <input type="number" id="eouHistoryPurchaseAmount" min="0" step="0.00000001" value="0">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Running Days</label>
+                            <input type="text" id="eouHistoryRunningDays" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Plan Expires At</label>
+                            <input type="text" id="eouHistoryPlanEnds" readonly>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid-2">
                     <div class="form-group">
                         <label>Years</label>
