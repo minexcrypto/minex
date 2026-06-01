@@ -11,7 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f59e0b'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='20' fill='%23080b10'>₮</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth-role.js"></script>
-
+<base target="_blank">
 </head>
 <body>
 
@@ -707,7 +707,7 @@
         </div>
         <div class="flex justify-between text-sm" style="padding:8px 0;border-bottom:1px solid rgba(30,45,69,0.5);">
           <span style="color:var(--text-muted)">This Month</span>
-          <span class="mono" style="color:var(--green);">$ 0.00 USDT</span>
+          <span class="mono" style="color:var(--green);" id="refMonthEl">$ 0.00 USDT</span>
         </div>
         <div class="flex justify-between text-sm" style="padding:8px 0;">
           <span style="color:var(--text-muted)">Active Referrals</span>
